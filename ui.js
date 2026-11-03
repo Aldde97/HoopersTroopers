@@ -124,12 +124,13 @@ const kindLine=f=>{if(f.kind==='pre')return preLabel(f.pre);const dn=derbyOf(f.h
 const kindLine0=f=>{const k=KINDN[f.kind]||'',l=stepLabel();return k&&!l.startsWith(k)?`${k} \u00b7 ${l}`:l;};
 const fxRank=(f,id)=>isFecK(f.kind)?fecRank(id,G.fec.phase!=='reg'&&!!G.fec.g2):isBclK(f.kind)?bclRank(id,G.bcl.phase!=='reg'&&!!G.bcl.g16):isEcK(f.kind)?ecRank(id):isNlK(f.kind)?nlRank(G.nl[f.lg],id):isBihK(f.kind)?bihRank(id):isKlsK(f.kind)?klsRank(id):isD2K(f.kind)?dom2Rank(id):isDomK(f.kind)?domRank(id):rankOf(id);
 const fxRec=(f,t)=>isFecK(f.kind)?(r=>`${r[0]}\u2013${r[1]}`)(fecRec(t.id,f.st==='r2')):isBclK(f.kind)?(r=>`${r[0]}\u2013${r[1]}`)(bclRec(t.id,f.st==='r16')):isEcK(f.kind)?(r=>`${r[0]}\u2013${r[1]}`)(ecRec(t.id)):isNlK(f.kind)?(r=>`${r[0]}\u2013${r[1]}`)(nlRec(G.nl[f.lg],t.id)):isBihK(f.kind)?`${t.bw||0}\u2013${t.bl||0}`:isKlsK(f.kind)?`${t.kw||0}\u2013${t.kl||0}`:isDomK(f.kind)?`${t.dw}\u2013${t.dl}`:`${t.w}\u2013${t.l}`;
-const rankTxt=(f,id)=>{const r=fxRank(f,id);return r?`${ordn(r)} (${fxRec(f,G.teams[id])})`:'ABA club, seeded directly';};
+const clubLg=t=>!t.dom?'EuroLeague':t.dom==='ABA'?'ABA League':t.dom==='ABA2'?'ABA League 2':t.dom==='KLS'?'KLS':t.dom==='BIH'?'Liga BiH':NLCFG[t.dom]?(NLCFG[t.dom].short||NLCFG[t.dom].name):'European';
+const rankTxt=(f,id)=>{const r=fxRank(f,id);return r?`${ordn(r)} (${fxRec(f,G.teams[id])})`:`${clubLg(G.teams[id])} club, seeded directly`;};
 const compName=f=>f.kind==='pre'?(f.pre&&f.pre.t[0]==='t'&&preT()?preT().name:f.pre&&f.pre.t==='nba'?'NBA Preseason':'Pre-season'):isFecK(f.kind)?'FIBA Europe Cup':isBclK(f.kind)?'Basketball Champions League':isEcK(f.kind)?'BKT EuroCup':isNlK(f.kind)?NLCFG[f.lg].name:isBihK(f.kind)?'Prvenstvo BiH':isKlsK(f.kind)?'Meridianbet KLS':isD2K(f.kind)?'ABA League 2':isDomK(f.kind)?'AdmiralBet ABA League':'Turkish Airlines Euroleague';
 function versusHTML(f){const h=G.teams[f.h],a=G.teams[f.a];
-  return `<div class="versus"><div class="side click" data-act="club:${h.id}">${crest(h)}<h4>${esc(h.name)}</h4><p>${h.city} \u00b7 ${fxRank(f,h.id)?ordn(fxRank(f,h.id)):'ABA club'}</p>${form(h.form)}</div>
+  return `<div class="versus"><div class="side click" data-act="club:${h.id}">${crest(h)}<h4>${esc(h.name)}</h4><p>${h.city} \u00b7 ${fxRank(f,h.id)?ordn(fxRank(f,h.id)):clubLg(h)+' club'}</p>${form(h.form)}</div>
   <div><div class="vsb">VS</div><div class="ko">${dateStr()}<br>20:30</div><div class="ven">${f.neutral?'Final Four \u00b7 neutral venue':`${esc(h.arena)} \u00b7 ${h.cap.toLocaleString('en-GB')} seats`}</div></div>
-  <div class="side click" data-act="club:${a.id}">${crest(a)}<h4>${esc(a.name)}</h4><p>${a.city} \u00b7 ${fxRank(f,a.id)?ordn(fxRank(f,a.id)):'ABA club'}</p>${form(a.form)}</div></div>`;}
+  <div class="side click" data-act="club:${a.id}">${crest(a)}<h4>${esc(a.name)}</h4><p>${a.city} \u00b7 ${fxRank(f,a.id)?ordn(fxRank(f,a.id)):clubLg(a)+' club'}</p>${form(a.form)}</div></div>`;}
 function probHTML(f){const h=G.teams[f.h],a=G.teams[f.a],wp=winProb(f.h,f.a,f.neutral),hp=Math.round(wp*100);
   return `<div class="prob"><i style="width:${hp}%;background:${lum(h.c1)>.85?h.c2:h.c1}"></i><i style="width:${100-hp}%;background:${lum(a.c1)>.85?a.c2:a.c1}"></i></div><div class="probl"><span>${h.short} ${hp}%</span><span class="mut">Win probability</span><span>${100-hp}% ${a.short}</span></div>`;}
 function nextMatchCard(){
