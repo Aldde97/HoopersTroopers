@@ -202,6 +202,56 @@ function nbaLottery(order){const lot=order.slice(0,14),won=[],left=lot.slice();
   for(let k=0;k<4;k++){const w=left.map(i=>LOTTO[lot.indexOf(i)]),tot=w.reduce((a,b)=>a+b,0);let x=Math.random()*tot,j=0;for(;j<left.length;j++){x-=w[j];if(x<=0)break;}won.push(left.splice(Math.min(j,left.length-1),1)[0]);}
   return won.concat(left).concat(order.slice(14));}
 function rookieSal(slot){return slot<=30?r5k((10.5*Math.exp(-(slot-1)/9)+1.9)*1e6):1270000;}
+/* ===================== NBA early entry for international players ===================== */
+// Real rules: a player outside the US is automatically eligible for the draft in the year he turns 22; younger players (at least 19 in the
+// draft year) must declare by the early-entry deadline (late April, game day 207) and can withdraw until the international deadline ten days
+// before the draft (mid June; game day 256, or at the end of the season at the latest). Most only stay in when they project as a first-round
+// pick. A drafted international player either comes over now (his club gets a buyout) or is stashed: he stays with his club and the NBA
+// team keeps his rights, then brings him over in a later summer once he is ready. Players already drafted for real (2022-26) have rights
+// and do not enter again (window.NBA_DRAFTED).
+const eeNorm=s=>String(s||'').normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+const eeYear=()=>G.season+1;
+const eeAgeY=p=>p.age+(eeYear()-G.season);
+function eeOK(p){if(!p||p.tid==null||p.prospect||p.nat==='USA'||p.draft||p.nbaR||p.yth!=null||p.loan)return false;const t=G.teams[p.tid];
+  if(!t||isNBA(t)||t.dom==='GL')return false;const a=eeAgeY(p);if(a<19||a>22)return false;
+  return !(window.NBA_DRAFTED||[]).includes(eeNorm(pname(p)));}
+function eeAdd(p,auto){const D=G.draft;p.prospect=D.y;p.ee=D.y;if(auto)p.eeAuto=1;else delete p.eeAuto;p.school=G.teams[p.tid].name;if(!D.cls.includes(p.id))D.cls.push(p.id);}
+// 2027 class: players at clubs outside the US on Tankathon's 2027 big board (Nov 2026): name, board rank (75 = unranked), real age now.
+// Their potential is raised to where the board projects them; ranked ones always enter and stay in.
+window.EE_REAL={2027:[['Stefan Joksimovi\u0107',4,18],['Hugo Yimga-Moukouri',10,18],['Cameron Houindo',35,19],['Klark Riethauser',40,19],['Pavle Backo',68,19],['Momo Faye',75,null],['Michael Ruzic',75,null]]};
+function eeReal(D){const L=(window.EE_REAL||{})[D.y],out={};if(!L)return out;const sc=prospects().filter(p=>!p.ee).map(prospectScore).sort((a,b)=>b-a);
+  for(const [n,r,age] of L){const p=Object.values(G.players).find(q=>eeNorm(pname(q))===eeNorm(n)&&q.tid!=null&&!isNBA(G.teams[q.tid]));if(!p)continue;if(age&&p.age<age)p.age=age;
+    const tg=(sc[Math.min(r,sc.length)-1]||75)-(r>sc.length?2:0);if(prospectScore(p)<tg)p.pot=clamp(Math.round(p.o+(tg-p.o)/.6),p.pot,97);out[p.id]=r;}
+  return out;}
+function eeDeclare(){nbaClassEnsure();const D=G.draft;if(!D||D.y!==eeYear())return;D.ee={y:D.y,dec:1,wd:0};const U=G.user,mine=[],all=[],RL=eeReal(D);
+  for(const p of Object.values(G.players)){if(!eeOK(p))continue;const s=prospectScore(p),auto=eeAgeY(p)===22;
+    if(RL[p.id]||(auto?s>=71:s>=69&&Math.random()<clamp((s-68)/8,.15,.95))){eeAdd(p,auto);if(RL[p.id])p.eeReal=RL[p.id];all.push(p);if(p.tid===U)mine.push(p);}}
+  all.sort((a,b)=>prospectScore(b)-prospectScore(a));
+  if(all.length)news(`${D.y} NBA Draft: international entrants`,`${all.length} players from clubs outside the US are in the ${D.y} NBA Draft pool. The best prospects: ${all.slice(0,6).map(p=>`${pname(p)} (${p.age}, ${G.teams[p.tid].short})`).join(', ')}.`);
+  if(mine.length)msg('Sporting Director',`${mine.length===1?pname(mine[0])+' is':mine.length+' of our players are'} in the ${D.y} NBA Draft`,`${mine.map(p=>`${pname(p)} (${p.age}, OVR ${p.o}, POT ${p.pot}) ${p.eeAuto?'is automatically eligible this year':'has declared for the draft'}`).join('; ')}. He stays with us for now. Declared players can still withdraw until mid June; if an NBA team drafts him, it may bring him over this summer (we receive a buyout) or leave him with us and keep his rights.`,'staff');}
+function eeWithdraw(){const D=G.draft;if(!D||!D.ee||D.ee.wd||D.y!==eeYear())return;D.ee.wd=1;const U=G.user,rk=prospects().sort((a,b)=>prospectScore(b)-prospectScore(a)).map(p=>p.id),out=[];
+  for(const p of prospects()){if(!p.ee||p.eeAuto||(p.eeReal&&p.eeReal<=45))continue;const r=rk.indexOf(p.id)+1,q=r>45?.85:r>30?.5:r>20?.2:0;
+    if(Math.random()<q){delete p.prospect;delete p.ee;D.cls=D.cls.filter(i=>i!==p.id);D.board=(D.board||[]).filter(i=>i!==p.id);out.push(p);}}
+  if(out.length)news(`${D.y} NBA Draft: withdrawals`,`${out.length} international players withdrew from the draft before the deadline and stay with their clubs, among them ${out.slice(0,5).map(pname).join(', ')}.`);
+  const m=out.filter(p=>p.tid===U);if(m.length)msg('Sporting Director','Withdrawn from the NBA Draft',`${m.map(pname).join(', ')} withdrew from the draft and stay${m.length>1?'':'s'} with us.`,'staff');}
+function eeTick(){if(!G.nl||!G.nl.NBA||preOn())return;const D=G.draft;
+  if(G.day>=207&&!(D&&D.ee&&D.ee.y===eeYear()))eeDeclare();
+  if(G.day>=256&&G.draft&&G.draft.ee&&!G.draft.ee.wd)eeWithdraw();}
+// buyout the NBA team pays the club (FIBA buyout clauses are usually between half a million and a few million)
+const eeBuy=p=>r10k(clamp((p.o-58)*110000,300000,4000000));
+function eeLeave(p,t,why){const c=G.teams[p.tid],b=eeBuy(p),U=G.user;if(c&&c.id===U){G.fin.bal+=b;G.fin.season.tin+=b;msg('Sporting Director',`${pname(p)} leaves for the NBA`,`${t.name} ${why} ${pname(p)} and paid his buyout of ${eur(b)} to us.`,'fin');}
+  else if(c)news(`${pname(p)} to the NBA`,`${t.name} ${why} ${pname(p)} from ${c.name} (buyout ${eur(b)}).`);leave(p);}
+// at the draft: does the pick come over now? Top-10 picks always, the rest of the first round half the time, second-rounders only when ready
+const eeCome=(p,slot,own)=>own===G.user?slot<=30:slot<=10||(slot<=30&&Math.random()<.5)||(slot>30&&p.o>=80&&Math.random()<.3);
+function eeStash(p,slot,own){const U=G.user,t=G.teams[own];p.nbaR={tid:own,y:G.season,slot};delete p.ee;delete p.eeAuto;delete p.eeReal;
+  if(p.tid===U)msg('Sporting Director',`${pname(p)} drafted by ${t.name}`,`${t.name} picked ${pname(p)} at #${slot} in the ${G.season} NBA Draft and hold his rights, but leave him with us for now.`,'staff');
+  if(own===U)msg('General Manager',`${pname(p)} stays in ${G.teams[p.tid].name}`,`We hold the rights to ${pname(p)} (#${slot}). He stays with ${G.teams[p.tid].name} for now; we bring him over once he is ready for the NBA.`,'staff');}
+// every summer the NBA teams bring over stashed players who are ready (OVR 80+); rights lapse after the player turns 27
+function eeStashTick(){const U=G.user;
+  for(const p of Object.values(G.players)){const R=p.nbaR;if(!R||R.y>=G.season)continue;const t=G.teams[R.tid];if(!t||!isNBA(t)||p.age>27||p.tid==null||isNBA(G.teams[p.tid])){delete p.nbaR;continue;}
+    if(p.o<80||Math.random()>.5)continue;eeLeave(p,t,'signed');delete p.nbaR;p.sal=Math.max(rookieSal(Math.min(R.slot,30)),salaryFor(p));p.yrs=3;p.exp=0;p.real=1;join(p,t);
+    if(R.tid===U)msg('General Manager',`${pname(p)} joins us`,`${pname(p)} (OVR ${p.o}), whose rights we held since the ${R.y} draft, is ready for the NBA and joins us on a 3-year deal worth ${eur(p.sal)} per season.`,'staff');}}
+window.NBA_DRAFTED=["adem bona", "adou thiero", "aj johnson", "ajay mitchell", "alex karaban", "alex sarr", "alperen sengun", "amari williams", "amen thompson", "anthony black", "ariel hukporti", "asa newell", "ausar thompson", "bennedict mathurin", "bennett stirtz", "bilal coulibaly", "blake wesley", "bobi klintman", "braden smith", "brandin podziemski", "brandon miller", "brice sensabaugh", "bronny james", "bruce thornton", "bryce mcgowens", "bub carrington", "cam christie", "cam whitmore", "cameron carr", "cason wallace", "cedric coward", "chet holmgren", "cody williams", "colby jones", "daron holmes ii", "dereck lively ii", "derik queen", "devin carter", "donovan clingan", "drake powell", "dyson daniels", "ebuka okorie", "emoni bates", "felix okpara", "gabriele procida", "gg jackson", "gradey dick", "gui santos", "harrison ingram", "henri veesaar", "isaiah collier", "isaiah evans", "isaiah jackson", "isaiah todd", "izaiyah nelson", "ja'kobe walter", "jabari smith jr.", "jabari walker", "jack kayil", "jaden hardy", "jaden ivey", "jaden springer", "jahmai mashack", "jalen duren", "jalen green", "jalen hood-schifino", "jamal shead", "jarace walker", "jared mccain", "jaylen wells", "jaylin williams", "jaylon tyson", "jeremy sochan", "jett howard", "johnny furphy", "jordan hawkins", "jordan walsh", "josh minott", "joshua jefferson", "juan nunez", "julian phillips", "julian strawther", "kam jones", "karim lopez", "kasparas jakucionis", "kel'el ware", "kendall brown", "kennedy chandler", "keyonte george", "khalifa diop", "khaman maluach", "kj simpson", "koa peat", "kobe sanders", "koby brea", "kyle filipowski", "kyshawn george", "leonard miller", "liam mcneeley", "matas buzelis", "matteo spagnolo", "max christie", "max shulga", "meleek thomas", "melvin ajinca", "mohamed diawara", "moritz wagner", "mouhamed gueye", "moussa diabate", "nate ament", "nick martinelli", "nick smith jr.", "nikola jovic", "nikola topic", "nikola \u0111urisic", "nique clifford", "noah clowney", "noah penda", "olivier-maxence prosper", "oso ighodaro", "otega oweh", "ousmane dieng", "pacome dadiet", "paolo banchero", "patrick baldwin jr.", "peyton watson", "rasheer fleming", "rayan rupert", "reed sheppard", "rocco zikarsky", "ryan conwell", "ryan dunn", "ryan rollins", "scoot henderson", "sergio de larrea", "shaedon sharpe", "sidy cissoko", "stephon castle", "taylor hendricks", "tidjane salaun", "trevon brazile", "tristan vukcevic", "tyler nickel", "tyty washington jr.", "ugonna onyenso", "ulrich chomche", "usman garuba", "victor wembanyama", "will richard", "will riley", "yang hansen", "yannick nzosa", "yves missi", "zaccharie risacher", "zach edey"];
 function nbaDraftRun(){const L=G.nl&&G.nl.NBA,D=G.draft;if(!L||!D||!D.cls||D.y!==G.season)return;nbaPicksEnsure();
   const base=nbaOrder(),r1=nbaLottery(base),r2=base.slice(),U=G.user,out=[];
   const lw=r1.slice(0,4).filter((id,i)=>base.indexOf(id)>i);news(`${G.season} NBA Draft Lottery`,`${G.teams[r1[0]].name} win the first pick. Top four: ${r1.slice(0,4).map((i,k)=>`${k+1}. ${G.teams[i].short}`).join(', ')}.${lw.length?` Jumped up: ${lw.map(i=>G.teams[i].short).join(', ')}.`:''}`);
@@ -210,10 +260,10 @@ function nbaDraftRun(){const L=G.nl&&G.nl.NBA,D=G.draft;if(!L||!D||!D.cls||D.y!=
     let p=null;if(own===U){const b=(D.board||[]).map(x=>G.players[x]).find(x=>x&&avail.has(x.id));p=b||[...avail].map(x=>G.players[x]).sort((a,b)=>prospectScore(b)-prospectScore(a))[0];
       if(roster(U).length>=20){out.push({slot,tid:own,pid:null});msg('General Manager',`Pick #${slot} forfeited`,`Our roster is full (20 players), so we could not use pick #${slot}.`,'staff');return;}}
     else p=[...avail].map(x=>G.players[x]).sort((a,b)=>prospectScore(b)+rf(-3,3)-prospectScore(a)-rf(-3,3))[0];
-    if(!p)return;avail.delete(p.id);delete p.prospect;p.sal=rookieSal(slot);p.yrs=slot<=30?4:2;p.exp=0;if(slot<=30)p.opts=[[G.season+2,'TO'],[G.season+3,'TO']];p.draft={y:G.season,slot,tid:own};p.real=1;join(p,t);
+    if(!p)return;avail.delete(p.id);delete p.prospect;if(p.ee&&!eeCome(p,slot,own)){eeStash(p,slot,own);out.push({slot,tid:own,pid:p.id,orig,stash:1});return;}if(p.ee){eeLeave(p,t,'drafted');delete p.ee;delete p.eeAuto;delete p.eeReal;}p.sal=rookieSal(slot);p.yrs=slot<=30?4:2;p.exp=0;if(slot<=30)p.opts=[[G.season+2,'TO'],[G.season+3,'TO']];p.draft={y:G.season,slot,tid:own};p.real=1;join(p,t);
     const used=new Set(roster(own).filter(q=>q!==p).map(q=>q.no));p.no=[0,1,2,3,4,5,7,8,9,10,11,12,13,14,15,20,21,22,23,24,25,30,31,32,33,35,41,44,55].find(n=>!used.has(n))||rnd(40,99);
     out.push({slot,tid:own,pid:p.id,orig});if(own===U)msg('General Manager',`We drafted ${pname(p)} at #${slot}`,`${pname(p)} (${p.pos}, ${p.age}, ${p.school}, OVR ${p.o}, POT ${p.pot}) joins us on a ${p.yrs}-year rookie contract worth ${eur(p.sal)} per season.`,'staff');}));
-  for(const id of avail){const p=G.players[id];delete p.prospect;p.yrs=0;p.sal=salaryFor(p);G.fa.push(id);}
+  for(const id of avail){const p=G.players[id];delete p.prospect;if(p.ee){delete p.ee;delete p.eeAuto;delete p.eeReal;continue;}p.yrs=0;p.sal=salaryFor(p);G.fa.push(id);}
   news(`${G.season} NBA Draft`,`First round: ${out.filter(x=>x.slot<=10&&x.pid!=null).map(x=>`${x.slot}. ${pname(G.players[x.pid])} (${G.teams[x.tid].short})`).join(', ')}.`);
   D.last={y:G.season,picks:out};D.cls=[];D.board=[];G.picks=G.picks.filter(k=>k.y>G.season);
   // AI teams keep 18 players at most
@@ -1978,7 +2028,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-30)*.012)*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
+function simStep(um){const r=simStep0(um);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -2177,8 +2227,9 @@ function newSeason(){
   boardSeason();
   fanSeason();
   tenSeasonEnd();
+  if(G.nl&&G.nl.NBA){if(!(G.draft&&G.draft.ee&&G.draft.ee.y===G.season+1))eeDeclare();if(G.draft&&G.draft.ee&&!G.draft.ee.wd)eeWithdraw();}
   G.season++;
-  nbaDraftRun();
+  nbaDraftRun();eeStashTick();
   ownerSeason();
   if(G.coach&&!G.sacked&&G.season>=G.coach.until){const h=G.history[0],t=G.teams[G.user],raise=h&&h.met?1.12:1;const old=G.coach.sal;G.coach.until=G.season+2;G.coach.sal=Math.max(Math.round(old*raise/1e4)*1e4,coachSalFor(t));msg('Club President','Contract extended',`Your contract has been extended by two seasons, until summer ${G.coach.until}. New salary: ${eur(G.coach.sal)} per season${G.coach.sal>old?` (was ${eur(old)})`:''}.`,'board');}
   sellOnMoves();loanBuyouts();for(const p of loanedOut())returnLoan(p,false);for(const p of loanedIn())returnLoanIn(p,false);glReturnAll();G.loanOffers={};G.loanMkt=null;
