@@ -786,7 +786,7 @@ function newGame(tid,mgr){
   G.fin.sponsor=Math.round(G.fin.wageBudget*.62/1e5)*1e5;
   G.fin.bal=Math.max(400000,Math.round(((u.rep-70)*230000+500000)/1e5)*1e5);
   G.fin.hist.push({l:'Start',bal:G.fin.bal});
-  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();coachTick();
+  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();coachTick();
   msg('Club President',`Welcome to ${u.name}`,`Welcome to ${u.city}, coach. The board's objective for ${seasonStr()} is clear: ${OBJ[G.obj].toLowerCase()}. Our fans expect a team that competes every night. Good luck.`,'board');
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(tid))}). The transfer market is open until the end of the regular season.`,'fin');
   msg('Assistant Coach','Rotation and tactics',`I have set the rotation by position. The first five in the squad list start, numbers 6 to 8 get rotation minutes, 9 and 10 play spot minutes. Reorder the list in Squad and adjust our game plan in Tactics.`,'staff');
@@ -1978,7 +1978,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-30)*.012)*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
+function simStep(um){const r=simStep0(um);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -2118,7 +2118,62 @@ function seasonEnd(){
 // shirt numbers stay unique within a club (a rating fix or a real roster sync can bring a double); potential is never below the rating
 function normSquads(){for(const t of G.teams){if(!t.order||t.dom==='GONE')continue;const used=new Set();for(const id of t.order){const p=G.players[id];if(!p)continue;if(p.no!=null&&p.no>=0&&used.has(p.no)){const n=NUMS.find(x=>!used.has(x));p.no=n==null?rnd(60,98):n;}used.add(p.no);}}
   for(const id in G.players){const p=G.players[id];if(p&&p.pot!=null&&p.o>p.pot)p.pot=p.o;}}
+// PBA Rookie Draft (own data G.pdraft, separate from the NBA draft). The real Season 51 draft is in January 2027; the game's PBA season (one
+// conference) ends in December, so the draft is held right after the Finals, at the latest on 20 January (game day 111).
+// Order: reverse of last season's final ranking (the real draft weighs all three conferences; the game plays one); no lottery. Rounds go on
+// until every club passes (max 6). First round 3-year rookie deals, second round 2 years, later 1 year. The first draft uses the projected
+// real order with the traded picks and the real prospects from the 2027 mock drafts (All-Star Magazine, Aug 2026; ESPN, Sep 2026).
+NAMES.PHI=NAMES.PHI||{f:['John','Mark','Paolo','Carlo','Joshua','Miguel','Rafael','Kevin','Kyle','Jerome','Ralph','Angelo','Christian','Gian','Jhon','Renz','Jeric','Arvin','Joaquin','Jasper','Rhenz','Lance','Andrei','Bryan','JM','RJ','CJ','JP','Kurt','Nino'],l:['Santos','Reyes','Cruz','Bautista','Garcia','Mendoza','Torres','Villanueva','Ramos','Aquino','Castillo','Navarro','Dela Cruz','Gonzales','Fernandez','Lopez','Mercado','Salazar','Pascual','Domingo','Manalo','Soriano','Tolentino','Ocampo','Javier','Lim','Tan','Sy','Abarca','Belmonte']};
+const PBA_SCHOOLS=['Ateneo','La Salle','UP','UST','NU','FEU','Adamson','UE','San Beda','Letran','Benilde','Mapua','San Sebastian','JRU','Lyceum','Arellano','EAC','Perpetual','MPBL'];
+const pdIn=()=>!!(G&&G.nl&&G.nl.PBA);
+const pdUser=()=>!!(G&&G.teams[G.user]&&G.teams[G.user].dom==='PBA');
+const pdNo=y=>y-1976;  // draft held in January of year y belongs to PBA season y-1976 (Season 51 = January 2027)
+const pdTeams=()=>G.teams.filter(t=>t.dom==='PBA');
+const pdId=c=>{const t=G.teams.find(x=>x.short===c&&x.dom==='PBA');return t?t.id:null;};
+function pdEnsure(){if(!pdIn())return;const y=G.season+1;G.pdraft=G.pdraft||{y:null,cls:[],board:[],last:null,picks:[],rank:null};const D=G.pdraft;
+  if(D.y===y&&D.cls&&D.cls.length)return;D.y=y;D.cls=[];D.board=[];D.done=false;D.warned=false;D.picks=[];
+  const R=window.PBA_DRAFT&&window.PBA_DRAFT.y===y?window.PBA_DRAFT:null;
+  if(R){R.order.forEach(([o,w])=>D.picks.push({r:1,orig:pdId(o),own:pdId(w)}));(R.r2||[]).forEach(([o,w])=>D.picks.push({r:2,orig:pdId(o),own:pdId(w)}));}
+  const mk=(f,l,pos,ht,age,school,o,pot)=>{const p=genPlayer(o,pos,'PHI',age);for(let i=0;i<12&&p.o!==o;i++){const d=o>p.o?1:-1;for(const k of ATTR)p.a[k]=clamp(p.a[k]+d,25,99);upd(p);}
+    if(f){p.f=f;p.l=l;p.real=1;}else{for(let i=0;i<20&&(window.PHOTOS||{})[pname(p)];i++){p.f=pick(NAMES.PHI.f);p.l=pick(NAMES.PHI.l);}const H={PG:[173,185],SG:[180,191],SF:[188,198],PF:[193,203],C:[198,208]}[pos];p.ht=rnd(H[0],H[1]);}
+    if(ht)p.ht=ht;p.pot=clamp(pot,p.o,90);p.prospect=y;p.pdp=1;p.school=school;p.yrs=0;p.sal=0;D.cls.push(p.id);return p;};
+  if(R)for(const r of R.cls){const p=mk(r[0],r[1],r[2],r[3],(y-1)-r[4],r[5],r[6],r[7]);if(r[8])p.inj=r[8];}
+  const extra=R?14:36;for(let i=0;i<extra;i++){const o=R?rnd(48,54):clamp(Math.round(66-2.6*Math.log(i+1)*2+rf(-2,2)),46,68);mk(null,null,pick(POS),0,rnd(21,24),pick(PBA_SCHOOLS),o,o+rnd(2,9));}}
+const pdProspects=()=>(G.pdraft&&G.pdraft.cls||[]).map(i=>G.players[i]).filter(p=>p&&p.prospect&&p.pdp);
+// final ranking of the season that just ended: champion, finalist, semi-finalists, quarter-finalists, then the rest by record
+function pdRank(){const L=G.nl&&G.nl.PBA;if(!L||!G.pdraft)return;const ids=L.ids.slice(),rec=i=>{const x=nlRec(L,i),g=x[0]+x[1];return g?x[0]/g:0;},h=L.hist||{},out=[];
+  const add=a=>{for(const i of a)if(i!=null&&!out.includes(i))out.push(i);};const los=s=>s.win===s.hi?s.lo:s.hi;
+  if(L.champ!=null)add([L.champ]);add((h.fin||[]).map(los));add((h.sf||[]).map(los).sort((a,b)=>rec(b)-rec(a)));add((h.qf||[]).map(los).sort((a,b)=>rec(b)-rec(a)));
+  add(ids.sort((a,b)=>rec(b)-rec(a)));G.pdraft.rank=out;}
+function pdOrder(){const D=G.pdraft;if(D.picks.length){const r1=D.picks.filter(k=>k.r===1).map(k=>k.orig);if(r1.every(x=>x!=null))return r1;}
+  const ids=pdTeams().map(t=>t.id),rk=D.rank&&D.rank.length?D.rank:ids.slice().sort((a,b)=>strength(b)-strength(a));return rk.filter(i=>ids.includes(i)).concat(ids.filter(i=>!rk.includes(i))).reverse();}
+const pdOwner=(r,orig)=>{const k=G.pdraft.picks.find(x=>x.r===r&&x.orig===orig);return k?k.own:orig;};
+const pdSal=(r,slot)=>r===1?r5k(80000+70000*Math.exp(-(slot-1)/5)):80000;
+function pdTick(){const D=G.pdraft;if(!D||!pdIn()||D.done||D.y!==G.season+1||preOn())return;
+  const L=G.nl.PBA,over=L.phase==='done';
+  if(!D.warned&&(L.phase==='po'||G.day>=104)&&pdUser()){D.warned=true;msg('General Manager',`PBA Season ${pdNo(D.y)} Draft after the Finals`,`The rookie draft is held right after the Finals (20 January at the latest). Order your draft board in Competitions \u203a PBA \u203a Draft; our picks take the highest player on the board who is still available.`,'staff');}
+  if(over||G.day>=111)pdRun();}
+function pdRun(){const D=G.pdraft;if(!D||D.done)return;D.done=true;const U=G.user,ord=pdOrder(),avail=new Set(pdProspects().map(p=>p.id)),out=[];let slot=0;
+  const score=p=>p.o+.6*(p.pot-p.o);
+  for(let r=1;r<=6&&avail.size;r++){let took=0;
+    for(const orig of ord){slot++;const own=pdOwner(r,orig),t=G.teams[own];if(!t||!avail.size)continue;const ros=roster(own),best=[...avail].map(x=>G.players[x]).sort((a,b)=>score(b)-score(a));let p=null;
+      if(own===U){const b=(D.board||[]).map(x=>G.players[x]).find(x=>x&&avail.has(x.id));p=b||(r<=2?best[0]:null);
+        if(p&&ros.length>=20){msg('General Manager',`Pick #${slot} forfeited`,`Our roster is full (20 players), so we passed on pick #${slot}.`,'staff');p=null;}}
+      else{const twelfth=ros.map(q=>q.o).sort((a,b)=>b-a)[11]||0,top=best[0];
+        if(top&&!(r>=2&&ros.length>=18)&&!(r>=3&&(ros.length>=16||top.o<twelfth-6)))p=[...avail].map(x=>G.players[x]).sort((a,b)=>score(b)+rf(-2,2)-score(a)-rf(-2,2))[0];}
+      if(!p){out.push({r,slot,tid:own,orig,pid:null});continue;}
+      avail.delete(p.id);delete p.prospect;delete p.pdp;p.yrs=r===1?3:r===2?2:1;p.sal=pdSal(r,slot);p.draft={y:D.y,slot,r,tid:own,pba:1};join(p,t);took++;
+      const used=new Set(roster(own).filter(q=>q!==p).map(q=>q.no));if(used.has(p.no))p.no=NUMS.find(n=>!used.has(n))||rnd(40,99);
+      out.push({r,slot,tid:own,orig,pid:p.id});
+      if(own===U)msg('General Manager',`We drafted ${pname(p)} at #${slot}`,`${pname(p)} (${p.pos}, ${p.age}, ${p.school}, OVR ${p.o}, POT ${p.pot}) joins us on a ${p.yrs}-year rookie contract worth ${eur(p.sal)} per season.`,'staff');}
+    if(!took)break;}
+  for(const id of avail){const p=G.players[id];delete p.prospect;delete p.pdp;p.yrs=0;p.sal=salaryFor(p);G.fa.push(id);}
+  const top=out.filter(x=>x.r===1&&x.pid!=null).slice(0,5).map(x=>`${x.slot}. ${pname(G.players[x.pid])} (${G.teams[x.tid].short})`).join(', ');
+  news(`PBA Season ${pdNo(D.y)} Draft`,`${out.filter(x=>x.pid!=null).length} players drafted in ${Math.max(...out.map(x=>x.r))} rounds. Top picks: ${top}.`);
+  D.last={y:D.y,picks:out};D.cls=[];D.board=[];
+  for(const t of pdTeams())if(t.id!==U){let n=0;while(roster(t.id).length>17&&n++<6){const w=roster(t.id).filter(q=>!q.draft||q.draft.y!==D.y).sort((a,b)=>a.o-b.o)[0];if(!w)break;toFA(w);}}}
 function newSeason(){
+  if(G.pdraft&&G.pdraft.y===G.season+1&&!G.pdraft.done&&pdIn())pdRun();pdRank();
   boardSeason();
   fanSeason();
   tenSeasonEnd();
@@ -2153,7 +2208,7 @@ function newSeason(){
   while(G.fa.filter(i=>G.players[i].o<=64).length<30){const p=genPlayer(rnd(52,63),pick(POS),pick(['SRB','SRB','CRO','MNE','BIH','SLO','USA','USA']),rnd(20,32));p.sal=salaryFor(p);G.fa.push(p.id);}
   ensureStaff();for(const t of G.teams)for(const x of t.staff||[]){x.age++;if(t.dom)continue;x.yrs--;if(x.yrs<=0)x.yrs=rnd(1,3);}for(const x of G.staffFA)x.age++;
   G.round=0;G.phase='reg';G.day=0;G.po=null;G.res=[];G.lastResults=null;G.lastGame=null;G.uRes={};G.listed=[];
-  G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();nlApplyMoves();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
+  G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();nlApplyMoves();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
   G.fin.wageBudget=Math.max(G.fin.wageBudget,Math.round(wageBill(G.user)*1.02/1e5)*1e5);nbaFinanceSync();
   const bo=G.fin.bailout||0,cut=bo?bailoutCut(bo):0;
   if(cut){G.fin.wageBudget=Math.round(G.fin.wageBudget*(1-cut)/1e5)*1e5;ensureSponsors();G.spons.tv=r10k(G.spons.tv*(1-cut));syncSponsor();G.fin.bailout=0;
@@ -2369,7 +2424,7 @@ let restoring=false;function restoreLost(){if(!G||G.lostFix||restoring)return;re
     const p=JSON.parse(JSON.stringify(q));p.id=G.nid++;p.tid=null;p.age=age;p.yrs=0;p.loan=null;p.last=p.last||(G.teams[q.tid]?G.teams[q.tid].name:'');p.sal=salaryFor(p);G.players[p.id]=p;G.fa.push(p.id);have.add(pname(p));n++;}
   G.lostFix=true;G.lostN=n;}
 function ensureDomestic(){
-  restoreLost();backfillExp();addExtraFA();addAbaFA();ensureKls();ensureBih();ensureNL();autSync();bihSync();glRosterSync();glStaffSync();forSync();nbaPicksEnsure();nbaClassEnsure();nbaStaffEnsure();if(G.spons)nbaFinanceSync();ensureEC();ensureBCL();ensureFEC();acbSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();
+  restoreLost();backfillExp();addExtraFA();addAbaFA();ensureKls();ensureBih();ensureNL();autSync();bihSync();glRosterSync();glStaffSync();forSync();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();if(G.spons)nbaFinanceSync();ensureEC();ensureBCL();ensureFEC();acbSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();
   for(const p of Object.values(G.players)){const n=(window.NAT_FIX||{})[pname(p)];if(n)p.nat=n;}
   if(G.dom!==undefined&&(!G.dom||G.dom.v===2)){domStaff();ensureDom2();return;}
   if(G.dom===undefined)addDomClubs();
@@ -4222,7 +4277,7 @@ function canSign(p,fee,sal){
   return null;
 }
 function makeOffer(pid,fee,yrs){
-  const p=G.players[pid];if(p&&p.prospect)return {ok:false,text:`${pname(p)} is in the ${p.prospect} NBA Draft.`};if(nbaLocked(p))return {ok:false,text:NBA_TXT(p)};if(userNBA()&&p.tid!=null&&isNBA(G.teams[p.tid]))return {ok:false,text:'NBA teams trade players. Use Propose trade.'};if(justJoined(p))return {ok:false,text:JUST_TXT(p)};const sal=demand(p),err=canSign(p,fee,sal);if(err)return {ok:false,text:err};
+  const p=G.players[pid];if(p&&p.prospect)return {ok:false,text:`${pname(p)} is in the ${p.prospect} ${p.pdp?'PBA':'NBA'} Draft.`};if(nbaLocked(p))return {ok:false,text:NBA_TXT(p)};if(userNBA()&&p.tid!=null&&isNBA(G.teams[p.tid]))return {ok:false,text:'NBA teams trade players. Use Propose trade.'};if(justJoined(p))return {ok:false,text:JUST_TXT(p)};const sal=demand(p),err=canSign(p,fee,sal);if(err)return {ok:false,text:err};
   const stamp=G.day;
   if(p.tid!=null){
     if(p.offR===stamp)return {ok:false,text:`${G.teams[p.tid].name} will not discuss ${p.l} again until after the next game.`};
