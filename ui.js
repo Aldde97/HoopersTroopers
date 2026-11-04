@@ -940,7 +940,9 @@ const csStarsG=r=>r>=88?5:r>=82?4.5:r>=78?4:r>=72?3.5:r>=66?3:r>=60?2.5:r>=55?2:
 const csStars=c=>{const l=c.of>1?1+4*(1-(c.rank-1)/(c.of-1)):3;return clamp(Math.round((csStarsG(c.rep)*.7+l*.3)*2)/2,.5,5);};
 function csData(){if(!UI.cc)UI.cc=careerClubs();const C=UI.cc;
   const byLg={};for(const c of C){const k=c.lg+((c.lg==='RL'||c.lg==='PROB')&&c.grp?'|'+c.grp:'');(byLg[k]=byLg[k]||[]).push(c);}for(const k in byLg)byLg[k].sort((a,b)=>b.str-a.str).forEach((c,i,a)=>{c.rank=i+1;c.of=a.length;});
-  const nats={};for(const c of C){const n=c.nat||'EUR';(nats[n]=nats[n]||{n,clubs:[],top:0}).clubs.push(c);nats[n].top=Math.max(nats[n].top,c.rep);}
+  const nats={};for(const c of C){const n=c.nat||'EUR';(nats[n]=nats[n]||{n,clubs:[],top:0}).clubs.push(c);nats[n].top=Math.max(nats[n].top,c.rep);
+    // clubs abroad in a national league (the NZ Breakers in the Australian NBL) are also listed under that league's country
+    const h=({AUS:'AUS'})[c.lg];if(h&&h!==n){(nats[h]=nats[h]||{n:h,clubs:[],top:0}).clubs.push(c);nats[h].top=Math.max(nats[h].top,c.rep);}}
   return {C,nats:Object.values(nats).sort((a,b)=>b.top-a.top||b.clubs.length-a.clubs.length)};}
 function csExpect(c){const r=c.rank,N=c.of;if(c.lg==='EL')return r<=4?'Reach the Final Four':r<=8?'Reach the playoffs':r<=13?'Reach the Play-In':'Finish in the top 14';
   if(c.lg==='NCAA')return r<=2?'Win the national championship':r<=6?'Reach the Final Four':r<=16?'Reach the Sweet 16':r<=30?'Make the NCAA Tournament':'Top half of the conference';
