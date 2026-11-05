@@ -1247,6 +1247,41 @@ function ensureStaff(){
   }
   scoutSeed();
 }
+
+/* ===================== Scouting uncertainty ===================== */
+// The user sees estimates, not the truth: how well a player is known (10-100) depends on the scouting staff, whether he plays in one of
+// the user's competitions or comes from the club's country, how famous he is, and on scouting assignments. Errors are fixed per player
+// and season, so numbers do not flicker. AI clubs are not affected.
+let KC=null;
+function knowCtx(){const k=G.season+'|'+G.day+'|'+G.user;if(KC&&KC.k===k)return KC;const me=G.teams[G.user],T=new Set();
+  if(!me.dom)ELT().forEach(t=>T.add(t.id));
+  for(const L of Object.values(G.nl||{}))if(L&&L.ids&&L.ids.includes(G.user))L.ids.forEach(i=>T.add(i));
+  for(const X of [G.dom,G.dom2,G.kls,G.bih,G.ec,G.bcl,G.fec])if(X&&X.ids&&X.ids.includes(G.user))X.ids.forEach(i=>T.add(i));
+  const sc=staffOf(G.user,'SC').map(x=>x.r.scout||50),best=sc.length?Math.max(...sc):0,ac=staffOf(G.user,'AC').map(x=>(x.r&&x.r.coach)||50);
+  KC={k,T,base:best?20+best*.4+Math.min(2,sc.length-1)*4:20,own:clamp(68+(ac.length?Math.max(...ac):50)/5,70,90),nba:isNBA(me)};return KC;}
+function know(p){if(!G||!G.teams[G.user])return 100;const C=knowCtx();
+  if(p.tid===G.user||p.yth===G.user||(p.loan&&p.loan.from===G.user))return 100;
+  if(G.scK&&G.scK[p.id]>=G.season-1)return 95;
+  let k=C.base;const t=p.tid!=null?G.teams[p.tid]:null;
+  if(t&&C.T.has(t.id))k+=30;if(p.nat===G.teams[G.user].nat||(t&&t.nat===G.teams[G.user].nat))k+=15;
+  if(p.real&&p.o>=80)k+=25;if(p.o>=85)k=Math.max(k,80);if(C.nba&&(p.prospect||(t&&t.dom==='NCAA')))k+=30;
+  return clamp(Math.round(k),10,90);}
+const kErr=(p,s)=>((sHash(p.id+'|'+s+'|'+G.season)%2001)/1000-1);
+function ovrEst(p){const k=know(p);return k>=75?p.o:clamp(Math.round(p.o+kErr(p,'o')*(100-k)/100*7),25,99);}
+function potKnow(p){return p.tid===G.user||p.yth===G.user?knowCtx().own:know(p);}
+function potEst(p){const k=potKnow(p);if(k>=95)return p.pot;return Math.max(ovrEst(p),Math.round(p.pot+kErr(p,'p')*(100-k)/100*9));}
+function potRange(p){const k=potKnow(p),c=potEst(p);if(k>=95)return [p.pot,p.pot];const w=Math.max(1,Math.round((100-k)/100*7));return [Math.max(ovrEst(p),c-w),Math.min(99,c+w)];}
+const ovrTxt=p=>{const k=know(p);return k>=75?String(p.o):'~'+ovrEst(p);};
+const potTxt=p=>{const [a,b]=potRange(p);return a===b?String(a):`${a}–${b}`;};
+const attrEst=(p,a)=>{const k=know(p);return k>=75?p.a[a]:clamp(Math.round((p.a[a]+kErr(p,a)*(100-k)/100*9)/(k<45?5:1))*(k<45?5:1),25,99);};
+// scouting assignments: each scout watches two players at a time; after two to four weeks the player is known for this season and next
+function scoutCap(){return staffOf(G.user,'SC').length*2;}
+function scoutAssign(pid){const p=G.players[pid];if(!p)return 'Player not found.';if(!staffOf(G.user,'SC').length)return 'You need a scout on your staff (Staff tab).';
+  if(know(p)>=95)return 'We already know him well.';G.scq=G.scq||[];if(G.scq.some(x=>x.pid===pid))return 'Already being scouted.';if(G.scq.length>=scoutCap())return `Your scouts are busy (${G.scq.length} of ${scoutCap()} assignments).`;
+  const b=Math.max(...staffOf(G.user,'SC').map(x=>x.r.scout||50));G.scq.push({pid,done:faAbs()+Math.round(clamp(32-(b-50)/2.5,14,32))});save();return null;}
+function scoutWork(){if(!G||!G.scq||!G.scq.length)return;const now=faAbs(),done=G.scq.filter(x=>x.done<=now);if(!done.length)return;G.scq=G.scq.filter(x=>x.done>now);G.scK=G.scK||{};
+  for(const x of done){const p=G.players[x.pid];if(!p)continue;G.scK[p.id]=G.season;const t=p.tid!=null?G.teams[p.tid]:null,S=staffOf(G.user,'SC')[0];
+    msg(S?`${S.f} ${S.l}`:'Scouting','Scouting report: '+pname(p),`${pname(p)} (${p.pos}, ${p.age}${t?`, ${t.name}`:', free agent'}): current level ${ovrTxt(p)}, potential ${potTxt(p)}. ${p.pot-p.o>=8?'A real talent, worth following.':p.o>=teamLevel(G.teams[G.user])?'He would improve our rotation.':'Solid, but not a difference-maker for us.'}`,'staff');}}
 function scoutSeed(){if(!G.staffFA||G.staffFA.some(x=>x.role==='SC'))return;for(let i=0;i<6;i++){const N=NAMES[pick(['USA','GER','ESP','SRB','ITA','FRA','GRE','TUR'].filter(k=>NAMES[k]))];G.staffFA.push(genStaff(['SC',pick(N.f),pick(N.l),'',rnd(1962,1990)],70));}}
 const staffOf=(tid,role)=>(G.teams[tid].staff||[]).filter(x=>!role||x.role===role);
 const staffWages=tid=>(G.teams[tid].staff||[]).reduce((a,x)=>a+x.sal,0);
@@ -2258,7 +2293,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
+function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -5084,7 +5119,7 @@ function exTick(){if(!G.staffFA)return;{const me=G.teams[G.user];if(me.staff)for
 // a scout on the staff reports a talent every 40 days or so: the better he is, the closer the player's ceiling is to the truth and the higher the find
 function scoutTick(){if(!G||G.sacked||preOn())return;const S=staffOf(G.user,'SC');if(!S.length)return;const now=faAbs();if(G.scD==null){G.scD=now;return;}if(now-G.scD<40)return;G.scD=now;
   const b=S.reduce((a,c)=>c.r.scout>a.r.scout?c:a),me=G.teams[G.user],lvl=teamLevel(me),L=Object.values(G.players).filter(p=>p.tid!==G.user&&!p.prospect&&!p.loan&&p.age<=24&&p.pot-p.o>=(b.r.scout>=75?5:3)&&p.pot>=lvl-4&&!(G.scSeen||[]).includes(p.id));if(!L.length)return;
-  const p=L.sort((x,y)=>y.pot-x.pot)[Math.floor(Math.random()*Math.min(L.length,b.r.scout>=75?5:15))],t=p.tid!=null?G.teams[p.tid]:null,err=Math.round((85-Math.min(85,b.r.scout))/8),e=rnd(-err,err);G.scSeen=(G.scSeen||[]).concat(p.id).slice(-40);
+  const p=L.sort((x,y)=>y.pot-x.pot)[Math.floor(Math.random()*Math.min(L.length,b.r.scout>=75?5:15))],t=p.tid!=null?G.teams[p.tid]:null,err=Math.round((85-Math.min(85,b.r.scout))/8),e=rnd(-err,err);G.scSeen=(G.scSeen||[]).concat(p.id).slice(-40);(G.scK||(G.scK={}))[p.id]=G.season;
   msg(`${b.f} ${b.l}`,`Scout report: ${pname(p)}`,`I have been watching ${pname(p)} (${p.pos}, ${p.age}${t?`, ${t.name}`:', free agent'}). He is ${p.o} now, and I think he can reach around ${clamp(p.pot+e,p.o,99)}.`,'scoutrep',{pid:p.id});}
 // a club needs 10 players before it may play: the user signs them himself. fillRoster is only his emergency way out, on his own click.
 const SQUADMIN=10;
