@@ -86,7 +86,47 @@ const tcol=t=>contrast(t.c1,'#ffffff')>=3?'#ffffff':(t.c2&&contrast(t.c1,t.c2)>=
 function ovr(p){const w=POSW[p.pos];let s=0;for(const k of ATTR)s+=p.a[k]*w[k];return Math.round(s);}
 function upd(p){p.o=ovr(p);if(p.pot!=null&&p.o>p.pot)p.pot=p.o;}
 const pname=p=>p.f+' '+p.l, sname=p=>p.f[0]+'. '+p.l;
-function value(p){let v=Math.max(0,p.o-55)**2*1500;if(G&&G.salV&&p.tid!=null){const t=G.teams[p.tid];if(t&&t.dom&&!isNBA(t)&&t.dom!=='NCAA'&&t.dom!=='GL')v*=clamp(Math.sqrt(MKPAY[t.dom]!=null?MKPAY[t.dom]:.25),.35,1);}v*=p.age<=23?1.4:p.age<=27?1.15:p.age<=30?1:p.age<=32?.7:.45;v*=1+Math.max(0,p.pot-p.o)*.02;return Math.max(30000,r10k(v));}
+
+/* ===================== Season awards ===================== */
+// At the end of every season each league names an MVP, an All-League First Team, a Young Player of the Year (22 or younger) and a Coach
+// of the Year (the team that beat its pre-season expectation by most); the European cups name an MVP. Players: efficiency (PIR) per game,
+// weighted a little by team success, with a minimum of games. Awards raise a player's value and wage demands for two seasons and
+// lift the coach's standing on the job market.
+function awExp(){if(G.aexp&&G.aexp.s===G.season)return;const r={};for(const A of awLeagues()){const o=A.ids.slice().sort((a,b)=>strength(b)-strength(a));o.forEach((id,i)=>{r[A.key+'|'+id]=i+1;});}G.aexp={s:G.season,r};}
+function awLeagues(){const out=[],ok=i=>G.teams[i]&&G.teams[i].order&&G.teams[i].order.length;
+  out.push({key:'EL',name:'EuroLeague',ids:ELT().map(t=>t.id).filter(ok),st:'st',rec:i=>[G.teams[i].w,G.teams[i].l]});
+  for(const L of Object.values(G.nl||{}))if(L&&L.ids&&L.ids.length>=6)out.push({key:L.code,name:NLCFG[L.code].name,ids:L.ids.filter(ok),st:'kst',rec:i=>nlRec(L,i).slice(0,2)});
+  if(G.dom&&G.dom.ids)out.push({key:'ABA',name:'ABA League',ids:G.dom.ids.filter(ok),st:'dst',rec:i=>[G.teams[i].dw||0,G.teams[i].dl||0]});
+  if(G.kls&&G.kls.ids)out.push({key:'KLS',name:'KLS',ids:G.kls.ids.filter(ok),st:'kst',rec:i=>[G.teams[i].kw||0,G.teams[i].kl||0]});
+  if(G.bih&&G.bih.ids)out.push({key:'BIH',name:'Prvenstvo BiH',ids:G.bih.ids.filter(ok),st:'kst',rec:i=>[G.teams[i].bw||0,G.teams[i].bl||0]});
+  for(const [k,X,nm,rc] of [['EC',G.ec,'EuroCup',typeof ecRec==='function'?ecRec:null],['BCL',G.bcl,'Champions League',typeof bclRec==='function'?bclRec:null],['FEC',G.fec,'Europe Cup',typeof fecRec==='function'?fecRec:null]])
+    if(X&&X.ids&&rc)out.push({key:k,name:nm,ids:X.ids.filter(ok),st:'est',rec:i=>{try{return rc(i).slice(0,2);}catch(e){return [0,0];}},cup:1});
+  return out;}
+const AWN={mvp:'MVP',first:'All-League First Team',young:'Young Player of the Year',coach:'Coach of the Year'};
+function awRun(){const S=seasonStr(),R={};G.awards=G.awards||{};const mineL=[];
+  for(const A of awLeagues()){const rec={};for(const i of A.ids){const r=A.rec(i);rec[i]=(r[0]+r[1])?r[0]/(r[0]+r[1]):.5;}
+    const pool=A.ids.flatMap(i=>roster(i)).filter(p=>p[A.st]&&p[A.st].gp>0);if(pool.length<10)continue;const mx=Math.max(...pool.map(p=>p[A.st].gp));
+    const el=pool.filter(p=>p[A.st].gp>=Math.max(3,mx*.5)).map(p=>({p,sc:per(p[A.st],'pir')*(.8+.4*(rec[p.tid]||.5))})).sort((a,b)=>b.sc-a.sc);if(!el.length)continue;
+    const E_=x=>({pid:x.p.id,n:pname(x.p),t:G.teams[x.p.tid].short,v:+per(x.p[A.st],'pts').toFixed(1),r:+per(x.p[A.st],'reb').toFixed(1),a:+per(x.p[A.st],'ast').toFixed(1),pir:+per(x.p[A.st],'pir').toFixed(1)});
+    const O={name:A.name,mvp:E_(el[0])};
+    if(!A.cup){const f=[];let g=0,b=0;for(const x of el){const gd=x.p.pos==='PG'||x.p.pos==='SG',bg=x.p.pos==='C'||x.p.pos==='PF';if(gd&&g>=2)continue;if(f.length===4&&!b&&!bg)continue;f.push(x);if(gd)g++;if(bg)b++;if(f.length===5)break;}O.first=f.map(E_);
+      const y=el.find(x=>x.p.age<=(A.key==='NCAA'?19:22));if(y)O.young=E_(y);
+      const ex=G.aexp&&G.aexp.r||{},rk=A.ids.slice().sort((a,b)=>rec[b]-rec[a]),best=A.ids.map(i=>({i,d:(ex[A.key+'|'+i]||rk.indexOf(i)+1)-(rk.indexOf(i)+1)})).sort((a,b)=>b.d-a.d||rec[b.i]-rec[a.i])[0];
+      if(best){const t=G.teams[best.i],hc=best.i===G.user?G.mgr:hcName(t);O.coach={tid:best.i,n:hc||'',t:t.short,d:best.d};}}
+    R[A.key]=O;
+    // effects on the players
+    const tag=(e,k)=>{const p=G.players[e.pid];if(!p)return;(p.aw=p.aw||[]).push([S,A.key,k]);if(k==='young'&&p.pot<97)p.pot++;if(p.tid===G.user){G.board=clamp(G.board+(k==='mvp'?3:1),0,100);G.fans=clamp(G.fans+(k==='mvp'?3:1),0,100);}};
+    tag(O.mvp,'mvp');(O.first||[]).forEach(e=>tag(e,'first'));if(O.young)tag(O.young,'young');
+    if(O.coach&&O.coach.tid===G.user){(G.coachAw=G.coachAw||[]).push([S,A.key]);G.board=clamp(G.board+8,0,100);G.fans=clamp(G.fans+3,0,100);}
+    if(A.ids.includes(G.user))mineL.push(A.key);}
+  G.awards[S]=R;const ks=Object.keys(G.awards);if(ks.length>15)delete G.awards[ks[0]];
+  for(const k of mineL){const O=R[k];if(!O)continue;const me=x=>x&&G.teams.find(t=>t.short===x.t)&&G.teams.find(t=>t.short===x.t).id===G.user;
+    msg('League Office',`${O.name} awards ${S}`,`MVP: ${O.mvp.n} (${O.mvp.t}, ${O.mvp.v} pts, ${O.mvp.r} reb, ${O.mvp.a} ast).${O.first?` First Team: ${O.first.map(e=>`${e.n} (${e.t})`).join(', ')}.`:''}${O.young?` Young Player of the Year: ${O.young.n} (${O.young.t}).`:''}${O.coach?` Coach of the Year: ${O.coach.n} (${O.coach.t}).`:''}${[O.mvp].concat(O.first||[],O.young?[O.young]:[]).some(me)?' Our players are among the honoured.':''}${O.coach&&O.coach.tid===G.user?' You are Coach of the Year: the board and the fans are delighted, and other clubs have noticed.':''}`,'board');}
+  if(R.EL)news(`EuroLeague awards ${S}`,`MVP: ${R.EL.mvp.n} (${R.EL.mvp.t}). Coach of the Year: ${R.EL.coach?R.EL.coach.n+' ('+R.EL.coach.t+')':'–'}.`);}
+// recent awards: worth more on the market for two seasons
+function awMult(p){if(!p.aw||!p.aw.length)return 1;const y=G.season;let m=1;for(const [S,k,kind] of p.aw){const s0=+String(S).slice(0,4);if(y-s0>2)continue;m=Math.max(m,kind==='mvp'?1.25:kind==='first'?1.12:1.1);}return m;}
+const coachAwB=()=>(G.coachAw||[]).filter(([S])=>G.season-+String(S).slice(0,4)<=3).length*3;
+function value(p){let v=Math.max(0,p.o-55)**2*1500*(typeof awMult==='function'&&G?awMult(p):1);if(G&&G.salV&&p.tid!=null){const t=G.teams[p.tid];if(t&&t.dom&&!isNBA(t)&&t.dom!=='NCAA'&&t.dom!=='GL')v*=clamp(Math.sqrt(MKPAY[t.dom]!=null?MKPAY[t.dom]:.25),.35,1);}v*=p.age<=23?1.4:p.age<=27?1.15:p.age<=30?1:p.age<=32?.7:.45;v*=1+Math.max(0,p.pot-p.o)*.02;return Math.max(30000,r10k(v));}
 const isNBA=t=>!!(t&&t.dom==='NBA');
 // NBA salary cap system 2026-27 (NBA release): cap 164.961M, tax level 200.428M, first apron 209.015M, second apron 221.686M, minimum team
 // salary 148.465M, mid-level exceptions 15.044M (non-taxpayer), 6.064M (taxpayer), 9.366M (room). The figures grow 7% a season.
@@ -106,7 +146,7 @@ const mktK=o=>clamp(.12+(o-56)*.04,.12,1);
 function salScale(){if(!G||G.salV)return;G.salV=1;for(const p of Object.values(G.players)){if(p.tid==null)continue;const t=G.teams[p.tid],k=salLeague(t);if(k<1)p.sal=Math.max(5000,r5k(p.sal*k));}}
 const tkRef=t=>isNBA(t)?110:G&&G.salV&&t&&t.dom&&t.dom!=='NCAA'?Math.max(5,Math.round(30*clamp(Math.pow(MKPAY[t.dom]!=null?MKPAY[t.dom]:.25,.7),.18,1.1))):30;
 function salaryFor(p,t){t=t||(p.tid!=null&&G&&G.teams[p.tid]);if(isNBA(t))return nbaSal(p);if((t&&t.dom==='NCAA')||(!t&&p.portal))return ncNil(p);const k=salLeague(t);return Math.max(r5k(80000*k),r5k(Math.max(0,p.o-50)**2*1100*(p.age>=33?.8:1)*k));}
-const demand=p=>r5k(Math.max(salaryFor(p,p.tid!=null?G.teams[p.tid]:G.teams[G.user]),(()=>{const U=G.teams[G.user];if(!G.salV||!U||isNBA(U)||U.dom==='NCAA'||p.prospect||p.portal)return 0;return salaryFor(p,null)*(p.tid==null?1:1)*mktK(p.o)*(p.nat===U.nat?.75:.95);})())*1.12*(p.tdisc&&p.tdisc.s===G.season&&p.tdisc.t===G.user?.9:1)*faTrend(p));  // a free agent who liked his trial asks 10% less
+const demand=p=>r5k(Math.max(salaryFor(p,p.tid!=null?G.teams[p.tid]:G.teams[G.user]),(()=>{const U=G.teams[G.user];if(!G.salV||!U||isNBA(U)||U.dom==='NCAA'||p.prospect||p.portal)return 0;return salaryFor(p,null)*(p.tid==null?1:1)*mktK(p.o)*(p.nat===U.nat?.75:.95);})())*1.12*Math.sqrt(awMult(p))*(p.tdisc&&p.tdisc.s===G.season&&p.tdisc.t===G.user?.9:1)*faTrend(p));  // a free agent who liked his trial asks 10% less
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -1607,7 +1647,7 @@ function replaceClub(t,why){
 }
 // how attractive the coach is on the market: club level, board confidence and titles won
 function coachScore(){const cur=G.teams[G.user],titles=G.history.filter(h=>h.champ===G.user||(h.dom&&h.dom.champ===G.user)).length,met=G.history.slice(0,3).filter(h=>h.met).length;
-  return cur.rep+(cur.dom==='ABA2'?-4:cur.dom==='KLS'?-6:cur.dom==='BIH'?-8:0)+(G.board-50)/10+titles*2+met-(G.sacked&&!G.resigned&&!G.expired&&!G.bankrupt?7:0);}
+  return cur.rep+(cur.dom==='ABA2'?-4:cur.dom==='KLS'?-6:cur.dom==='BIH'?-8:0)+(G.board-50)/10+titles*2+met+coachAwB()-(G.sacked&&!G.resigned&&!G.expired&&!G.bankrupt?7:0);}
 // the coach resigns: offers come from clubs that rate him, in the EuroLeague or not
 function resign(){if(G.sacked||G.bankrupt)return;G.resigned=true;G.sacked=true;
   const s=coachScore();
@@ -2218,7 +2258,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
+function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -2452,7 +2492,7 @@ function pdRun(){const D=G.pdraft;if(!D||D.done)return;D.done=true;const U=G.use
   D.last={y:D.y,picks:out};D.cls=[];D.board=[];
   for(const t of pdTeams())if(t.id!==U){let n=0;while(roster(t.id).length>17&&n++<6){const w=roster(t.id).filter(q=>!q.draft||q.draft.y!==D.y).sort((a,b)=>a.o-b.o)[0];if(!w)break;toFA(w);}}}
 function newSeason(){
-  try{cupCapture();}catch(e){}
+  try{awRun();}catch(e){}try{cupCapture();}catch(e){}
   if(G.pdraft&&G.pdraft.y===G.season+1&&!G.pdraft.done&&pdIn())pdRun();pdRank();
   boardSeason();
   fanSeason();
