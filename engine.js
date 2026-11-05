@@ -336,7 +336,7 @@ function ncaaOffseason(){const L=G.nl&&G.nl.NCAA;if(!L)return;const U=G.user,T=G
   const stars=T.slice().sort((a,b)=>b.rep**4*Math.random()-a.rep**4*Math.random()).slice(0,25);
   for(const t of T){const want=t.id===U?12:13+(Math.random()<.4?1:0);let n=0;
     if(stars.includes(t)){mine.rec.push(...(t.id===U?[ncRecruit(t,rnd(66,72),rnd(86,95))]:[]));if(t.id!==U)ncRecruit(t,rnd(66,72),rnd(86,95));n++;}
-    while(t.order.length<want||n<2){if(t.order.length>=15)break;const o=clamp(Math.round(50+(t.rep-60)*.3+rf(-3,4)),45,66),p=ncRecruit(t,o,o+rnd(12,24));if(t.id===U)mine.rec.push(p);n++;}
+    while(t.order.length<want||n<2){if(t.order.length>=15)break;const o=clamp(Math.round(54+(t.rep-60)*.3+rf(-3,4)),48,68),p=ncRecruit(t,o,o+rnd(12,24));if(t.id===U)mine.rec.push(p);n++;}
     t.order=autoOrder(t.order);}
   const ld=pool().slice(0,5);if(ld.length)news('Transfer portal',`Still in the portal: ${ld.map(p=>`${pname(p)} (OVR ${p.o}, from ${p.last||'?'})`).join(', ')}.`);
   if(isCol(G.teams[U])){if(mine.out.length)msg('Assistant Coach','Players entered the transfer portal',`${mine.out.join(', ')} entered the transfer portal and left the program.`,'staff');
@@ -996,7 +996,7 @@ function newGame(tid,mgr){
   G.fin.sponsor=Math.round(G.fin.wageBudget*.62/1e5)*1e5;
   G.fin.bal=Math.max(400000,Math.round(((u.rep-70)*230000+500000)/1e5)*1e5);
   G.fin.hist.push({l:'Start',bal:G.fin.bal});
-  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();coachTick();
+  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();lrefEnsure();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();coachTick();
   msg('Club President',`Welcome to ${u.name}`,`Welcome to ${u.city}, coach. The board's objective for ${seasonStr()} is clear: ${OBJ[G.obj].toLowerCase()}. Our fans expect a team that competes every night. Good luck.`,'board');
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(tid))}). The transfer market is open until the end of the regular season.`,'fin');
   msg('Assistant Coach','Rotation and tactics',`I have set the rotation by position. The first five in the squad list start, numbers 6 to 8 get rotation minutes, 9 and 10 play spot minutes. Reorder the list in Squad and adjust our game plan in Tactics.`,'staff');
@@ -1472,7 +1472,7 @@ function aiTransfers(win){if(!G||!G.teams)return [];const S=G.season,summer=win=
   const buyers=G.teams.filter(t=>ok(t)&&teamFinState(t.id)==='ok').map(I);
   const cand=Object.values(G.players).filter(p=>p.tid!=null&&p.o>=66&&p.yrs>=1&&!p.loan&&!p.sellOn&&p.newAt!==S&&ok(G.teams[p.tid])&&!(p.age>=33)).sort((a,b)=>b.o-a.o).slice(0,1600);
   for(const p of cand){if(deals.length>=max)break;if(p.tid==null||p.newAt===S||Math.random()>(summer?.5:.25))continue;const sT=G.teams[p.tid],sI=I(sT);if(sI.out>=(summer?2:1)||sI.n<=11)continue;
-    const fit=buyers.filter(b=>b.t.id!==sT.id&&b.inn<(summer?2:1)&&b.n<(b.t.dom?17:20)&&p.o>=b.six+(b.t.dom?2:1)&&p.o<=b.lv+6&&p.o>=b.lv-3&&forRoom(b.t,p,b.R)&&(b.pay>=sI.pay*1.15||(b.t.dom===sT.dom&&(b.t.rep||0)>=(sT.rep||0)+8)));
+    const fit=buyers.filter(b=>b.t.id!==sT.id&&p.o<=lcap(b.t)&&b.inn<(summer?2:1)&&b.n<(b.t.dom?17:20)&&p.o>=b.six+(b.t.dom?2:1)&&p.o<=b.lv+6&&p.o>=b.lv-3&&forRoom(b.t,p,b.R)&&(b.pay>=sI.pay*1.15||(b.t.dom===sT.dom&&(b.t.rep||0)>=(sT.rep||0)+8)));
     if(!fit.length)continue;
     const fee0=value(p)*(.55+.2*Math.min(3,p.yrs))*(G.salV?1:clamp(Math.sqrt(sI.pay),.3,1.1));
     const afford=fit.filter(b=>b.bud>=fee0&&(!b.t.fin||b.t.fin.bal-fee0>=teamCosts(b.t.id)*.02));if(!afford.length)continue;
@@ -2260,7 +2260,7 @@ function betweenRounds(){
     const devL=!!(p.loan&&p.loan.dev);
     if((p.tid==null&&!devL)||p.age>29)continue;
     const user=p.tid===G.user,focus=user?tr.focus:'balanced',mult=(user?({light:.6,normal:1,hard:1.5})[tr.intensity]*SF.train:devL?1.15:1)*(p.age<=25?devK(p):1);
-    const gap=p.pot-p.o,ch=(p.age<=22?.25:p.age<=25?.15:.07)*mult*(gap>0?1:.15);
+    const gap=p.pot-p.o,ch=(p.age<=22?.25:p.age<=25?.15:.07)*mult*(gap>0?1:.15)*(G.gdr>.15?clamp(1-G.gdr*.35,.5,1):1);
     if(Math.random()<ch){const k=Math.random()<.65?pick(FOCUSATTR[focus]):pick(ATTR);if(p.a[k]<99){const old=p.o;p.a[k]++;upd(p);if(user){G.trainLog.unshift({pid:p.id,k,o:p.o,up:p.o>old,d:dateStr()});if(G.trainLog.length>30)G.trainLog.length=30;}}}
   }
   if(reg){const w=Math.round((wageBill(G.user)+loanCost())/G.schedule.length),sw=Math.round(staffWages(G.user)/G.schedule.length),s=Math.round(G.fin.sponsor/G.schedule.length);G.fin.bal+=s-w-sw;G.fin.season.wages+=w;G.fin.season.staff=(G.fin.season.staff||0)+sw;G.fin.season.spon+=s;}
@@ -2312,14 +2312,24 @@ function mktDigest(snap){const lg=t=>G.teams[t].dom||'EL',nm=c=>(NLCFG[c]&&NLCFG
   msg('Transfer News','Summer transfer market',mv.slice(0,12).map(x=>`${pname(x.p)} (${x.p.o}): ${x.from} → ${G.teams[x.p.tid].name} (${nm(x.l1)})`).join('. ')+'.');}
 // an AI club keeps a player whose deal ends: locals and veterans usually stay, imports and players who outgrew the club test the market
 function aiStay(p,t){const gap=p.o-teamLevel(t);let s=.65;if(p.nat!==t.nat)s-=.15;if(gap>=5)s-=.2;else if(gap<=-6)s-=.1;if(p.age>=31&&p.nat===t.nat)s+=.1;if(payOf(t)<.3&&p.o>=72)s-=.15;if((t.rep||0)>=85&&!t.dom)s+=.12;return clamp(s,.2,.85);}
+
+/* ===================== Long-term stability ===================== */
+// Each league keeps the level it had at the start of the career (G.lref, average club level). AI clubs sign players up to that level
+// plus a margin that grows with the club's reputation, so a league cannot ratchet itself up season after season.
+function lrefEnsure(){if(G.lref)return;G.lref={};G.lrep={};const by={};for(const t of G.teams){if(!t.order||t.order.length<8||t.dom==='GONE'||t.dom==='FOUND')continue;const c=t.dom||'EL';(by[c]=by[c]||[]).push(t);}
+  if(G.gref==null)G.gref=+gAvg().toFixed(2);for(const [c,ts] of Object.entries(by)){G.lref[c]=+avg(ts.map(t=>teamLevel(t))).toFixed(1);G.lrep[c]=+avg(ts.map(t=>t.rep||60)).toFixed(1);}}
+function gAvg(){const on=Object.values(G.players).filter(p=>p.tid!=null&&!(G.teams[p.tid]&&G.teams[p.tid].dom==='NCAA'));return on.length?avg(on.map(p=>p.o)):60;}
+function lcap(t){if(!G.lref)lrefEnsure();const c=t.dom||'EL';if(c==='NBA'||c==='NCAA'||G.lref[c]==null)return 99;return G.lref[c]+5+clamp(((t.rep||60)-(G.lrep[c]||60))*.25,-4,6);}
+// an empty value does not need to be stored for every player
+function slimPlayers(){for(const p of Object.values(G.players)){for(const k of ['dst','est','kst'])if(p[k]&&!p[k].gp)delete p[k];for(const k of ['fragile','rm','ld','dvm','dvt'])if(p[k]==null||p[k]===0)delete p[k];}}
 function aiFASign(rate){if(!G||!G.fa.length)return 0;let n=0;
-  const clubs=G.teams.filter(t=>t.id!==G.user&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t)};});
+  const clubs=G.teams.filter(t=>t.id!==G.user&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t),cap:lcap(t)};});
   const fas=G.fa.map(i=>G.players[i]).filter(p=>p&&!p.nfa&&!p.portal&&p.o>=58&&p.yth==null&&!(p.loan&&p.loan.dev)&&!(G.faBid&&G.faBid[p.id])).sort((a,b)=>b.o-a.o);
   for(const p of fas){if(Math.random()>rate)continue;
     // he prefers clubs near his level, but a step or two down (for less money) is also on the table
     // how far down he goes: stars and players in their prime stay near their level, veterans and long-unsigned players go further
     const down=(p.o>=78?5:p.age<=29?7:p.age<=32?10:13)+(G.phase==='reg'?Math.min(4,(G.round||0)/6):0);
-    const fit=clubs.filter(c=>c.n<17&&p.o>c.tenth+2&&p.o>=c.lv-7&&p.o<=c.lv+down&&forRoom(c.t,p,c.R));if(!fit.length)continue;
+    const fit=clubs.filter(c=>c.n<17&&p.o>c.tenth+2&&p.o>=c.lv-7&&p.o<=c.lv+down&&p.o<=c.cap&&forRoom(c.t,p,c.R));if(!fit.length)continue;
     const w=c=>{const gap=p.o-c.lv;return (gap<=4?3:gap<=8?1.4:.6)*(1+c.t.rep/100)*mktW(p,c.t);};let r=Math.random()*fit.reduce((s,c)=>s+w(c),0),c=fit[0];for(const x of fit){r-=w(x);if(r<=0){c=x;break;}}const t=c.t;
     let want=Math.max(10000,Math.round(salaryFor(p,t)*Math.max(.55,1-(Math.max(0,p.o-c.lv-4))*.05)/5000)*5000);
     if(isNBA(t)){const C=capv(),P=nbaPayroll(t.id);if(P+want>C.cap){if(t.mle!==G.season&&P+Math.min(want,C.ntmle)<=C.ap1){want=Math.min(want,C.ntmle);t.mle=G.season;}else if(t.mle!==G.season&&P+Math.min(want,C.tmle)<=C.ap2){want=Math.min(want,C.tmle);t.mle=G.season;}else if(want>C.min*2.5&&Math.random()<.7)continue;else want=C.min;}}
@@ -2457,18 +2467,18 @@ function newSeason(){
   for(const t of ELT())if(t.fin&&t.id!==G.user){const W=teamCosts(t.id);t.fin.rev=Math.round(.5*t.fin.rev+.5*W*(.885+t.owner*.11)*rf(.9,1.06));if(t.bailout)aiAusterity(t);}
   if(userNBA()&&G.fin.bal>30e6){const x=r10k(G.fin.bal-30e6);G.fin.bal=30e6;msg('Owner','Season profit',`We made money last season. I take ${eur(x)} out of the club; you start the new season with ${eur(G.fin.bal)} in cash for buy-outs and other costs.`,'fin');}
   nbaOptions();
-  G.devRep=[];const left=[],retired=[],ncl=[],mkSnap={};for(const p of Object.values(G.players))if(p.tid!=null)mkSnap[p.id]=[p.tid,G.teams[p.tid].dom||'EL',G.teams[p.tid].name];
+  lrefEnsure();if(G.gref==null)G.gref=+gAvg().toFixed(2);const gDrift=gAvg()-G.gref;G.gdr=+gDrift.toFixed(2);G.devRep=[];const left=[],retired=[],ncl=[],mkSnap={};for(const p of Object.values(G.players))if(p.tid!=null)mkSnap[p.id]=[p.tid,G.teams[p.tid].dom||'EL',G.teams[p.tid].name];
   for(const id of Object.keys(G.players)){const p=G.players[id];
     if(p.tid!=null&&isNBA(G.teams[p.tid])&&!p.tw)p.exp=(p.exp||0)+1;
-    p.age++;p.ld=null;p.st=blank();p.dst=blank();p.est=blank();p.kst=blank();delete p.pst;p.energy=100;p.inj=0;p.fragile=null;p.rm=null;p.offR=-1;
-    const g=(p.age<=22?rnd(1,5):p.age<=25?rnd(0,3):p.age<=29?rnd(-1,1):p.age<=32?rnd(-3,0):rnd(-5,-1))+devSummer(p);
+    p.age++;delete p.ld;p.st=blank();delete p.dst;delete p.est;delete p.kst;delete p.pst;p.energy=100;p.inj=0;delete p.fragile;delete p.rm;p.offR=-1;
+    const g=(p.age<=22?rnd(1,5):p.age<=25?rnd(0,3):p.age<=29?rnd(-1,1):p.age<=32?rnd(-3,0):rnd(-5,-1))+devSummer(p)-(gDrift>.15&&p.age>=23?(Math.random()<clamp(gDrift*1.5,0,.95)*clamp((84-p.o)/14,0,1)?1:0)+(gDrift>1&&p.o<80&&Math.random()<.5?1:0):0)+(gDrift<-.2&&p.age<=24&&Math.random()<clamp(-gDrift*1.2,0,.9)?1:0);
     for(let i=0;i<Math.abs(g)*2;i++){const k=pick(ATTR);if(g>0&&p.o<p.pot)p.a[k]=Math.min(99,p.a[k]+1);else if(g<0)p.a[k]=Math.max(25,p.a[k]-1);upd(p);}
     if(p.age>=38||(p.age>=35&&(Math.random()<.5||p.o<65))){afterCareer(p);if(p.tid===G.user){retired.push(pname(p));noteExit(p,'Retired',`${G.season-1}/${String(G.season).slice(2)}`);}leave(p);G.fa=G.fa.filter(i=>i!==p.id);delete G.players[id];continue;}
     if(p.tid!=null&&isCol(G.teams[p.tid])){p.yrs--;if(p.yrs<=0||p.ncOut)ncGrad(p,ncl);continue;}
     if(p.tid!=null){p.yrs--;if(p.yrs<=0&&isNBA(G.teams[p.tid])){nbaToFA(p);continue;}if(p.yrs<=0){if(p.tid===G.user){left.push(pname(p));if(p.pressKeep===G.season-1){G.fans=clamp(G.fans-4,0,100);G.board=clamp(G.board-3,0,100);msg('Press Review','A promise broken',`You told the press ${pname(p)} would stay. He left on a free transfer. Fans −4, board −3.`,'board');}noteExit(p,'Contract ended',`${G.season-1}/${String(G.season).slice(2)}`);toFA(p);}else if(Math.random()<aiStay(p,G.teams[p.tid])){p.yrs=rnd(1,3);p.sal=salaryFor(p);}else toFA(p);}}
   }
   ncaaOffseason();acadSeason();merchSeason();
-  for(const t of G.teams){if(t.order.length<14&&t.id!==G.user&&!isNBA(t)&&!isCol(t)){const nat=Math.random()<.6?t.nat:pick(NATS);const lv=teamLevel(t);const p=genPlayer(clamp(Math.round(lv-14+rf(-3,3)),30,64),pick(POS),nat,rnd(18,19));p.pot=clamp(p.o+rnd(8,22),p.o,94);p.yrs=3;p.sal=80000;join(p,t);if(t.id===G.user)msg('Youth Academy',`${pname(p)} promoted`,`${pname(p)} (${p.pos}, ${p.age}) joins the first team from the academy. Potential estimate: ${p.pot}.`,'staff');}
+  for(const t of G.teams){if(t.order.length<14&&t.id!==G.user&&!isNBA(t)&&!isCol(t)){const nat=Math.random()<.6?t.nat:pick(NATS);const lv=teamLevel(t);const p=genPlayer(clamp(Math.round(lv-14+rf(-3,3)),30,64),pick(POS),nat,rnd(18,19));p.pot=clamp(p.o+rnd(8,22),p.o,Math.min(94,Math.round(lcap(t)-3)));p.yrs=3;p.sal=80000;join(p,t);if(t.id===G.user)msg('Youth Academy',`${pname(p)} promoted`,`${pname(p)} (${p.pos}, ${p.age}) joins the first team from the academy. Potential estimate: ${p.pot}.`,'staff');}
     t.w=0;t.l=0;t.pf=0;t.pa=0;t.form=[];t.vd=null;t.rcd=null;delete t.gd;if(t.id!==G.user){t.tac=Math.random()<.3?aiTac():t.tac;aiFix(t);t.order=autoOrder(t.order);}}
   nbaFAStart();
   aiFASign(.75);
@@ -2477,7 +2487,7 @@ function newSeason(){
   // keep the best 40 plus a pool of cheaper players for ABA-level clubs
   if(G.fa.length>90){const s=G.fa.map(i=>G.players[i]).sort((a,b)=>b.o-a.o),keep=new Set(s.slice(0,40).map(p=>p.id).concat((G.exp||[]).map(e=>e.id)).concat(s.filter(p=>p.portal).map(p=>p.id)).concat(s.filter(p=>p.o>=62&&p.age<=33).map(p=>p.id)));for(const p of s.slice(40).filter(p=>!keep.has(p.id)).slice(0,50))keep.add(p.id);for(const id of G.fa)if(!keep.has(id))delete G.players[id];G.fa=G.fa.filter(id=>keep.has(id));}
   while(G.fa.filter(i=>G.players[i].o<=64).length<30){const p=genPlayer(rnd(52,63),pick(POS),pick(['SRB','SRB','CRO','MNE','BIH','SLO','USA','USA']),rnd(20,32));p.sal=salaryFor(p);G.fa.push(p.id);}
-  ensureStaff();for(const t of G.teams)for(const x of t.staff||[]){x.age++;if(t.dom)continue;x.yrs--;if(x.yrs<=0)x.yrs=rnd(1,3);}for(const x of G.staffFA)x.age++;
+  lrefEnsure();if(G.staffFA&&G.staffFA.length>140){G.staffFA.sort((a,b)=>(b.o||0)-(a.o||0));G.staffFA.length=140;}slimPlayers();ensureStaff();for(const t of G.teams)for(const x of t.staff||[]){x.age++;if(t.dom)continue;x.yrs--;if(x.yrs<=0)x.yrs=rnd(1,3);}for(const x of G.staffFA)x.age++;
   G.round=0;G.phase='reg';G.day=0;G.po=null;G.res=[];G.lastResults=null;G.lastGame=null;G.uRes={};G.listed=[];
   G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();try{summerCoaches();}catch(e){}nlApplyMoves();prMarket();try{aiTransfers('summer');}catch(e){}domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
   G.fin.wageBudget=Math.max(G.fin.wageBudget,Math.round(wageBill(G.user)*1.02/1e5)*1e5);nbaFinanceSync();
@@ -3975,7 +3985,7 @@ const devLabel=p=>{const m=devMpg(p);return m==null?null:m>=25?['Fast','g']:m>=1
 function devSummer(p){const m=devMpg(p),a=p.age;let ex=0;
   if(m!=null&&a<=24&&p.dvt>=12){if(m>=24){ex=rnd(1,2);if(a<=23&&Math.random()<.5)p.pot=Math.min(97,p.pot+rnd(1,2));}else if(m>=15)ex=rnd(0,1);else if(m<6){ex=-1;if(a>=21&&Math.random()<.5)p.pot=Math.max(p.o,p.pot-1);}}
   if(p.tid===G.user&&a<=23&&m!=null)(G.devRep||(G.devRep=[])).push({id:p.id,m:Math.round(m),ex});
-  p.dvm=0;p.dvt=0;return ex;}
+  delete p.dvm;delete p.dvt;return ex;}
 function injSet(p,e0){const r=Math.random(),ak=(p.age||27)>=33?1.6:(p.age||27)>=30?1.25:(p.age||27)<=23?.8:1,s=r<.05*ak?'sev':r<.25*ak?'mod':'min';p.injS=s;p.injT=pick(INJTYPES[s]);p.inj=s==='sev'?rnd(12,24):s==='mod'?rnd(5,10):e0<50?rnd(2,6):e0<65?rnd(1,5):rnd(1,4);if((p.age||27)>=33&&p.inj>2)p.inj=Math.round(p.inj*1.15);}
 const injTotal=p=>Math.max(p.inj0||0,p.inj,1);
 function earlyOpts(p){if(p.inj<=0||p.tid!==G.user)return [];const T=injTotal(p),s=p.injS||'min',floor=s==='sev'?Math.ceil(T*.4):0,cut=p.inj-floor;if(cut<1)return [];
@@ -5152,6 +5162,24 @@ function shortTick(){if(!G||!G.teams)return;
 
 /* ===================== Save ===================== */
 const KEY='bm-euroleague-save-v1';
-function save(){ownerProtect();coachTick();arenaTick();try{localStorage.setItem(KEY,JSON.stringify(G));}catch(e){}}
-function loadSave(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
-function wipeSave(){try{localStorage.removeItem(KEY);}catch(e){}}
+// The career is saved compressed (gzip, base64) under KEYZ: a fresh career is about 5 million characters of JSON, more than Safari
+// allows per site. Compression runs in the background; the latest state always wins. Older uncompressed saves are still read and
+// replaced by the compressed version on the next save. If the browser refuses to store the save, the player is told.
+const KEYZ='bm-euroleague-save-z1',ZOK=typeof CompressionStream==='function'&&typeof DecompressionStream==='function';
+let SAVE_TXT=null,SAVE_BUSY=false,SAVE_NEXT=null,SAVE_WARNED=false;
+function b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s);}
+function unb64(t){const s=atob(t),u8=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u8[i]=s.charCodeAt(i);return u8;}
+async function gz(txt){const r=new Blob([txt]).stream().pipeThrough(new CompressionStream('gzip'));return new Uint8Array(await new Response(r).arrayBuffer());}
+async function gunz(u8){const r=new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));return await new Response(r).text();}
+function saveFailed(){if(SAVE_WARNED)return;SAVE_WARNED=true;try{if(typeof toast==='function')toast('Saving failed: this browser has no storage room left for the career.');}catch(e){}
+  try{if(G)msg('Club Secretary','Your career could not be saved','This browser refused to store the career (storage full or blocked, for example in a private window). Progress since the last successful save will be lost if you close the page.','board');}catch(e){}}
+async function saveZ(txt){if(SAVE_BUSY){SAVE_NEXT=txt;return;}SAVE_BUSY=true;
+  try{const z='gz1:'+b64(await gz(txt));try{localStorage.setItem(KEYZ,z);try{localStorage.removeItem(KEY);}catch(e){}SAVE_WARNED=false;}catch(e){saveFailed();}}
+  catch(e){try{localStorage.setItem(KEY,txt);}catch(e2){saveFailed();}}
+  finally{SAVE_BUSY=false;if(SAVE_NEXT!=null){const t=SAVE_NEXT;SAVE_NEXT=null;saveZ(t);}}}
+function save(){ownerProtect();coachTick();arenaTick();let txt;try{txt=JSON.stringify(G);}catch(e){return;}SAVE_TXT=txt;
+  if(ZOK)saveZ(txt);else{try{localStorage.setItem(KEY,txt);}catch(e){saveFailed();}}}
+function loadSave(){try{if(SAVE_TXT)return JSON.parse(SAVE_TXT);const s=localStorage.getItem(KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
+function wipeSave(){SAVE_TXT=null;SAVE_NEXT=null;try{localStorage.removeItem(KEY);}catch(e){}try{localStorage.removeItem(KEYZ);}catch(e){}}
+// at start-up: unpack a compressed save so the start screen can offer it
+const SAVE_READY=(async()=>{try{const z=localStorage.getItem(KEYZ);if(z&&z.startsWith('gz1:')&&ZOK){SAVE_TXT=await gunz(unb64(z.slice(4)));}}catch(e){}})();

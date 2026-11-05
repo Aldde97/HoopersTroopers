@@ -1305,3 +1305,4 @@ function scrollChat(){const c=document.getElementById('negchat');if(c)c.scrollTo
 function boot(data){if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
 window.claude?.hot?.ready?window.claude.hot.ready(boot):boot(window.claude?.hot?.data??{});
+try{SAVE_READY.then(()=>{if(SAVE_TXT&&(!G||UI.view==='start'))render();});}catch(e){}
