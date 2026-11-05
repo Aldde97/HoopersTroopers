@@ -50,9 +50,9 @@ const NATALIAS={MKD:'SRB',MNE:'SRB',BIH:'SRB',SLO:'CRO',ROU:'SRB',AUT:'GER',SVK:
 // EuroLeague clubs only (G.teams also holds clubs that only play the domestic league)
 const ELT=()=>G.teams.filter(t=>!t.dom);
 const TAC={
- pace:[{v:'slow',l:'Slow',d:'Long possessions. Fewer shots, keeps games close against stronger teams.'},{v:'normal',l:'Normal',d:'Balanced tempo, about 72 possessions a game.'},{v:'fast',l:'Fast',d:'Run in transition. More shots, a few more turnovers.'}],
+ pace:[{v:'slow',l:'Slow',d:'Long possessions. Fewer shots, keeps games close against stronger teams. Saves legs.'},{v:'normal',l:'Normal',d:'Balanced tempo, about 72 possessions a game.'},{v:'fast',l:'Fast',d:'Run in transition. More shots, a few more turnovers. Suits young, athletic squads and tires players faster.'}],
  focus:[{v:'inside',l:'Inside',d:'Pick and roll to the rim and post-ups. Fewer threes, better two-point looks.'},{v:'balanced',l:'Balanced',d:'Take what the defense gives.'},{v:'perimeter',l:'Perimeter',d:'Spread the floor and fire from three. High variance.'}],
- def:[{v:'man',l:'Man-to-man',d:'Solid default. Your defenders guard their matchups.'},{v:'zone',l:'2-3 Zone',d:'Protects the paint, gives up more open threes.'},{v:'press',l:'Full-court press',d:'Forces turnovers, but allows easier baskets when broken.'}],
+ def:[{v:'man',l:'Man-to-man',d:'Solid default. Your defenders guard their matchups.'},{v:'zone',l:'2-3 Zone',d:'Protects the paint, gives up more open threes.'},{v:'press',l:'Full-court press',d:'Forces turnovers, but allows easier baskets when broken. Needs athletes and costs energy.'}],
 };
 const TRAIN={
  focus:[{v:'balanced',l:'Balanced',d:'Small gains across every skill.'},{v:'shooting',l:'Shooting',d:'Catch-and-shoot and free-throw work.'},{v:'inside',l:'Inside game',d:'Finishing, post moves and rebounding.'},{v:'playmaking',l:'Playmaking',d:'Passing reads and ball security.'},{v:'defense',l:'Defense',d:'Rotations, closeouts, footwork.'},{v:'conditioning',l:'Conditioning',d:'Faster recovery between games.'}],
@@ -908,6 +908,53 @@ function genRoster(t){
     join(genPlayer(L+rnd(-2,2)-(age<=22?rnd(2,6):0),pos[i],nat,age),t);});
   t.order=autoOrder(t.order);
 }
+
+/* ===================== Schedule, travel and coaching styles ===================== */
+// Home court is worth more in college and in the loud European arenas, less in the NBA. Away teams lose a little on long trips.
+// Back-to-backs (the second game on consecutive days) and short rest start every player with tired legs and raise injury risk.
+const HOMEK={NCAA:1.45,NBA:.8,GL:.8,EL:1.15,BSL:1.2,GBL:1.2,KLS:1.2,ABA:1.1,CUP:1.05};
+const TRV={NBA:.0035,GL:.003,NCAA:.003,AUS:.003,CBA:.003,EL:.003,CUP:.003,JPN:.002,NZL:.0015,PBA:0,QBL:0,LBL:0,KOS:.0005,MKD:.0005,CGL:.0005};
+const FAR={AUS:['NZB','PWC']};
+function sHash(x){let v=2166136261;for(const c of String(x)){v^=c.charCodeAt(0);v=Math.imul(v,16777619)>>>0;}return v;}
+function nlCodeOf(h,a){for(const x of [h,a]){if(x==null)continue;const d=G.teams[x].dom;if(d&&G.nl&&G.nl[d])return d;}for(const x of [h,a]){if(x==null)continue;const L=Object.values(G.nl||{}).find(L=>L&&L.ids&&L.ids.includes(x));if(L)return L.code;}return 'NL';}
+function legOf(kind,h,a){return (isEcK(kind)||isBclK(kind)||isFecK(kind))?'CUP':isNlK(kind)?nlCodeOf(h,a):isDomK(kind)?'ABA':kind==='kls'?'KLS':isBihK(kind)?'BIH':kind==='pok'?'POK':'EL';}
+function schedB2B(code,tid){const L=G.nl&&G.nl[code];if(!L||L.phase!=='reg')return false;
+  if(code==='NBA'||code==='GL')return sHash(tid*7919+L.round*104729+G.season)%100<17;
+  if(code==='JPN')return L.round%2===1;
+  if(code==='AUS')return sHash(tid*31+L.round*977+G.season)%100<8;
+  return false;}
+function teamCtx(tid,home,code,neutral,oth){const t=G.teams[tid],rest=t.gd!=null&&G.day>=t.gd&&G.day-t.gd<30?G.day-t.gd:null;
+  const b2b=rest===1||schedB2B(code,tid),short=!b2b&&(rest===0||rest===2);
+  let trav=0;if(!home&&!neutral){trav=TRV[code]!=null?TRV[code]:.0015;const far=FAR[code];if(far&&(far.includes(t.short)||far.includes(G.teams[oth].short)))trav+=.002;}
+  return {rest,b2b,short,trav};}
+function ctxLine(c){const r=c.b2b?'back-to-back':c.short?'short rest':c.rest!=null?`${Math.max(0,c.rest-1)} days' rest`:'fully rested';return r+(c.trav>=.003?', long trip':c.trav>0?', away trip':'');}
+function fxCtx(f){if(f.kind==='pre')return null;const code=legOf(f.kind,f.h,f.a);return [teamCtx(f.h,true,code,!!f.neutral,f.a),teamCtx(f.a,false,code,!!f.neutral,f.h)];}
+function matchCtx(m,h,a){const code=legOf(m.kind,h,a);m.code=code;
+  const ht=G.teams[h];m.homeB=.02*(HOMEK[code]||1)+(h!==G.user?.003*clamp(((ht.rep||70)-70)/22,0,1):0);
+  m.s.forEach((s,i)=>{const c=teamCtx(s.tid,i===0,code,m.neutral,i?h:a);Object.assign(s,c);
+    s.adj=(c.b2b?-.012:c.short?-.004:0)-c.trav;
+    const top=s.ord.slice(0,8),ath=avg(top.map(p=>p.a.ath)),age=avg(top.map(p=>p.age||27));
+    // running and pressing pay off for young, athletic squads and wear everybody out
+    if(s.tac.pace==='fast')s.adj+=clamp((ath-68)*.0005-(age-27)*.0006,-.007,.007);
+    if(s.tac.def==='press')s.adj+=clamp((ath-68)*.0004,-.005,.005);
+    s.fk=({fast:1.12,normal:1,slow:.92})[s.tac.pace]*(s.tac.def==='press'?1.08:1);
+    for(const p of s.ord)s.fat[p.id]=c.b2b?300:c.short?120:0;});}
+// AI head coaches: a personal style (pace, shot diet, defense) that the better tacticians bend to fit their roster
+function aiStyle(t){const hc=staffOf(t.id,'HC')[0],hs=sHash(hc?hc.f+'|'+hc.l:'club'+t.id),code=t.dom||'EL';
+  const ps=t.order.map(i=>G.players[i]).filter(p=>p&&p.inj<=0).slice(0,8);if(ps.length<5)return t.tac||aiTac();
+  const ath=avg(ps.map(p=>p.a.ath)),sht=avg(ps.map(p=>p.a.sht)),ins=avg(ps.map(p=>p.a.ins)),dfn=avg(ps.map(p=>p.a.def)),age=avg(ps.map(p=>p.age||27));
+  const r=(hs>>>6)%20,pref={pace:['slow','normal','normal','fast'][hs%4],focus:['inside','balanced','balanced','perimeter'][(hs>>>2)%4],
+    def:code==='NBA'||code==='GL'?(r<1?'zone':'man'):code==='NCAA'?(r<4?'zone':r<6?'press':'man'):(r<3?'zone':r<5?'press':'man')};
+  const sp=(ath-68)-(age-27)*1.2,fit={pace:sp>6?'fast':sp<-6?'slow':'normal',focus:sht-ins>5?'perimeter':ins-sht>5?'inside':'balanced',
+    def:ath>74&&age<27?'press':dfn<62?'zone':'man'};
+  const w=hc&&hc.r?clamp((hc.r.tac-60)/30,0,1):.3,o={};
+  ['pace','focus','def'].forEach((k,i)=>{o[k]=((hs>>>(10+i*5))%100)/100<w?fit[k]:pref[k];});
+  if((code==='NBA'||code==='GL')&&o.def==='press')o.def='man';return o;}
+const hcName=t=>{const h=staffOf(t.id,'HC')[0];return h?`${h.f} ${h.l}`:'';};
+// injuries: older legs and heavy recent minutes break down more often
+const ageInj=a=>a<=23?.8:a<=29?1:a<=32?1.25:a<=34?1.5:1.8;
+const loadInj=l=>l>32?1.5:l>28?1.2:1;
+const ageRec=a=>a>=33?.82:a>=30?.92:1;
 function aiTac(){return {pace:pick(['slow','normal','normal','fast']),focus:pick(['inside','balanced','balanced','perimeter']),def:Math.random()<.65?'man':pick(['zone','press'])};}
 const blankFin=()=>({gate:0,spon:0,prize:0,tin:0,wages:0,tout:0,rel:0});
 function genSchedule(ids){
@@ -983,7 +1030,7 @@ class Match{
     this.dbl=[null,null];if(G.dbl&&(h===G.user||a===G.user)){const ui=h===G.user?0:1;if(G.dbl.opp===this.s[1-ui].tid&&this.s[1-ui].ord.some(p=>p.id===G.dbl.pid))this.dbl[ui]=G.dbl.pid;}
     this.crowd=h===G.user&&!this.neutral&&this.kind!=='pre'&&typeof crowdBonus==='function'?crowdBonus(h,a):0;
     this.chem=this.kind!=='pre'&&typeof chemBonus==='function'?{[h]:chemBonus(h),[a]:chemBonus(a)}:{};
-    this.heat={};this.feed=null;this.rested={};
+    this.heat={};this.feed=null;this.rested={};if(this.kind!=='pre')matchCtx(this,h,a);
     this.run_=[0,0];this.play=[null,null];this.lastPlay=[null,null];this.foul=[false,false];this.manual=-1;
     if(this.log)this.add(-1,'period','Tip-off');
   }
@@ -991,7 +1038,7 @@ class Match{
     const t=G.teams[tid];let ord=forDress(t.order.map(id=>G.players[id]).filter(p=>p.inj<=0&&!(p.rest&&tid===G.user)),t,kindRule(t,this.kind));
     if(ord.length<5)ord=ord.concat(t.order.map(id=>G.players[id]).filter(p=>p.inj>0)).slice(0,Math.max(5,ord.length));
     const box={},tgt={},k=this.ql/600;ord.forEach((p,i)=>{box[p.id]=blank();tgt[p.id]=minTgt(p,i,tid,k);});
-    return {tid,home,ord,box,tgt,on:[],pts:0,tac:tid===G.user?G.tactics:t.tac,to:this.ql===720?4:2,hc:hcBonus(tid)+finMalus(tid),pf:{},out:{},fat:{},tf:0,man:false};
+    return {tid,home,ord,box,tgt,on:[],pts:0,tac:tid===G.user?G.tactics:(t.tac=aiStyle(t)),to:this.ql===720?4:2,hc:hcBonus(tid)+finMalus(tid),pf:{},out:{},fat:{},tf:0,man:false};
   }
   gtime(){const Q=this.ql;return this.q<=4?(this.q-1)*Q+(Q-this.clock):4*Q+(this.q-5)*300+(300-this.clock);}
   rotate(){
@@ -1025,7 +1072,7 @@ class Match{
     this.nsf=!fl&&!pl&&!late&&Math.random()<NSFOUL;
     if(fl)dur=rnd(2,5);else if(this.nsf)dur=rnd(2,6);else if(pl==='hold')dur=rnd(20,24);else if(pl==='quick')dur=rnd(4,7);else if(this.q>=4&&this.clock<=24&&lead<0&&oi===this.manual)dur=rnd(4,8);else if(late&&oi!==this.manual)dur=lead>0?(this.clock<=24?this.clock:rnd(16,24)):lead<0?rnd(5,11):dur;
     if(dur>this.clock)dur=this.clock;
-    for(const s of this.s){for(const p of s.on)s.box[p.id].sec+=dur;for(const p of s.ord)s.fat[p.id]=s.on.includes(p)?(s.fat[p.id]||0)+dur:Math.max(0,(s.fat[p.id]||0)-dur*1.5);}
+    for(const s of this.s){for(const p of s.on)s.box[p.id].sec+=dur;for(const p of s.ord)s.fat[p.id]=s.on.includes(p)?(s.fat[p.id]||0)+dur*(s.fk||1):Math.max(0,(s.fat[p.id]||0)-dur*1.5);}
     this.clock-=dur;
     this.play[oi]=null;
     const keep=fl?this.iFoul(o,d,oi):this.resolve(o,d,oi,pl);
@@ -1051,7 +1098,7 @@ class Match{
       const sh=wpick(o.on,p=>Math.pow(Math.max(2,p.o-45),1.4)),B=o.box[sh.id];let m=0,last=false;for(let i=0;i<2;i++){B.fta++;last=Math.random()<ftp(sh);if(last){B.ftm++;m++;}}B.pts+=m;o.pts+=m;
       if(!last){const rb=wpick(d.on,p=>p.a.reb**2.2);d.box[rb.id].reb++;}this.add(oi,m?'score':'miss',`Team foul by ${n} \u2013 ${sname(sh)} makes ${m} of 2`,m);return false;}
     const dDef=avg(d.on.map(p=>p.a.def)),oPas=avg(o.on.map(p=>p.a.pas));
-    let bonus=(o.home&&!this.neutral?.012+this.crowd:0)+(o.hc||0);if(this.mom[oi]>0){bonus+=.03;this.mom[oi]--;}
+    let bonus=(o.home&&!this.neutral?(this.homeB!=null?this.homeB:.012)+this.crowd:0)+(o.hc||0)+(o.adj||0);if(this.mom[oi]>0){bonus+=.03;this.mom[oi]--;}
     const toP=.13-(oPas-65)*.0016+(d.tac.def==='press'?.035:0)+(o.tac.pace==='fast'?.01:0)+(pl==='iso'?.015:pl==='pnr'?-.015:0);
     const dblId=this.dbl[1-oi],dblP=dblId!=null?o.on.find(p=>p.id===dblId):null;
     const read=pl&&pl===this.lastPlay[oi];if(pl)this.lastPlay[oi]=pl;
@@ -2070,7 +2117,7 @@ const isNatK=k=>isKlsK(k)||isBihK(k)||isNlK(k);
 
 function applyResult(m,f){
   const [h,a]=m.s,hw=h.pts>a.pts,th=G.teams[h.tid],ta=G.teams[a.tid];
-  if(m.kind!=='pre'){aiRoom(th,hw);aiRoom(ta,!hw);}
+  if(m.kind!=='pre'){aiRoom(th,hw);aiRoom(ta,!hw);th.gd=G.day;ta.gd=G.day;}
   if(f.kind==='fec'){const r2=f.st==='r2',rh=fecRec(h.tid,r2),ra=fecRec(a.tid,r2);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
   if(f.kind==='bcl'){const r16=f.st==='r16',rh=bclRec(h.tid,r16),ra=bclRec(a.tid,r16);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
   if(f.kind==='ec'){const rh=ecRec(h.tid),ra=ecRec(a.tid);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
@@ -2085,9 +2132,9 @@ function applyResult(m,f){
     const st=f.kind==='pok'?(p.pst||(p.pst=blank())):(isEcK(f.kind)||isBclK(f.kind)||isFecK(f.kind))?(p.est||(p.est=blank())):isNatK(f.kind)?(p.kst||(p.kst=blank())):isDomK(f.kind)?(p.dst||(p.dst=blank())):p.st;for(const k in b)st[k]+=b[k];st.gp++;
     // a player loaned out by the user: his games at the other club, whatever competition they are in
     if(p.loan&&p.loan.from===G.user&&!p.loan.dev){const l=p.lst||(p.lst=blank());for(const k in b)l[k]+=b[k];l.gp++;}
-    const e0=p.energy;p.energy=clamp(p.energy-b.sec/60*.6,25,100);
+    const e0=p.energy,mn=b.sec/60;p.energy=clamp(p.energy-mn*.6*(s.fk||1),25,100);p.ld=p.ld==null?mn:p.ld*.75+mn*.25;
     // tired players get hurt more often, and for longer
-    const risk=.006*(b.sec/1200)*fatigueRisk(e0)*(s.tid===G.user&&G.training.intensity==='hard'?1.5:1)*(s.tid===G.user?staffFx().injury:1);
+    const risk=.0047*(b.sec/1200)*fatigueRisk(e0)*ageInj(p.age||27)*loadInj(p.ld)*(mn>36?1.25:1)*(s.b2b?1.3:s.short?1.1:1)*(s.tid===G.user&&G.training.intensity==='hard'?1.5:1)*(s.tid===G.user?staffFx().injury:1);
     if(s.tid===G.user&&p.fragile&&relapseCheck(p)){}
     else if(Math.random()<risk){injSet(p,e0);if(s.tid===G.user&&staffFx().injury<.9&&p.inj>1)p.inj--;p.inj0=p.inj;if(s.tid===G.user)msg('Team Doctor',`${pname(p)} injured`,`${pname(p)} has a ${p.injT} and will miss about ${p.inj} game${p.inj>1?'s':''}. ${p.inj>=2?'You can decide on his return in the Medical centre.':'He should be back soon.'}`,'med');}
   }
@@ -2161,7 +2208,7 @@ function betweenRounds(){
   const rec=22+(tr.focus==='conditioning'?6:0)+({light:6,normal:0,hard:-6})[tr.intensity];
   for(const id in G.players){const p=G.players[id];
     if(p.inj>0){p.inj--;if(p.inj===0&&p.tid===G.user)msg('Team Doctor',`${pname(p)} is fit again`,`${pname(p)} has completed his rehab and is available for selection.`,'med');}
-    p.energy=clamp(p.energy+(p.tid===G.user?rec:22),0,100);
+    p.energy=clamp(p.energy+(p.tid===G.user?rec:22)*ageRec(p.age||27),0,100);
     const devL=!!(p.loan&&p.loan.dev);
     if((p.tid==null&&!devL)||p.age>29)continue;
     const user=p.tid===G.user,focus=user?tr.focus:'balanced',mult=user?({light:.6,normal:1,hard:1.5})[tr.intensity]*SF.train:devL?1.6:1;
@@ -2338,7 +2385,7 @@ function newSeason(){
   const left=[],retired=[],ncl=[];
   for(const id of Object.keys(G.players)){const p=G.players[id];
     if(p.tid!=null&&isNBA(G.teams[p.tid])&&!p.tw)p.exp=(p.exp||0)+1;
-    p.age++;p.st=blank();p.dst=blank();p.est=blank();p.kst=blank();delete p.pst;p.energy=100;p.inj=0;p.fragile=null;p.rm=null;p.offR=-1;
+    p.age++;p.ld=null;p.st=blank();p.dst=blank();p.est=blank();p.kst=blank();delete p.pst;p.energy=100;p.inj=0;p.fragile=null;p.rm=null;p.offR=-1;
     const g=p.age<=22?rnd(1,5):p.age<=25?rnd(0,3):p.age<=29?rnd(-1,1):p.age<=32?rnd(-3,0):rnd(-5,-1);
     for(let i=0;i<Math.abs(g)*2;i++){const k=pick(ATTR);if(g>0&&p.o<p.pot)p.a[k]=Math.min(99,p.a[k]+1);else if(g<0)p.a[k]=Math.max(25,p.a[k]-1);upd(p);}
     if(p.age>=38||(p.age>=35&&(Math.random()<.5||p.o<65))){afterCareer(p);if(p.tid===G.user){retired.push(pname(p));noteExit(p,'Retired',`${G.season-1}/${String(G.season).slice(2)}`);}leave(p);G.fa=G.fa.filter(i=>i!==p.id);delete G.players[id];continue;}
@@ -2669,7 +2716,7 @@ function domFinish(){const D=G.dom,U=G.user;if(D.champ===U)return 'Champions';
   return `${ordn(domRank(U))} in ${D.groups.A.includes(U)?'Group A':'Group B'}`;}
 function domObjMet(){const f=domFinish(),D=G.dom,U=G.user,lvl=['Champions','Runner-up','Semi-finals','Quarter-finals','Play-In'].indexOf(f);
   return {title:lvl===0,fin:lvl>=0&&lvl<=1,sf:lvl>=0&&lvl<=2,po:lvl>=0&&lvl<=3,top8:!!(D.top8&&D.top8.includes(U)),pi:lvl>=0||!!(D.top8&&D.top8.includes(U))}[D.obj];}
-function domBetween(){for(const id in G.players){const p=G.players[id];p.energy=clamp(p.energy+(p.tid===G.user?8:10),0,100);}G.day+=2;}
+function domBetween(){for(const id in G.players){const p=G.players[id];p.energy=clamp(p.energy+(p.tid===G.user?8:10)*ageRec(p.age||27),0,100);}G.day+=2;}
 function domSilentStep(){const fx=domFixtures(),out=[];for(const f of fx){const m=new Match(f.h,f.a,{kind:f.kind}).run();out.push({f,r:applyResult(m,f)});}domAdvance(out);}
 function domFinishSilent(){let k=0;while(G.dom&&G.dom.phase!=='done'&&k++<200)domSilentStep();}
 function domPlaysUser(){return !!(G.dom&&G.dom.ids.includes(G.user));}
@@ -3773,7 +3820,7 @@ function scoutReport(opp){const lvl=scoutLevel(),full=lvl>=62,keys=roster(opp.id
 // shooting level and a risk of breaking down again, longer than the first time. The more rehab he skips, the higher the risk. Good medical staff lower it.
 const INJTYPES={min:['sprained ankle','knee bruise','back spasm','calf strain','bruised hip'],mod:['hamstring strain','groin strain','ankle ligament sprain'],sev:['torn calf muscle','stress fracture','knee ligament tear']};
 const INJS={min:{n:'Minor',k:1},mod:{n:'Moderate',k:1.3},sev:{n:'Serious',k:1.7}};
-function injSet(p,e0){const r=Math.random(),s=r<.05?'sev':r<.25?'mod':'min';p.injS=s;p.injT=pick(INJTYPES[s]);p.inj=s==='sev'?rnd(12,24):s==='mod'?rnd(5,10):e0<50?rnd(2,6):e0<65?rnd(1,5):rnd(1,4);}
+function injSet(p,e0){const r=Math.random(),ak=(p.age||27)>=33?1.6:(p.age||27)>=30?1.25:(p.age||27)<=23?.8:1,s=r<.05*ak?'sev':r<.25*ak?'mod':'min';p.injS=s;p.injT=pick(INJTYPES[s]);p.inj=s==='sev'?rnd(12,24):s==='mod'?rnd(5,10):e0<50?rnd(2,6):e0<65?rnd(1,5):rnd(1,4);if((p.age||27)>=33&&p.inj>2)p.inj=Math.round(p.inj*1.15);}
 const injTotal=p=>Math.max(p.inj0||0,p.inj,1);
 function earlyOpts(p){if(p.inj<=0||p.tid!==G.user)return [];const T=injTotal(p),s=p.injS||'min',floor=s==='sev'?Math.ceil(T*.4):0,cut=p.inj-floor;if(cut<1)return [];
   const opt=c=>{const k=INJS[s].k,per=clamp((.006+.05*(c/T+(p.fragile?.25:0))*k*(s==='min'?.5:1)+.004*c*k)*staffFx().injury,.004,.3);return {cut:c,left:p.inj-c,per,total:1-Math.pow(1-per,6)};};
