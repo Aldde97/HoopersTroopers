@@ -2237,6 +2237,33 @@ function betweenRounds(){
   G.day+=nlUser()&&nlUser().code==='NCAA'&&userIsNL()&&nlUser().phase!=='done'?(nlUser().phase==='reg'?3:1):nlUser()&&nlUser().code==='JPN'&&userIsNL()&&nlUser().phase!=='done'?(nlUser().phase==='reg'?2:1):nlUser()&&nlUser().code==='AUS'&&userIsNL()&&nlUser().phase!=='done'?(nlUser().phase==='reg'?2:3):G.phase==='reg'?((domPlaysUser()&&G.dom.phase==='reg')||(nlUser()&&!userIsNL()&&nlUser().phase==='reg')?3:5):G.phase==='qf'?3:G.phase==='f4'?2:3;
 }
 // AI clubs sign good free agents: each player goes to a club whose level fits him and where he would play
+
+/* ===================== Transfer market: money, home pull, promotion and relegation ===================== */
+// What clubs in each league can pay, relative to a EuroLeague club (1). Free agents lean towards the money and towards home;
+// the level filter in aiFASign still decides which clubs are realistic for them.
+const MKPAY={EL:1,NBA:2.2,GL:.14,CBA:1.05,JPN:.75,ACB:.75,BSL:.8,LBA:.6,GBL:.6,ISL:.55,BBL:.55,LNB:.55,ABA:.45,LKL:.45,AUS:.5,QBL:.5,LBL:.45,PLK:.32,BNX:.3,ROU:.25,PBA:.3,GEO:.2,
+  CUP:.38,KLS:.2,BIH:.1,ABA2:.15,AUT:.2,GBR:.2,SKL:.2,CGL:.2,CRL:.2,KOS:.18,MKD:.15,NZL:.2,PF:.22,A2:.18,EL2:.2,PROA:.18,TBL:.22,LL:.18,GEL:.12,PML:.08,PROB:.08,SBN:.07,PRD:.08,RL:.03};
+const payOf=t=>{const d=t.dom||'EL';return MKPAY[d]!=null?MKPAY[d]:.25;};
+function mktW(p,t){const pay=Math.pow(payOf(t),.75),home=p.nat===t.nat?1.9:1,pr=G.prom&&G.prom.y===G.season&&G.prom.up.includes(t.id)?1.6:1,gl=t.dom==='GL'?(p.age<=25?(p.nat==='USA'?1:.4):.08):1;return pay*home*pr*gl;}
+// clubs that went up or down this summer
+function prRec(id,dir){const P=G.prom&&G.prom.y===G.season?G.prom:(G.prom={y:G.season,up:[],down:[]});(dir==='up'?P.up:P.down).push(id);}
+function prMarket(){const P=G.prom;if(!P||P.y!==G.season)return;const out=[];
+  const lvOf=code=>{const ids=G.teams.filter(x=>x.dom===code&&!P.down.includes(x.id)&&!P.up.includes(x.id)).map(x=>x.id);return ids.length?avg(ids.map(i=>teamLevel(G.teams[i]))):60;};
+  for(const id of P.down){const t=G.teams[id];if(!t||t.id===G.user||!t.dom)continue;t.rep=Math.max(30,(t.rep||60)-3);const lv=lvOf(t.dom);
+    // relegation clauses: the players who are too good for the lower league leave, the imports first
+    const ps=roster(t.id).filter(p=>!p.loan).sort((a,b)=>b.o-a.o);let n=0;
+    for(const p of ps){if(n>=5)break;const gap=p.o-lv;if(gap<4)continue;if(Math.random()<clamp(.25+gap*.07+(p.nat!==t.nat?.15:0),0,.9)){out.push(`${pname(p)} (${t.short})`);toFA(p);p.sal=salaryFor(p);n++;}}}
+  for(const id of P.up){const t=G.teams[id];if(!t||t.id===G.user)continue;t.rep=Math.min(95,(t.rep||50)+3);}
+  aiFASign(.85);
+  for(const t of G.teams)if(t.id!==G.user&&(P.up.includes(t.id)||P.down.includes(t.id))){aiFix(t);t.order=autoOrder(t.order);}
+  if(out.length)msg('Transfer News','Relegation exodus',`After going down, clubs lost players with relegation clauses: ${out.slice(0,10).join(', ')}${out.length>10?` and ${out.length-10} more`:''}.`);}
+// the summer's biggest moves between leagues, for the news feed
+function mktDigest(snap){const lg=t=>G.teams[t].dom||'EL',nm=c=>(NLCFG[c]&&NLCFG[c].name)||({EL:'EuroLeague',CUP:'EuroCup / BCL',ABA:'ABA League',ABA2:'ABA League 2',KLS:'KLS',BIH:'Prvenstvo BiH'})[c]||c;
+  const mv=[];for(const p of Object.values(G.players)){const s0=snap[p.id];if(!s0||p.tid==null||p.tid===s0[0]||p.tid===G.user)continue;const l0=s0[1],l1=lg(p.tid);if(l0===l1||p.o<70)continue;mv.push({p,l0,l1,from:s0[2]});}
+  if(!mv.length)return;mv.sort((a,b)=>b.p.o-a.p.o);
+  msg('Transfer News','Summer transfer market',mv.slice(0,12).map(x=>`${pname(x.p)} (${x.p.o}): ${x.from} → ${G.teams[x.p.tid].name} (${nm(x.l1)})`).join('. ')+'.');}
+// an AI club keeps a player whose deal ends: locals and veterans usually stay, imports and players who outgrew the club test the market
+function aiStay(p,t){const gap=p.o-teamLevel(t);let s=.65;if(p.nat!==t.nat)s-=.15;if(gap>=5)s-=.2;else if(gap<=-6)s-=.1;if(p.age>=31&&p.nat===t.nat)s+=.1;if(payOf(t)<.3&&p.o>=72)s-=.15;if((t.rep||0)>=85&&!t.dom)s+=.12;return clamp(s,.2,.85);}
 function aiFASign(rate){if(!G||!G.fa.length)return 0;let n=0;
   const clubs=G.teams.filter(t=>t.id!==G.user&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t)};});
   const fas=G.fa.map(i=>G.players[i]).filter(p=>p&&!p.nfa&&!p.portal&&p.o>=58&&p.yth==null&&!(p.loan&&p.loan.dev)&&!(G.faBid&&G.faBid[p.id])).sort((a,b)=>b.o-a.o);
@@ -2245,7 +2272,7 @@ function aiFASign(rate){if(!G||!G.fa.length)return 0;let n=0;
     // how far down he goes: stars and players in their prime stay near their level, veterans and long-unsigned players go further
     const down=(p.o>=78?5:p.age<=29?7:p.age<=32?10:13)+(G.phase==='reg'?Math.min(4,(G.round||0)/6):0);
     const fit=clubs.filter(c=>c.n<17&&p.o>c.tenth+2&&p.o>=c.lv-7&&p.o<=c.lv+down&&forRoom(c.t,p,c.R));if(!fit.length)continue;
-    const w=c=>{const gap=p.o-c.lv;return (gap<=4?3:gap<=8?1.4:.6)*(1+c.t.rep/100);};let r=Math.random()*fit.reduce((s,c)=>s+w(c),0),c=fit[0];for(const x of fit){r-=w(x);if(r<=0){c=x;break;}}const t=c.t;
+    const w=c=>{const gap=p.o-c.lv;return (gap<=4?3:gap<=8?1.4:.6)*(1+c.t.rep/100)*mktW(p,c.t);};let r=Math.random()*fit.reduce((s,c)=>s+w(c),0),c=fit[0];for(const x of fit){r-=w(x);if(r<=0){c=x;break;}}const t=c.t;
     let want=Math.max(10000,Math.round(salaryFor(p,t)*Math.max(.55,1-(Math.max(0,p.o-c.lv-4))*.05)/5000)*5000);
     if(isNBA(t)){const C=capv(),P=nbaPayroll(t.id);if(P+want>C.cap){if(t.mle!==G.season&&P+Math.min(want,C.ntmle)<=C.ap1){want=Math.min(want,C.ntmle);t.mle=G.season;}else if(t.mle!==G.season&&P+Math.min(want,C.tmle)<=C.ap2){want=Math.min(want,C.tmle);t.mle=G.season;}else if(want>C.min*2.5&&Math.random()<.7)continue;else want=C.min;}}
     G.fa=G.fa.filter(i=>i!==p.id);markNew(p,t);p.sal=want;p.yrs=p.age>=32?1:rnd(1,3);join(p,t);t.order=autoOrder(t.order);c.n++;
@@ -2382,7 +2409,7 @@ function newSeason(){
   for(const t of ELT())if(t.fin&&t.id!==G.user){const W=teamCosts(t.id);t.fin.rev=Math.round(.5*t.fin.rev+.5*W*(.885+t.owner*.11)*rf(.9,1.06));if(t.bailout)aiAusterity(t);}
   if(userNBA()&&G.fin.bal>30e6){const x=r10k(G.fin.bal-30e6);G.fin.bal=30e6;msg('Owner','Season profit',`We made money last season. I take ${eur(x)} out of the club; you start the new season with ${eur(G.fin.bal)} in cash for buy-outs and other costs.`,'fin');}
   nbaOptions();
-  const left=[],retired=[],ncl=[];
+  const left=[],retired=[],ncl=[],mkSnap={};for(const p of Object.values(G.players))if(p.tid!=null)mkSnap[p.id]=[p.tid,G.teams[p.tid].dom||'EL',G.teams[p.tid].name];
   for(const id of Object.keys(G.players)){const p=G.players[id];
     if(p.tid!=null&&isNBA(G.teams[p.tid])&&!p.tw)p.exp=(p.exp||0)+1;
     p.age++;p.ld=null;p.st=blank();p.dst=blank();p.est=blank();p.kst=blank();delete p.pst;p.energy=100;p.inj=0;p.fragile=null;p.rm=null;p.offR=-1;
@@ -2390,7 +2417,7 @@ function newSeason(){
     for(let i=0;i<Math.abs(g)*2;i++){const k=pick(ATTR);if(g>0&&p.o<p.pot)p.a[k]=Math.min(99,p.a[k]+1);else if(g<0)p.a[k]=Math.max(25,p.a[k]-1);upd(p);}
     if(p.age>=38||(p.age>=35&&(Math.random()<.5||p.o<65))){afterCareer(p);if(p.tid===G.user){retired.push(pname(p));noteExit(p,'Retired',`${G.season-1}/${String(G.season).slice(2)}`);}leave(p);G.fa=G.fa.filter(i=>i!==p.id);delete G.players[id];continue;}
     if(p.tid!=null&&isCol(G.teams[p.tid])){p.yrs--;if(p.yrs<=0||p.ncOut)ncGrad(p,ncl);continue;}
-    if(p.tid!=null){p.yrs--;if(p.yrs<=0&&isNBA(G.teams[p.tid])){nbaToFA(p);continue;}if(p.yrs<=0){if(p.tid===G.user){left.push(pname(p));noteExit(p,'Contract ended',`${G.season-1}/${String(G.season).slice(2)}`);toFA(p);}else if(Math.random()<.65){p.yrs=rnd(1,3);p.sal=salaryFor(p);}else toFA(p);}}
+    if(p.tid!=null){p.yrs--;if(p.yrs<=0&&isNBA(G.teams[p.tid])){nbaToFA(p);continue;}if(p.yrs<=0){if(p.tid===G.user){left.push(pname(p));noteExit(p,'Contract ended',`${G.season-1}/${String(G.season).slice(2)}`);toFA(p);}else if(Math.random()<aiStay(p,G.teams[p.tid])){p.yrs=rnd(1,3);p.sal=salaryFor(p);}else toFA(p);}}
   }
   ncaaOffseason();acadSeason();merchSeason();
   for(const t of G.teams){if(t.order.length<14&&t.id!==G.user&&!isNBA(t)&&!isCol(t)){const nat=Math.random()<.6?t.nat:pick(NATS);const lv=teamLevel(t);const p=genPlayer(clamp(Math.round(lv-14+rf(-3,3)),30,64),pick(POS),nat,rnd(18,19));p.pot=clamp(p.o+rnd(8,22),p.o,94);p.yrs=3;p.sal=80000;join(p,t);if(t.id===G.user)msg('Youth Academy',`${pname(p)} promoted`,`${pname(p)} (${p.pos}, ${p.age}) joins the first team from the academy. Potential estimate: ${p.pot}.`,'staff');}
@@ -2404,7 +2431,7 @@ function newSeason(){
   while(G.fa.filter(i=>G.players[i].o<=64).length<30){const p=genPlayer(rnd(52,63),pick(POS),pick(['SRB','SRB','CRO','MNE','BIH','SLO','USA','USA']),rnd(20,32));p.sal=salaryFor(p);G.fa.push(p.id);}
   ensureStaff();for(const t of G.teams)for(const x of t.staff||[]){x.age++;if(t.dom)continue;x.yrs--;if(x.yrs<=0)x.yrs=rnd(1,3);}for(const x of G.staffFA)x.age++;
   G.round=0;G.phase='reg';G.day=0;G.po=null;G.res=[];G.lastResults=null;G.lastGame=null;G.uRes={};G.listed=[];
-  G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();nlApplyMoves();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
+  G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();nlApplyMoves();prMarket();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
   G.fin.wageBudget=Math.max(G.fin.wageBudget,Math.round(wageBill(G.user)*1.02/1e5)*1e5);nbaFinanceSync();
   const bo=G.fin.bailout||0,cut=bo?bailoutCut(bo):0;
   if(cut){G.fin.wageBudget=Math.round(G.fin.wageBudget*(1-cut)/1e5)*1e5;ensureSponsors();G.spons.tv=r10k(G.spons.tv*(1-cut));syncSponsor();G.fin.bailout=0;
@@ -2415,6 +2442,7 @@ function newSeason(){
   if(left.length)msg('Sporting Director','Players left on free transfers',`These players left after their contracts ran out: ${left.join(', ')}.`,'fin');
   if(ncl.length)msg('Assistant Coach','College careers over',`${ncl.join(', ')} used up their eligibility (or stayed in the draft) and left the program.`,'staff');
   if(retired.length)msg('Club President','Retirements',`${retired.join(', ')} retired from professional basketball.`,'board');
+  try{mktDigest(mkSnap);}catch(e){}
   exTick();
 }
 
@@ -3489,8 +3517,8 @@ function seasonEndNL(){
 function nlApplyMoves(){if(!G.nl)return;const moves=[];
   let prdGrp=null;const Bn=G.nl.BNX,Pd=G.nl.PRD;if(Bn&&Pd){Bn.down=[];Pd.up=[];const last=Array.isArray(Bn.final)?Bn.final[Bn.final.length-1]:null,ch=Pd.champ;if(last!=null&&ch!=null&&G.teams[last].nat==='NED'&&!G.teams[ch].res){Bn.down=[last];Pd.up=[ch];prdGrp=G.teams[ch].grp;news('Promoted to the BNXT League',`${G.teams[ch].name} go up from the Promotiedivisie, ${G.teams[last].name} go down.`);}}
   const Cr=G.nl.CRL,Pm=G.nl.PML;if(Cr&&Pm&&Pm.champ!=null&&Array.isArray(Cr.final)){const last=Cr.final.slice().reverse().find(i=>G.teams[i].dom==='CRL');Cr.down=last!=null?[last]:[];if(last!=null){news('Premijer liga relegation',`${G.teams[last].name} go down to the Prva liga, ${G.teams[Pm.champ].name} come up.`);if(last===G.user)msg('Club President','Relegated','We finished last among the Croatian clubs of the Premijer liga and go down to the Prva liga.','board');}else Pm.up=[];}
-  for(const L of Object.values(G.nl)){if(!L)continue;const C=NLCFG[L.code];for(const id of L.up)moves.push([id,C.up]);for(const id of L.down)moves.push([id,C.down]);}
-  for(const [id,to] of moves){const t=G.teams[id];if(!t||!to)continue;if(!t.dom){elRelegate(t,to);continue;}const from=t.dom,og=t.grp;t.dom=to;delete t.grp;
+  for(const L of Object.values(G.nl)){if(!L)continue;const C=NLCFG[L.code];for(const id of L.up){moves.push([id,C.up]);prRec(id,'up');}for(const id of L.down){moves.push([id,C.down]);prRec(id,'down');}}
+  for(const [id,to] of moves){const t=G.teams[id];if(!t||!to)continue;if(!t.dom){const nt=elRelegate(t,to);if(nt){const P=G.prom;P.down=P.down.filter(x=>x!==id);P.down.push(nt.id);}continue;}const from=t.dom,og=t.grp;t.dom=to;delete t.grp;
     if(to==='PRD')t.grp=prdGrp||'A';else if(to==='RL')t.grp=rlGroupFor(t,og);else if(to==='PROB'&&from==='RL')t.grp=probGroupFor(og);}
   // keep the two Suedost groups level: the weakest club of the bigger group moves over
   const so=g=>G.teams.filter(x=>x.dom==='RL'&&x.grp===g&&x.id!==G.user);for(let k=0;k<4;k++){const a=so(RL_SON),b=so(RL_SOS);if(Math.abs(a.length-b.length)<2)break;const big=a.length>b.length?a:b;big.sort((x,y)=>x.rep-y.rep)[0].grp=big===a?RL_SOS:RL_SON;}
