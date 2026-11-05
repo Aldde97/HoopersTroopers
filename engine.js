@@ -954,18 +954,19 @@ function matchCtx(m,h,a){const code=legOf(m.kind,h,a);m.code=code;
       s.ord.forEach((p,j)=>{let f=1;const e=p.energy;if(e<70)f*=.8;else if(e<80)f*=.9;if(easy&&j<5)f*=.82;if(c.b2b&&j<3&&(T.dom==='NBA'||T.dom==='GL'))f*=.9;s.tgt[p.id]=Math.round(s.tgt[p.id]*f);});}
     const top=s.ord.slice(0,8),ath=avg(top.map(p=>p.a.ath)),age=avg(top.map(p=>p.age||27));
     // running and pressing pay off for young, athletic squads and wear everybody out
-    if(s.tac.pace==='fast')s.adj+=clamp((ath-68)*.0005-(age-27)*.0006,-.007,.007);
-    if(s.tac.def==='press')s.adj+=clamp((ath-68)*.0004,-.005,.005);
+    const LA=lgMean(G.teams[s.tid].dom||'EL').ath;if(s.tac.pace==='fast')s.adj+=clamp((ath-LA)*.0005-(age-27)*.0006,-.007,.007);
+    if(s.tac.def==='press')s.adj+=clamp((ath-LA)*.0004,-.005,.005);
     s.fk=({fast:1.12,normal:1,slow:.92})[s.tac.pace]*(s.tac.def==='press'?1.08:1);
     for(const p of s.ord)s.fat[p.id]=c.b2b?300:c.short?120:0;});}
 // AI head coaches: a personal style (pace, shot diet, defense) that the better tacticians bend to fit their roster
+const LGM={};function lgMean(code){const k=code+'|'+G.season;if(LGM[k])return LGM[k];const ts=G.teams.filter(t=>(t.dom||'EL')===code&&t.order&&t.order.length>=5);const ps=ts.flatMap(t=>roster(t.id).slice().sort((a,b)=>b.o-a.o).slice(0,8));return LGM[k]=ps.length?{ath:avg(ps.map(p=>p.a.ath)),def:avg(ps.map(p=>p.a.def))}:{ath:68,def:65};}
 function aiStyle(t){const hc=staffOf(t.id,'HC')[0],hs=sHash(hc?hc.f+'|'+hc.l:'club'+t.id),code=t.dom||'EL';
   const ps=t.order.map(i=>G.players[i]).filter(p=>p&&p.inj<=0).slice(0,8);if(ps.length<5)return t.tac||aiTac();
   const ath=avg(ps.map(p=>p.a.ath)),sht=avg(ps.map(p=>p.a.sht)),ins=avg(ps.map(p=>p.a.ins)),dfn=avg(ps.map(p=>p.a.def)),age=avg(ps.map(p=>p.age||27));
   const r=(hs>>>6)%20,pref={pace:['slow','normal','normal','fast'][hs%4],focus:['inside','balanced','balanced','perimeter'][(hs>>>2)%4],
     def:code==='NBA'||code==='GL'?(r<1?'zone':'man'):code==='NCAA'?(r<4?'zone':r<6?'press':'man'):(r<3?'zone':r<5?'press':'man')};
-  const sp=(ath-68)-(age-27)*1.2,fit={pace:sp>6?'fast':sp<-6?'slow':'normal',focus:sht-ins>5?'perimeter':ins-sht>5?'inside':'balanced',
-    def:ath>74&&age<27?'press':dfn<62?'zone':'man'};
+  const LM=lgMean(code),sp=(ath-LM.ath)-(age-27)*1.2,fit={pace:sp>4?'fast':sp<-4?'slow':'normal',focus:sht-ins>5?'perimeter':ins-sht>5?'inside':'balanced',
+    def:ath>LM.ath+5&&age<27?'press':dfn<LM.def-4?'zone':'man'};
   const w=hc&&hc.r?clamp((hc.r.tac-60)/30,0,1):.3,o={};
   ['pace','focus','def'].forEach((k,i)=>{o[k]=((hs>>>(10+i*5))%100)/100<w?fit[k]:pref[k];});
   if((code==='NBA'||code==='GL')&&o.def==='press')o.def='man';return o;}
@@ -1041,10 +1042,12 @@ const dblOpen=p=>.002+Math.max(0,p.a.pas-70)*.0008;
 const NSFOUL=.14;
 // planned seconds for a player: his place in the order, or the minutes the user set for him in the squad screen
 const minTgt=(p,i,tid,k)=>tid===G.user&&p.mt!=null?Math.round(p.mt*60*k):Math.round((i<5?1800:i<8?1020:i<10?480:0)*k*(tid===G.user&&i<5&&pRole(p)==='star'?1.12:1));
+// box-score profiles per league: p = seconds added to an average possession, t = share of threes, f = foul rate (real league averages)
+const LGBOX={"_":{"p":-1,"t":0.06,"f":1,"e":0},"EL":{"p":-0.9,"t":0.06,"f":1,"e":0},"NBA":{"p":-2.8,"t":-0.02,"f":0.72,"e":0.03},"GL":{"p":-3.6,"t":0.04,"f":0.75,"e":0.015},"NCAA":{"p":1.8,"t":0.04,"f":0.95,"e":0},"CBA":{"p":-3.2,"t":0.07,"f":1,"e":0},"AUS":{"p":-1.6,"t":0.07,"f":1,"e":0},"NZL":{"p":-1.5,"t":0.06,"f":1,"e":0},"PBA":{"p":-2.3,"t":0.05,"f":0.9,"e":0},"JPN":{"p":-1.5,"t":0.06,"f":1,"e":0}};
 class Match{
   constructor(h,a,o={}){
     this.kind=o.kind||'reg';this.log=!!o.log;this.neutral=!!o.neutral;this.ql=(isNBA(G.teams[h])||G.teams[h].dom==='GL')&&(isNBA(G.teams[a])||G.teams[a].dom==='GL')||G.teams[h].dom==='PBA'&&G.teams[a].dom==='PBA'?720:600;
-    this.s=[this.side(h,true),this.side(a,false)];
+    this.s=[this.side(h,true),this.side(a,false)];this.bx=(()=>{try{return LGBOX[legOf(this.kind,h,a)]||LGBOX._;}catch(e){return LGBOX._;}})();
     this.q=1;this.clock=this.ql;this.poss=Math.random()<.5?0:1;this.ev=[];this.flow=[{t:0,d:0}];this.done=false;this.stint=-1;this.qp=[[],[]];this.mom=[0,0];
     this.dbl=[null,null];if(G.dbl&&(h===G.user||a===G.user)){const ui=h===G.user?0:1;if(G.dbl.opp===this.s[1-ui].tid&&this.s[1-ui].ord.some(p=>p.id===G.dbl.pid))this.dbl[ui]=G.dbl.pid;}
     this.crowd=h===G.user&&!this.neutral&&this.kind!=='pre'&&typeof crowdBonus==='function'?crowdBonus(h,a):0;
@@ -1087,8 +1090,8 @@ class Match{
     this.rotate();
     const oi=this.poss,o=this.s[oi],d=this.s[1-oi];
     const before=[this.s[0].pts,this.s[1].pts],fl=this.foulDue(oi),pl=fl?null:this.play[oi],lead=o.pts-d.pts,late=this.q>=4&&this.clock<=60;
-    let dur=clamp(Math.round(rf(9,19)+PACE[o.tac.pace]+PACE[d.tac.pace]*.4),4,24);
-    this.nsf=!fl&&!pl&&!late&&Math.random()<NSFOUL;
+    let dur=clamp(Math.round(rf(11,21)+this.bx.p+PACE[o.tac.pace]+PACE[d.tac.pace]*.4),4,24);
+    this.nsf=!fl&&!pl&&!late&&Math.random()<0.15*this.bx.f;
     if(fl)dur=rnd(2,5);else if(this.nsf)dur=rnd(2,6);else if(pl==='hold')dur=rnd(20,24);else if(pl==='quick')dur=rnd(4,7);else if(this.q>=4&&this.clock<=24&&lead<0&&oi===this.manual)dur=rnd(4,8);else if(late&&oi!==this.manual)dur=lead>0?(this.clock<=24?this.clock:rnd(16,24)):lead<0?rnd(5,11):dur;
     if(dur>this.clock)dur=this.clock;
     for(const s of this.s){for(const p of s.on)s.box[p.id].sec+=dur;for(const p of s.ord)s.fat[p.id]=s.on.includes(p)?(s.fat[p.id]||0)+dur*(s.fk||1):Math.max(0,(s.fat[p.id]||0)-dur*1.5);}
@@ -1118,7 +1121,7 @@ class Match{
       if(!last){const rb=wpick(d.on,p=>p.a.reb**2.2);d.box[rb.id].reb++;}this.add(oi,m?'score':'miss',`Team foul by ${n} \u2013 ${sname(sh)} makes ${m} of 2`,m);return false;}
     const dDef=avg(d.on.map(p=>p.a.def)),oPas=avg(o.on.map(p=>p.a.pas));
     let bonus=(o.home&&!this.neutral?(this.homeB!=null?this.homeB:.012)+this.crowd:0)+(o.hc||0)+(o.adj||0);if(this.mom[oi]>0){bonus+=.03;this.mom[oi]--;}
-    const toP=.13-(oPas-65)*.0016+(d.tac.def==='press'?.035:0)+(o.tac.pace==='fast'?.01:0)+(pl==='iso'?.015:pl==='pnr'?-.015:0);
+    const toP=.15-(oPas-65)*.0016+(avg(d.on.map(p=>p.a.def*.5+p.a.ath*.5))-65)*.0013+(d.tac.def==='press'?.035:0)+(o.tac.pace==='fast'?.01:0)+(pl==='iso'?.015:pl==='pnr'?-.015:0);
     const dblId=this.dbl[1-oi],dblP=dblId!=null?o.on.find(p=>p.id===dblId):null;
     const read=pl&&pl===this.lastPlay[oi];if(pl)this.lastPlay[oi]=pl;
     const sh=this.playPick(o,pl)||wpick(o.on,p=>Math.pow(Math.max(2,p.o-45),1.6)*(.5+p.energy/200)*(p.promise&&o.tid===G.user&&o.ord.indexOf(p)===0?1.25:1)*(p.id===dblId?.45:1)*(o.tid===G.user&&pRole(p)==='star'?1.15:1)*(oi===this.manual&&this.feed&&this.feed.id===p.id?1.7:1));
@@ -1130,12 +1133,12 @@ class Match{
       else{const k=rnd(0,4);if(k===2)this.charge(o,sh,oi);this.add(oi,'to',[`Turnover by ${N} \u2013 bad pass`,`${N} called for travelling`,`Offensive foul on ${N}`,`${N} loses the ball out of bounds`,`Shot-clock violation`][k]);}
       return false;
     }
-    const tpr=clamp(({PG:.42,SG:.45,SF:.38,PF:.24,C:.08})[sh.pos]+(sh.a.sht-70)*.006+({perimeter:.12,balanced:0,inside:-.12})[o.tac.focus]+(d.tac.def==='zone'?.06:0),.02,.75);
+    const tpr=clamp(({PG:.42,SG:.45,SF:.38,PF:.24,C:.08})[sh.pos]+this.bx.t+(sh.a.sht-70)*.006+({perimeter:.12,balanced:0,inside:-.12})[o.tac.focus]+(d.tac.def==='zone'?.06:0),.02,.75);
     const three=pl==='three'||(pl!=='pnr'&&pl!=='post'&&Math.random()<tpr),en=(sh.energy-85)*.001-(sh.unhappy?.02:0)-(sh.fragile?.015:0)+((sh.mood==null?60:sh.mood)-60)*.0004+(this.chem[sh.tid]||0)-Math.min(.05,Math.max(0,(o.fat[sh.id]||0)-480)*.00007),val=three?3:2;
-    let pm=three?.215+sh.a.sht*.0019-(dDef-65)*.0015+(d.tac.def==='zone'?.012:0)
-               :.30+sh.a.ins*.0029-(dDef-65)*.002-(d.tac.def==='zone'?.03:0)+(d.tac.def==='press'?.02:0)+(o.tac.focus==='inside'?.01:0);
-    pm+=bonus+en+(pl?LIVEPLAY[pl].pm(sh):0)-(read?.035:0)+(dblP?(sh===dblP?-.09:dblOpen(dblP)):0);
-    const fouled=Math.random()<(three?.03:pl==='post'?.2:.12),made=Math.random()<pm*(fouled?.45:1);if(fouled)this.charge(d,this.defPick(d),1-oi);
+    let pm=three?.3413+(sh.a.sht-72)*.0019-(dDef-72)*.0017+(d.tac.def==='zone'?.012:0)
+               :.4948+(sh.a.ins-72)*.0029-(dDef-72)*.0026-(d.tac.def==='zone'?.03:0)+(d.tac.def==='press'?.02:0)+(o.tac.focus==='inside'?.01:0);
+    pm+=bonus+en+(this.bx.e||0)+(pl?LIVEPLAY[pl].pm(sh):0)-(read?.035:0)+(dblP?(sh===dblP?-.09:dblOpen(dblP)):0);
+    const fouled=Math.random()<(three?.03:pl==='post'?.2:0.145)*this.bx.f,made=Math.random()<pm*(fouled?.45:1);if(fouled)this.charge(d,this.defPick(d),1-oi);
     if(fouled&&!made){
       let m=0;for(let i=0;i<val;i++){B.fta++;if(Math.random()<ftp(sh)){B.ftm++;m++;}}
       B.pts+=m;o.pts+=m;this.add(oi,m?'score':'miss',`${N} fouled on the ${three?'three':'shot'} \u2013 ${m} of ${val} from the line`,m);return false;
