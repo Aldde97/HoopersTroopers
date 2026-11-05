@@ -86,7 +86,7 @@ const tcol=t=>contrast(t.c1,'#ffffff')>=3?'#ffffff':(t.c2&&contrast(t.c1,t.c2)>=
 function ovr(p){const w=POSW[p.pos];let s=0;for(const k of ATTR)s+=p.a[k]*w[k];return Math.round(s);}
 function upd(p){p.o=ovr(p);if(p.pot!=null&&p.o>p.pot)p.pot=p.o;}
 const pname=p=>p.f+' '+p.l, sname=p=>p.f[0]+'. '+p.l;
-function value(p){let v=Math.max(0,p.o-55)**2*1500;v*=p.age<=23?1.4:p.age<=27?1.15:p.age<=30?1:p.age<=32?.7:.45;v*=1+Math.max(0,p.pot-p.o)*.02;return Math.max(30000,r10k(v));}
+function value(p){let v=Math.max(0,p.o-55)**2*1500;if(G&&G.salV&&p.tid!=null){const t=G.teams[p.tid];if(t&&t.dom&&!isNBA(t)&&t.dom!=='NCAA'&&t.dom!=='GL')v*=clamp(Math.sqrt(MKPAY[t.dom]!=null?MKPAY[t.dom]:.25),.35,1);}v*=p.age<=23?1.4:p.age<=27?1.15:p.age<=30?1:p.age<=32?.7:.45;v*=1+Math.max(0,p.pot-p.o)*.02;return Math.max(30000,r10k(v));}
 const isNBA=t=>!!(t&&t.dom==='NBA');
 // NBA salary cap system 2026-27 (NBA release): cap 164.961M, tax level 200.428M, first apron 209.015M, second apron 221.686M, minimum team
 // salary 148.465M, mid-level exceptions 15.044M (non-taxpayer), 6.064M (taxpayer), 9.366M (room). The figures grow 7% a season.
@@ -98,8 +98,15 @@ const nbaPayroll=tid=>roster(tid).filter(p=>!p.tw&&!(p.loan&&p.loan.from!==tid))
 function nbaSal(p){const x=p.o<76?1300000+(p.o-70)*120000:2000000+53000000*((p.o-76)/17)**1.9;return r5k(Math.max(1300000,Math.min(x,57700000))*(p.age>=34?.75:1)*capF());}
 // luxury tax: per 5M above the tax level 1.5, 1.75, 2.5, 3.25, then +0.5 for every further 5M; repeat offenders (3 of the last 4 seasons) pay 1.0 more
 function luxTax(over,rep){if(over<=0)return 0;let t=0,i=0,x=over;const st=5e6*capF();while(x>0){const r=(i<4?[1.5,1.75,2.5,3.25][i]:3.25+.5*(i-3))+(rep?1:0);t+=Math.min(x,st)*r;x-=st;i++;}return r10k(t);}
-function salaryFor(p,t){t=t||(p.tid!=null&&G&&G.teams[p.tid]);if(isNBA(t))return nbaSal(p);if((t&&t.dom==='NCAA')||(!t&&p.portal))return ncNil(p);return Math.max(80000,r5k(Math.max(0,p.o-50)**2*1100*(p.age>=33?.8:1)));}
-const demand=p=>r5k(salaryFor(p,p.tid!=null?G.teams[p.tid]:G.teams[G.user])*1.12*(p.tdisc&&p.tdisc.s===G.season&&p.tdisc.t===G.user?.9:1)*faTrend(p));  // a free agent who liked his trial asks 10% less
+
+// Salaries follow the league a club plays in (new careers, G.salV): the EuroLeague scale is 1, the others come from what their league
+// pays (MKPAY^0.6). Free agents still ask at least what their rating earns on the open market, so small clubs cannot sign good players cheaply.
+const salLeague=t=>{if(!t||!G||!G.salV||!t.dom||isNBA(t)||t.dom==='NCAA')return 1;const m=MKPAY[t.dom];return clamp(Math.pow(m!=null?m:.25,.6),.1,1);};
+const mktK=o=>clamp(.12+(o-56)*.04,.12,1);
+function salScale(){if(!G||G.salV)return;G.salV=1;for(const p of Object.values(G.players)){if(p.tid==null)continue;const t=G.teams[p.tid],k=salLeague(t);if(k<1)p.sal=Math.max(5000,r5k(p.sal*k));}}
+const tkRef=t=>isNBA(t)?110:G&&G.salV&&t&&t.dom&&t.dom!=='NCAA'?Math.max(5,Math.round(30*clamp(Math.pow(MKPAY[t.dom]!=null?MKPAY[t.dom]:.25,.7),.18,1.1))):30;
+function salaryFor(p,t){t=t||(p.tid!=null&&G&&G.teams[p.tid]);if(isNBA(t))return nbaSal(p);if((t&&t.dom==='NCAA')||(!t&&p.portal))return ncNil(p);const k=salLeague(t);return Math.max(r5k(80000*k),r5k(Math.max(0,p.o-50)**2*1100*(p.age>=33?.8:1)*k));}
+const demand=p=>r5k(Math.max(salaryFor(p,p.tid!=null?G.teams[p.tid]:G.teams[G.user]),(()=>{const U=G.teams[G.user];if(!G.salV||!U||isNBA(U)||U.dom==='NCAA'||p.prospect||p.portal)return 0;return salaryFor(p,null)*(p.tid==null?1:1)*mktK(p.o)*(p.nat===U.nat?.75:.95);})())*1.12*(p.tdisc&&p.tdisc.s===G.season&&p.tdisc.t===G.user?.9:1)*faTrend(p));  // a free agent who liked his trial asks 10% less
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -988,7 +995,7 @@ function newGame(tid,mgr){
   G.fin.sponsor=Math.round(G.fin.wageBudget*.62/1e5)*1e5;
   G.fin.bal=Math.max(400000,Math.round(((u.rep-70)*230000+500000)/1e5)*1e5);
   G.fin.hist.push({l:'Start',bal:G.fin.bal});
-  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();coachTick();
+  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();coachTick();
   msg('Club President',`Welcome to ${u.name}`,`Welcome to ${u.city}, coach. The board's objective for ${seasonStr()} is clear: ${OBJ[G.obj].toLowerCase()}. Our fans expect a team that competes every night. Good luck.`,'board');
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(tid))}). The transfer market is open until the end of the regular season.`,'fin');
   msg('Assistant Coach','Rotation and tactics',`I have set the rotation by position. The first five in the squad list start, numbers 6 to 8 get rotation minutes, 9 and 10 play spot minutes. Reorder the list in Squad and adjust our game plan in Tactics.`,'staff');
@@ -1005,7 +1012,7 @@ function startCareerAt(short,mgr){newGame(0,mgr);const t=G.teams.find(x=>x.short
   u0.formerHC=null;G.inbox=G.inbox.filter(m=>m.id>=mid);G.coach.extFor=null;
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(t.id))}). The transfer market is open until the end of the regular season.`,'fin');preInit();}
 // every club of every league for the start screen, grouped by competition
-const startBudget=t=>isNBA(t)?25000000:t.dom?clamp(r10k((t.rep-40)*25000+50000),50000,3000000):Math.max(400000,Math.round(((t.rep-70)*230000+500000)/1e5)*1e5);
+const startBudget=t=>isNBA(t)?25000000:t.dom?clamp(r10k(((t.rep-40)*25000+50000)*salLeague(t)),20000,3000000):Math.max(400000,Math.round(((t.rep-70)*230000+500000)/1e5)*1e5);
 function careerClubs(){const prev=G;let out=[];try{newGame(0,'x');
   out=G.teams.filter(t=>t.dom!=='GONE'&&t.dom!=='FOUND').map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o),hc=t.id===0?((((window.STAFF||{})[t.short]||[]).find(r=>r[0]==='HC'))||[]).slice(1,3).join(' '):(staffOf(t.id,'HC')[0]?staffOf(t.id,'HC')[0].f+' '+staffOf(t.id,'HC')[0].l:'');
     return {short:t.short,name:t.name,city:t.city,c1:t.c1,c2:t.c2,rep:t.rep,id:t.id,grp:t.grp||null,nat:(window.CLUB_NAT||{})[t.short]||t.nat,arena:t.arena,cap:t.cap,lg:!t.dom?'EL':t.dom==='CUP'?'CUP_'+cupOfTeam(t.id):t.dom,
@@ -1464,7 +1471,7 @@ function aiTransfers(win){if(!G||!G.teams)return [];const S=G.season,summer=win=
   for(const p of cand){if(deals.length>=max)break;if(p.tid==null||p.newAt===S||Math.random()>(summer?.5:.25))continue;const sT=G.teams[p.tid],sI=I(sT);if(sI.out>=(summer?2:1)||sI.n<=11)continue;
     const fit=buyers.filter(b=>b.t.id!==sT.id&&b.inn<(summer?2:1)&&b.n<(b.t.dom?17:20)&&p.o>=b.six+(b.t.dom?2:1)&&p.o<=b.lv+6&&p.o>=b.lv-3&&forRoom(b.t,p,b.R)&&(b.pay>=sI.pay*1.15||(b.t.dom===sT.dom&&(b.t.rep||0)>=(sT.rep||0)+8)));
     if(!fit.length)continue;
-    const fee0=value(p)*(.55+.2*Math.min(3,p.yrs))*clamp(Math.sqrt(sI.pay),.3,1.1);
+    const fee0=value(p)*(.55+.2*Math.min(3,p.yrs))*(G.salV?1:clamp(Math.sqrt(sI.pay),.3,1.1));
     const afford=fit.filter(b=>b.bud>=fee0&&(!b.t.fin||b.t.fin.bal-fee0>=teamCosts(b.t.id)*.02));if(!afford.length)continue;
     const b=wpick(afford,x=>mktW(p,x.t)*(x.t.dom?1:3)),fee=r10k(fee0*rf(.9,1.2));
     // the seller: hard to pry away a top-two player from a club that does not need the money
@@ -1631,7 +1638,7 @@ function takeJob(tid,deal){
   const nhc=nw.staff.filter(x=>x.role==='HC');nw.formerHC=nhc.map(x=>x.f+' '+x.l);nw.staff=nw.staff.filter(x=>x.role!=='HC');for(const x of nhc){x.from=nw.name;G.staffFA.push(x);}
   G.faBid=null;G.user=tid;const W=teamCosts(tid);
   G.fin.bal=nw.fin?nw.fin.bal:isNBA(nw)?25000000:500000;G.fin.wageBudget=Math.round(wageBill(tid)*1.06/1e5)*1e5;
-  const gate=nw.cap*.8*25*.55*19;G.fin.sponsor=Math.max(500000,Math.round(((nw.fin?nw.fin.rev:W)-gate)/1e5)*1e5);
+  if(!isNBA(nw))G.fin.ticket=Math.max(4,Math.round(tkRef(nw)*25/30));const gate=nw.cap*.8*(isNBA(nw)?110:G.fin.ticket)*.55*19;G.fin.sponsor=Math.max(G.salV&&nw.dom?Math.max(40000,r10k(W*.2)):500000,Math.round(((nw.fin?nw.fin.rev:W)-gate)/1e5)*1e5);
   nw.fin=null;G.spons=null;ensureSponsors();nbaFinanceSync();G.fin.st=userFinState();G.fin.hist=[{l:'New job',bal:G.fin.bal}];
   deal=deal||G.pendingDeal;G.pendingDeal=null;newCoachDeal(nw,deal?deal.yrs:2);if(deal)G.coach.sal=deal.sal;msg('Agent',`Contract with ${nw.name}`,`You signed a ${deal?deal.yrs:2}-year contract: ${eur(G.coach.sal)} per season, until summer ${G.coach.until}.`,'fin');G.expired=false;
   G.meet=null;G.pledge=null;G.warn=null;G.sLost=0;G.jobStart=G.season;G.fg=null;G.press=null;G.pressBet=null;G.pressDone=null;G.pStreak=0;G.ulti=null;G.brd=null;G.mseen=null;G.mhype=null;G.board=55;G.fans=60;G.listed=[];G.loanOffers={};G.sacked=false;G.bankrupt=false;G.relegated=false;G.resigned=false;G.jobOffers=null;G.pendingJob=null;G.obj=userNotEL()?'dom':objective();
@@ -2204,7 +2211,7 @@ function userResult(m,r){
   G.lastGame={label:stepLabel(),h:r.h,a:r.a,hs:r.hs,as:r.as,qp:m.qp,top:top.id,box:[cb(m.s[0]),cb(m.s[1])]};
 }
 function attendance(){return Math.max(attendance0(),stSold());}
-function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-30)*.012)*facMult().att,.25,1));}
+function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
 function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
@@ -4049,7 +4056,7 @@ function assistantTips(m,ui){if(m.done||m.gtime()<180)return [];const me=m.s[ui]
 // Selling a favourite, high prices or a bad run can start a protest: ultras go silent for three home games, families stay away. You can talk to them.
 const FANG={ultra:{n:'Ultras',d:'Results, derbies and their favourites'},fam:{n:'Families',d:'Ticket prices and a good day out'}};
 function fg(){if(!G.fg)G.fg={ultra:Math.round(clamp(G.fans,30,80)),fam:Math.round(clamp(G.fans,30,80)),prot:null,meet:null,seen:null,fav:[]};return G.fg;}
-const fanRef=()=>isNBA(G.teams[G.user])?110:30;
+const fanRef=()=>tkRef(G.teams[G.user]);
 const priceRatio=()=>G.fin.ticket/fanRef();
 function fanAdd(k,d){const F=fg();F[k]=clamp(F[k]+d,0,100);}
 function atmosphere(h,a){const t=G.teams[G.user],F=fg(),fill=attendance()/Math.max(1,t.cap),P=F.prot;let v=fill*58+(F.ultra*.6+F.fam*.4)*.42;if(h!=null&&derbyOf(h,a))v+=10;if(P)v-=P.k==='ultra'?30:14;return clamp(Math.round(v),0,100);}
