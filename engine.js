@@ -1455,7 +1455,7 @@ function ensureFinance(){
   for(const t of ELT()){
     if(t.owner==null)t.owner=OWNER[t.short]??.5;
     if(t.state==null)t.state=!!STATEBACK[t.short];
-    if(t.id!==G.user&&!t.fin){const W=teamCosts(t.id);t.fin={bal:r10k((t.rep-76)*100000+rf(-1,.6)*1e6),rev:Math.round(W*(.885+t.owner*.11)*rf(.9,1.06)),st:'ok'};t.fin.st=finState(t.fin.bal,W);}
+    if(t.id!==G.user&&!t.fin){const W=teamCosts(t.id);t.fin={bal:r10k(Math.max(0,(t.rep-76)*100000)+rf(-.4,.6)*1e6),rev:Math.round(W*(.95+t.owner*.08)*rf(.94,1.05)),st:'ok'};t.fin.st=finState(t.fin.bal,W);}
   }
   if(!G.fin.st)G.fin.st=userFinState();
 }
@@ -1500,7 +1500,7 @@ function aiFinanceRound(){
     if(Math.random()<.003){const x=r10k(W*rf(.05,.15));f.bal+=x;news(`New sponsor for ${t.name}`,`${t.name} signed a new sponsorship deal worth around ${eur(x)}.`);}
     f.st=finState(f.bal,W);
     if(t.state&&(f.st==='crisis'||f.st==='admin')&&Math.random()<.08){stateRescue(t,false);f.st=finState(f.bal,W);}
-    if(f.st!=='ok'&&Math.random()<t.owner*t.owner*.03){const x=r10k(W*rf(.2,.45));f.bal+=x;f.st=finState(f.bal,W);t.bailout=(t.bailout||0)+1;news(`Owner rescues ${t.name}`,`The owners of ${t.name} injected ${eur(x)} to cover the club's debts.`);}
+    if(f.st!=='ok'&&Math.random()<.02+t.owner*t.owner*.06){const x=r10k(W*rf(.2,.45));f.bal+=x;f.st=finState(f.bal,W);t.bailout=(t.bailout||0)+1;news(`Owner rescues ${t.name}`,`The owners of ${t.name} injected ${eur(x)} to cover the club's debts.`);}
     const ord=['ok','strain','crisis','admin'];
     if(ord.indexOf(f.st)>ord.indexOf(prev)){
       if(f.st==='strain')news(`${t.name} in financial trouble`,`Reports say ${t.name} are running up debts. The club denies any problem with paying wages.`);
@@ -2452,6 +2452,7 @@ function pdRun(){const D=G.pdraft;if(!D||D.done)return;D.done=true;const U=G.use
   D.last={y:D.y,picks:out};D.cls=[];D.board=[];
   for(const t of pdTeams())if(t.id!==U){let n=0;while(roster(t.id).length>17&&n++<6){const w=roster(t.id).filter(q=>!q.draft||q.draft.y!==D.y).sort((a,b)=>a.o-b.o)[0];if(!w)break;toFA(w);}}}
 function newSeason(){
+  try{cupCapture();}catch(e){}
   if(G.pdraft&&G.pdraft.y===G.season+1&&!G.pdraft.done&&pdIn())pdRun();pdRank();
   boardSeason();
   fanSeason();
@@ -2464,7 +2465,7 @@ function newSeason(){
   sellOnMoves();loanBuyouts();for(const p of loanedOut())returnLoan(p,false);for(const p of loanedIn())returnLoanIn(p,false);glReturnAll();G.loanOffers={};G.loanMkt=null;
   sponsorSeason();normSquads();
   ensureFinance();for(const t of ELT())if(t.bankrupt&&t.id!==G.user)replaceClub(t);
-  for(const t of ELT())if(t.fin&&t.id!==G.user){const W=teamCosts(t.id);t.fin.rev=Math.round(.5*t.fin.rev+.5*W*(.885+t.owner*.11)*rf(.9,1.06));if(t.bailout)aiAusterity(t);}
+  for(const t of ELT())if(t.fin&&t.id!==G.user){const W=teamCosts(t.id);t.fin.rev=Math.round(.5*t.fin.rev+.5*W*(.95+t.owner*.08)*rf(.94,1.05));if(t.bailout)aiAusterity(t);}
   if(userNBA()&&G.fin.bal>30e6){const x=r10k(G.fin.bal-30e6);G.fin.bal=30e6;msg('Owner','Season profit',`We made money last season. I take ${eur(x)} out of the club; you start the new season with ${eur(G.fin.bal)} in cash for buy-outs and other costs.`,'fin');}
   nbaOptions();
   lrefEnsure();if(G.gref==null)G.gref=+gAvg().toFixed(2);const gDrift=gAvg()-G.gref;G.gdr=+gDrift.toFixed(2);G.devRep=[];const left=[],retired=[],ncl=[],mkSnap={};for(const p of Object.values(G.players))if(p.tid!=null)mkSnap[p.id]=[p.tid,G.teams[p.tid].dom||'EL',G.teams[p.tid].name];
@@ -2489,7 +2490,7 @@ function newSeason(){
   while(G.fa.filter(i=>G.players[i].o<=64).length<30){const p=genPlayer(rnd(52,63),pick(POS),pick(['SRB','SRB','CRO','MNE','BIH','SLO','USA','USA']),rnd(20,32));p.sal=salaryFor(p);G.fa.push(p.id);}
   lrefEnsure();if(G.staffFA&&G.staffFA.length>140){G.staffFA.sort((a,b)=>(b.o||0)-(a.o||0));G.staffFA.length=140;}slimPlayers();ensureStaff();for(const t of G.teams)for(const x of t.staff||[]){x.age++;if(t.dom)continue;x.yrs--;if(x.yrs<=0)x.yrs=rnd(1,3);}for(const x of G.staffFA)x.age++;
   G.round=0;G.phase='reg';G.day=0;G.po=null;G.res=[];G.lastResults=null;G.lastGame=null;G.uRes={};G.listed=[];
-  G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();try{summerCoaches();}catch(e){}nlApplyMoves();prMarket();try{aiTransfers('summer');}catch(e){}domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
+  try{elSwap();}catch(e){}G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();try{summerCoaches();}catch(e){}nlApplyMoves();prMarket();try{aiTransfers('summer');}catch(e){}domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();try{cupDraw();}catch(e){G.cupX=null;}ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
   G.fin.wageBudget=Math.max(G.fin.wageBudget,Math.round(wageBill(G.user)*1.02/1e5)*1e5);nbaFinanceSync();
   const bo=G.fin.bailout||0,cut=bo?bailoutCut(bo):0;
   if(cut){G.fin.wageBudget=Math.round(G.fin.wageBudget*(1-cut)/1e5)*1e5;ensureSponsors();G.spons.tv=r10k(G.spons.tv*(1-cut));syncSponsor();G.fin.bailout=0;
@@ -2632,7 +2633,7 @@ const mergeRounds=(a,b)=>Array.from({length:Math.max(a.length,b.length)},(_,i)=>
 function domInit(){
   domApplyPromRel();
   const el=window.ABA_EL||[],GR=window.ABA_GROUPS||{};
-  const ids=G.teams.filter(t=>t.dom==='ABA'||(!t.dom&&el.includes(t.short))).map(t=>t.id);
+  const ids=G.teams.filter(t=>t.dom==='ABA'||(!t.dom&&(el.includes(t.short)||(G.elx&&G.elx[t.short]==='ABA')))).map(t=>t.id);
   if(!ids.length){G.dom=null;G.leg='el';return;}
   for(const id of ids){const t=G.teams[id];t.dw=0;t.dl=0;t.dpf=0;t.dpa=0;}
   let A=ids.filter(i=>(GR.A||[]).includes(G.teams[i].short)),B=ids.filter(i=>(GR.B||[]).includes(G.teams[i].short));
@@ -3285,7 +3286,7 @@ function nlInit(code){
   if(code==='LKL'){addCupClubs();addBclClubs();addFecClubs();for(const t of G.teams)if(t.dom==='CUP'&&(window.LKL_FROM_CUP||[]).includes(t.short))t.dom='LKL';}
   if(code==='ISL'){addCupClubs();addBclClubs();addFecClubs();for(const t of G.teams)if(t.dom==='CUP'&&(window.ISL_FROM_CUP||[]).includes(t.short))t.dom='ISL';}
   if(code==='GBL'){addCupClubs();addBclClubs();addFecClubs();for(const t of G.teams)if(t.dom==='CUP'&&(window.GBL_FROM_CUP||[]).includes(t.short))t.dom='GBL';}
-  const C=NLCFG[code],ids=G.teams.filter(t=>t.dom===code||(!t.dom&&(C.el||[]).includes(t.short))||((C.guest||[]).includes(t.short)&&t.dom!=='GONE')).map(t=>t.id);
+  const C=NLCFG[code],ids=G.teams.filter(t=>t.dom===code||(!t.dom&&((C.el||[]).includes(t.short)||(G.elx&&G.elx[t.short]===code))&&!(G.elx&&G.elx[t.short]&&G.elx[t.short]!==code))||((C.guest||[]).includes(t.short)&&t.dom!=='GONE')).map(t=>t.id);
   if(!ids.length)return null;
   let groups=null;
   if(C.groups){groups={};for(const g of C.groups)groups[g]=ids.filter(i=>G.teams[i].grp===g);
@@ -4355,7 +4356,61 @@ const ecSort=ids=>ids.map(i=>G.teams[i]).sort((x,y)=>{const a=ecRec(x.id),b=ecRe
 const ecGroupOf=id=>G.ec?Object.keys(G.ec.groups).find(k=>G.ec.groups[k].includes(id))||'':'';
 function ecRank(id){const g=ecGroupOf(id);return g?ecSort(G.ec.groups[g]).findIndex(t=>t.id===id)+1:0;}
 function ecObjective(){const r=G.ec.ids.map(i=>({id:i,s:strength(i)})).sort((a,b)=>b.s-a.s).findIndex(x=>x.id===G.user)+1;return r<=1?'title':r<=3?'fin':r<=6?'sf':r<=12?'qf':'po';}
-function ecInit(){const E=window.EC26;if(!E){G.ec=null;return;}addCupClubs();
+
+/* ===================== European places from domestic results ===================== */
+// From the second season the cups are no longer the real 2026-27 line-ups: every league fills its EuroCup, Champions League and Europe
+// Cup places (the quotas of the real 2026-27 cups) with its best clubs of last season that are not in the EuroLeague, champion first.
+// Clubs with no league in the game keep their cup. The EuroCup winner moves up to the EuroLeague; the lowest club of the last
+// EuroLeague season without a long-term licence drops to the EuroCup. Groups are drawn fresh from strength pots.
+const CUPQ={EC:{LBA:6,ABA:4,BBL:4,ACB:3,BSL:3,LKL:3,GBL:2,LNB:2,GBR:1,ISL:1,PLK:1},
+  BCL:{ACB:4,BBL:4,ABA:3,LNB:3,BSL:2,GBL:2,ISL:2,LBA:2,LKL:2,BNX:1,PLK:1},
+  FEC:{GBL:4,BSL:3,PLK:3,ROU:3,BBL:2,KOS:2,LNB:2,ABA:1,ABA2:1,ACB:1,BNX:1,CRL:1,GBR:1,GEO:1}};
+const ELLIC=['RMB','FCB','BKN','PAO','OLY','FEN','EFS','CZV','PAR','MTA','BAY','MIL','ZAL','ASV'];
+const cupDataOf=(k,D)=>G&&G.cupX&&G.cupX.s===G.season&&G.cupX[k]?G.cupX[k]:D;
+// last season's order in every league, captured before the summer resets the tables
+function cupCapture(){const Q={},by=(ids,champ,rk)=>ids.slice().sort((a,b)=>(a===champ?-1:b===champ?1:0)||(rk(a)-rk(b)));
+  for(const L of Object.values(G.nl||{}))if(L&&L.ids)Q[L.code]=by(L.ids,L.champ,i=>nlRank(L,i)||99);
+  if(G.dom&&G.dom.ids)Q.ABA=by(G.dom.ids,G.dom.champ,i=>domRank(i)||99);
+  if(G.dom2&&G.dom2.ids)Q.ABA2=by(G.dom2.ids,G.dom2.champ,i=>dom2Rank(i)||99);
+  if(G.kls&&G.kls.ids)Q.KLS=by(G.kls.ids,G.kls.champ,i=>klsFLRank(i)||99);
+  if(G.bih&&G.bih.ids)Q.BIH=by(G.bih.ids,G.bih.champ,i=>bihRank(i)||99);
+  G.qprev=Q;G.ecWin=G.ec&&G.ec.champ!=null?G.ec.champ:null;G.elPrev=standings().map(t=>t.id);}
+function lgOfEL(t){const L=Object.values(G.nl||{}).find(L=>L&&L.ids&&L.ids.includes(t.id));if(L)return L.code;if(G.dom&&G.dom.ids&&G.dom.ids.includes(t.id))return 'ABA';return 'CUP';}
+// the EuroCup winner takes the EuroLeague place of the lowest club without a long-term licence
+function elSwap(){G.elx=G.elx||{};G.ecGuar=[];const w=G.ecWin!=null?G.teams[G.ecWin]:null;G.ecWin=null;
+  if(!w||!w.dom||w.dom==='GONE'||w.bankrupt||(G.prom&&G.prom.y===G.season&&G.prom.down.includes(w.id)))return;
+  const prev=(G.elPrev||[]).map(i=>G.teams[i]).filter(t=>t&&!t.dom);const out=prev.slice().reverse().find(t=>!ELLIC.includes(t.short));if(!out)return;
+  const code=lgOfEL(out),wcode=w.dom;
+  out.dom=code;delete G.elx[out.short];G.ecGuar=[out.id];
+  if(NLCFG[wcode]||wcode==='ABA')G.elx[w.short]=wcode;delete w.dom;delete w.grp;w.rep=Math.max(w.rep||0,78);
+  news(`${w.name} join the EuroLeague`,`As EuroCup champions, ${w.name} take a place in next season's EuroLeague. ${out.name} finished lowest of the clubs without a long-term licence and drop to the EuroCup.`);
+  if(out.id===G.user){G.board=clamp(G.board-12,0,100);msg('Club President','We lose our EuroLeague place',`We finished lowest of the clubs without a long-term licence, so ${w.name}, the EuroCup champions, take our EuroLeague place. Next season we play the EuroCup and our national league.`,'board');}
+  if(w.id===G.user){G.board=clamp(G.board+15,0,100);G.leg='el';msg('Club President','Welcome to the EuroLeague',`Winning the EuroCup earned us a place in the EuroLeague. Next season we play the EuroLeague${wcode&&NLCFG[wcode]?' and our national league':''}.`,'board');}}
+function cupDraw(){const Q=G.qprev||{},used=new Set(),ok=t=>t&&t.dom&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&t.order&&t.order.length>=8;
+  const rankIn=(code,t)=>{const l=Q[code]||[],i=l.indexOf(t.id);return i<0?500-(t.rep||0):i;};
+  const SRC={EC:window.EC26,BCL:window.BCL26,FEC:window.FEC26},pick={EC:[],BCL:[],FEC:[]};
+  for(const k of ['EC','BCL','FEC']){const D=SRC[k];if(!D)continue;for(const l of Object.values(D.groups))for(const sh of l){const t=G.teams.find(x=>x.short===sh);if(t&&t.dom==='CUP'&&ok(t)&&!used.has(t.id)){pick[k].push(t);used.add(t.id);}}}
+  for(const id of G.ecGuar||[]){const t=G.teams[id];if(ok(t)&&!used.has(id)){pick.EC.push(t);used.add(id);}}
+  for(const k of ['EC','BCL','FEC'])for(const [code,n] of Object.entries(CUPQ[k])){let need=n-(k==='EC'?(G.ecGuar||[]).filter(i=>G.teams[i]&&G.teams[i].dom===code).length:0);
+    const c=G.teams.filter(t=>t.dom===code&&ok(t)&&!used.has(t.id)).sort((a,b)=>rankIn(code,a)-rankIn(code,b));for(const t of c){if(need<=0)break;pick[k].push(t);used.add(t.id);need--;}}
+  const X={s:G.season};
+  for(const k of ['EC','BCL','FEC']){const D=SRC[k];if(!D)continue;const gk=Object.keys(D.groups),size=gk.map(g=>D.groups[g].length),tot=size.reduce((a,b)=>a+b,0);
+    let P=pick[k];if(P.length>tot)P=P.sort((a,b)=>(b.dom==='CUP')-(a.dom==='CUP')||strength(b.id)-strength(a.id)).slice(0,tot);
+    if(P.length<tot){const extra=G.teams.filter(t=>ok(t)&&!used.has(t.id)&&NLCFG[t.dom]&&!NLCFG[t.dom].up&&t.dom!=='NBA'&&t.dom!=='GL'&&t.dom!=='NCAA'&&Object.keys(CUPQ.FEC).concat(Object.keys(CUPQ.BCL)).includes(t.dom)).sort((a,b)=>b.rep-a.rep);for(const t of extra){if(P.length>=tot)break;P.push(t);used.add(t.id);}}
+    // pots by strength, avoid two clubs of one league in a group when possible
+    const S=P.slice().sort((a,b)=>strength(b.id)-strength(a.id)),G2=gk.map(()=>[]);
+    for(let i=0;i<S.length;i+=gk.length){const pot=shuffle(S.slice(i,i+gk.length));const free=gk.map((g,j)=>j).filter(j=>G2[j].length<size[j]);
+      for(const t of pot){let j=free.find(j=>G2[j].length<size[j]&&!G2[j].some(x=>x.dom===t.dom&&t.dom!=='CUP'))??free.find(j=>G2[j].length<size[j]);if(j==null)continue;G2[j].push(t);free.splice(free.indexOf(j),1);}}
+    const groups={},sched=[];gk.forEach((g,j)=>{groups[g]=G2[j].map(t=>t.short);
+      const orig=[...new Map(D.sched.filter(r=>D.groups[g].includes(r[2])).map(r=>[r[0],r[1]])).entries()].sort((a,b)=>a[0]-b[0]);
+      const rr=genSchedule(G2[j].map(t=>t.id));rr.slice(0,orig.length).forEach((games,i)=>{for(const [h,a] of games)if(h>=0&&a>=0)sched.push([orig[i][0],orig[i][1],G.teams[h].short,G.teams[a].short]);});});
+    X[k]={groups,sched};}
+  G.cupX=X;
+  const mine=['EC','BCL','FEC'].find(k=>X[k]&&Object.values(X[k].groups).some(l=>l.includes(G.teams[G.user].short)));
+  const nm={EC:'BKT EuroCup',BCL:'Basketball Champions League',FEC:'FIBA Europe Cup'};
+  news('European cups drawn',`The groups for the new European season are set: ${['EC','BCL','FEC'].filter(k=>X[k]).map(k=>`${nm[k]} ${Object.values(X[k].groups).flat().length} clubs`).join(', ')}. Places went to the best clubs of last season's national leagues.`);
+  if(G.teams[G.user].dom&&G.teams[G.user].dom!=='CUP'&&!mine)msg('Club President','No European cup this season','Our finish last season was not good enough for a European place. We concentrate on the league.','board');}
+function ecInit(){const E=cupDataOf('EC',window.EC26);if(!E){G.ec=null;return;}addCupClubs();
   const id=s=>{const t=G.teams.find(x=>x.short===s);return t&&t.dom&&t.dom!=='GONE'&&!t.bankrupt?t.id:null;}; // EuroLeague clubs cannot play
   const groups={};for(const [k,list] of Object.entries(E.groups))groups[k]=list.map(id).filter(x=>x!=null);
   const ids=[].concat(...Object.values(groups)),byR={};
@@ -4457,7 +4512,7 @@ const bclSort=(ids,r16)=>ids.map(i=>G.teams[i]).sort((x,y)=>{const a=bclRec(x.id
 const bclGroupOf=(id,r16)=>{const B=G.bcl;if(!B)return '';const g=r16?B.g16||{}:B.groups;return Object.keys(g).find(k=>g[k].includes(id))||'';};
 function bclRank(id,r16){const g=bclGroupOf(id,r16);if(!g)return 0;return bclSort((r16?G.bcl.g16:G.bcl.groups)[g],r16).findIndex(t=>t.id===id)+1;}
 function bclObjective(){const r=G.bcl.ids.map(i=>({id:i,s:strength(i)})).sort((a,b)=>b.s-a.s).findIndex(x=>x.id===G.user)+1;return r<=1?'title':r<=2?'fin':r<=4?'f4':r<=8?'qf':'r16';}
-function bclInit(){const D=window.BCL26;if(!D){G.bcl=null;return;}addBclClubs();
+function bclInit(){const D=cupDataOf('BCL',window.BCL26);if(!D){G.bcl=null;return;}addBclClubs();
   const id=s=>{const t=G.teams.find(x=>x.short===s);return t&&t.dom&&t.dom!=='GONE'&&!t.bankrupt?t.id:null;};
   const groups={};for(const [k,list] of Object.entries(D.groups))groups[k]=list.map(id).filter(x=>x!=null);
   const ids=[].concat(...Object.values(groups)),byR={};
@@ -4564,7 +4619,7 @@ const fecSort=(ids,r2)=>ids.map(i=>G.teams[i]).sort((x,y)=>{const a=fecRec(x.id,
 const fecGroupOf=(id,r2)=>{const F=G.fec;if(!F)return '';const g=r2?F.g2||{}:F.groups;return Object.keys(g).find(k=>g[k].includes(id))||'';};
 function fecRank(id,r2){const g=fecGroupOf(id,r2);if(!g)return 0;return fecSort((r2?G.fec.g2:G.fec.groups)[g],r2).findIndex(t=>t.id===id)+1;}
 function fecObjective(){const r=G.fec.ids.map(i=>({id:i,s:strength(i)})).sort((a,b)=>b.s-a.s).findIndex(x=>x.id===G.user)+1;return r<=1?'title':r<=2?'fin':r<=4?'sf':r<=8?'qf':'r2';}
-function fecInit(){const D=window.FEC26;if(!D){G.fec=null;return;}addFecClubs();
+function fecInit(){const D=cupDataOf('FEC',window.FEC26);if(!D){G.fec=null;return;}addFecClubs();
   const id=s=>{const t=G.teams.find(x=>x.short===s);return t&&t.dom&&t.dom!=='GONE'&&!t.bankrupt&&!cupOfTeamEB(t.id)?t.id:null;};
   const groups={};for(const [k,list] of Object.entries(D.groups))groups[k]=list.map(id).filter(x=>x!=null);
   const ids=[].concat(...Object.values(groups)),byR={};
