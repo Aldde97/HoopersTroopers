@@ -2132,7 +2132,7 @@ function simStep0(um){
   if(userIsKls())G.leg='kls';
   if(userIsBih())G.leg='bih';
   if(userIsNL())G.leg='nl';
-  const natLeg=G.leg==='kls'||G.leg==='bih';
+  const natLeg=G.leg==='kls'||G.leg==='bih'||(G.leg==='nl'&&userIs2());
   if(userIsDom()&&!natLeg)G.leg='dom';
   if(userIs2()&&!natLeg)G.leg='dom2';
   const fx=getFixtures(),lbl=stepLabel(),out=[];
@@ -2140,10 +2140,13 @@ function simStep0(um){
   G.lastResults={label:lbl,list:out.map(x=>x.r),dom:G.leg==='dom'};
   if(G.leg==='kls'&&userIsKls()){domBetween();klsAdvance(out);klsUserCatchUp();}
   else if(G.leg==='kls'){domBetween();klsAdvance(out);if(G.kls.phase==='done'||!klsUserIn()){klsFinishSilent();G.leg=userIs2()?'dom2':userIsDom()?'dom':'el';endOrKls();}}
-  else if(G.leg==='nl'){domBetween();const L=nlUser();nlAdvance(L,out);if(userIsNL())nlUserCatchUp(L);else if(G.phase!=='done'){G.leg='el';}else if(L.phase==='done'||!nlUserIn(L)){nlFinishSilent(L);G.leg='el';endOrKls();}}
+  else if(G.leg==='nl'){domBetween();const L=nlUser();nlAdvance(L,out);if(userIsNL())nlUserCatchUp(L);
+    // an ABA League 2 club that also plays its national league (MZT, TFT): back to the ABA League 2 next, or on in the national league once that is over
+    else if(userIs2()){if(G.dom2&&G.dom2.phase!=='done')G.leg='dom2';else{if(L.phase==='wait')nlStartPO(L);if(!(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L)))){nlFinishSilent(L);G.leg='dom2';endOrKls();}}}
+    else if(G.phase!=='done'){G.leg='el';}else if(L.phase==='done'||!nlUserIn(L)){nlFinishSilent(L);G.leg='el';endOrKls();}}
   else if(G.leg==='bih'&&userIsBih()){domBetween();bihAdvance(out);bihUserCatchUp();}
   else if(G.leg==='bih'){domBetween();bihAdvance(out);if(G.bih.phase==='done'||!bihUserIn()){bihFinishSilent();G.leg=userIs2()?'dom2':userIsDom()?'dom':'el';endOrKls();}}
-  else if(G.leg==='dom2'){domBetween();dom2Advance(out);dom2UserCatchUp();}
+  else if(G.leg==='dom2'){domBetween();dom2Advance(out);dom2UserCatchUp();{const L=nlUser();if(L&&!userIsNL()&&G.leg==='dom2'&&G.dom2.phase!=='done'){if(L.phase==='wait')nlStartPO(L);if(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L)))G.leg='nl';}}}
   else if(G.leg==='dom'){domBetween();domAdvance(out);if(userIsDom())domUserCatchUp();else domNextLeg(false);}
   else{const wasReg=G.phase==='reg';betweenRounds();advanceStep(out);domAfterEL(wasReg);{const L=nlUser();if(wasReg&&L&&!userIsNL()&&L.phase==='reg'&&G.leg==='el')G.leg='nl';}}
   cupHook();
@@ -2960,7 +2963,7 @@ const NLCFG={
   LBL:{name:'Lebanese Basketball League',short:'LBL',country:'Lebanon',po:'lbl',prize:60000,title:'Lebanese champions',up:null,down:null,nDown:0,safeRank:10},
   CRL:{name:'SuperSport Premijer liga',short:'Premijer liga',country:'Croatia',guest:['CIB','ZAD','VIZ'],po:'crl',prize:60000,title:'Croatian champions',up:null,down:'PML',nDown:0,safeRank:10},
   NCAA:{name:'NCAA Division I',short:'NCAA',country:'USA',po:'ncaa',groups:['ACC','Big East','Big Ten','Big 12','SEC'],prize:0,title:'National champions',up:null,down:null,nDown:0,safeRank:9},
-  MKD:{name:'MTEL Super Liga',short:'Super Liga',country:'North Macedonia',guest:['MZT','TFT'],po:'mkd',prize:30000,title:'Macedonian champions',up:null,down:null,nDown:0,safeRank:6},
+  MKD:{name:'MTEL Super Liga',short:'Super Liga',country:'North Macedonia',guest:['MZT','TFT'],guestPlay:1,po:'mkd',prize:30000,title:'Macedonian champions',up:null,down:null,nDown:0,safeRank:6},
   AUS:{name:'NBL Australia',short:'NBL',country:'Australia',po:'aus',prize:300000,title:'NBL champions',up:null,down:null,nDown:0,safeRank:6},
   NZL:{name:"Sal's NBL",short:'NZ NBL',country:'New Zealand',po:'nzl',prize:30000,title:'New Zealand champions',up:null,down:null,nDown:0,safeRank:8},
   JPN:{name:'B.League Premier',short:'B.League',country:'Japan',po:'jpn',groups:['East','West'],prize:600000,title:'Japanese champions',up:null,down:null,nDown:0,safeRank:9},
@@ -3117,7 +3120,7 @@ function nbaSchedule(T){T=T.map(i=>({id:i,conf:G.teams[i].grp,div:G.teams[i].div
 
 const nlOf=tid=>G.nl?Object.values(G.nl).find(L=>L&&L.ids.includes(tid))||null:null;
 // a guest club (BC Vienna in the Superliga) coached by the user plays its own league; its guest games run in the background
-const nlUser=()=>{if(!G)return null;const t=G.teams[G.user];return G.nl?Object.values(G.nl).find(L=>L&&L.ids.includes(G.user)&&!((NLCFG[L.code].guest||[]).includes(t.short)&&t.dom!==L.code))||null:null;};
+const nlUser=()=>{if(!G)return null;const t=G.teams[G.user];return G.nl?Object.values(G.nl).find(L=>L&&L.ids.includes(G.user)&&!((NLCFG[L.code].guest||[]).includes(t.short)&&t.dom!==L.code&&!NLCFG[L.code].guestPlay))||null:null;};
 const nlRec=(L,id)=>L.tab[id]||(L.tab[id]=[0,0,0,0]);
 const nlSort=(L,ids)=>ids.map(i=>G.teams[i]).sort((x,y)=>{const a=nlRec(L,x.id),b=nlRec(L,y.id);if(L.code==='NCAA'){const c=ncRec(L,x.id),d=ncRec(L,y.id),k=(d[0]-d[1])-(c[0]-c[1]);if(k)return k;}return (b[0]-a[0])||((b[2]-b[3])-(a[2]-a[3]))||(x.id-y.id);});
 function nlTables(L){return L.groups?Object.entries(L.groups).map(([k,ids])=>({key:k,name:L.code==='GL'?(L.tip?`Tip-Off \u00b7 ${k} Region`:`${k}ern Conference`):L.code==='NBA'?`${k}ern Conference`:L.code==='NCAA'?k:L.code==='JPN'?`${k} Conference`:L.code==='MKD'?`Super Liga \u00b7 ${k}`:`${NLCFG[L.code].short} ${k}`,ids})):[{key:'all',name:NLCFG[L.code].name,ids:L.ids}];}
@@ -3152,6 +3155,7 @@ function nlInitAll(){
   glAssign();
   const L=nlUser();if(!L)return;const C=NLCFG[L.code];L.obj=nlObjective(L);
   if(userIsNL()){G.leg='nl';msg('Club President',`${C.name} target`,`We play the ${C.name}${L.groups?` (${G.teams[G.user].grp})`:''}: ${L.sched.length} rounds, then the playoffs.${L.code==='RL'?` ${rlUpText(G.teams[G.user].grp)}`:L.code==='PML'?' The playoff champion is promoted.':C.up?' The two finalists are promoted.':''} The board's target: ${nlObjText(L).toLowerCase()}.`,'board');}
+  else if(userIs2())msg('Club President',C.name,`Besides the ABA League 2 we play the ${C.name}: ${L.sched.length} rounds, then the playoffs. The two competitions alternate.`,'board');
   else msg('Club President',C.name,`Besides the EuroLeague we play the ${C.name} on weekends: ${L.sched.length} rounds, then play-in and playoffs after the EuroLeague Final Four.`,'board');
 }
 function ensureNL(){
