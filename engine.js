@@ -923,16 +923,28 @@ function schedB2B(code,tid){const L=G.nl&&G.nl[code];if(!L||L.phase!=='reg')retu
   if(code==='JPN')return L.round%2===1;
   if(code==='AUS')return sHash(tid*31+L.round*977+G.season)%100<8;
   return false;}
-function teamCtx(tid,home,code,neutral,oth){const t=G.teams[tid],rest=t.gd!=null&&G.day>=t.gd&&G.day-t.gd<30?G.day-t.gd:null;
-  const b2b=rest===1||schedB2B(code,tid),short=!b2b&&(rest===0||rest===2);
+
+// Every club keeps its own calendar. The game advances G.day in steps, so a club in two competitions can have two games on the same
+// G.day: the second one counts as two days later (a midweek game and a weekend game). Energy comes back between a club's own games,
+// faster after more days off; injuries count down in the club's own games.
+function vDay(t){return t.vd!=null&&G.day<=t.vd&&t.vd-G.day<20?t.vd+2:G.day;}
+const recK=()=>{const tr=G.training;return (22+(tr.focus==='conditioning'?6:0)+({light:6,normal:0,hard:-6})[tr.intensity])/22;};
+function recoverTo(t,day){if(!t)return;if(t.rcd==null||t.rcd>day+20){t.rcd=day;return;}const d=Math.min(12,day-t.rcd);if(d<=0)return;t.rcd=day;const k=t.id===G.user?recK():1;
+  for(const id of t.order){const p=G.players[id];if(!p)continue;const def=100-p.energy;p.energy=clamp(p.energy+(def*(1-Math.pow(.8,d))+3*d)*ageRec(p.age||27)*k,0,100);}}
+function injTickTeam(t){for(const id of t.order){const p=G.players[id];if(!p||p.inj<=0)continue;p.inj--;if(p.inj===0&&p.tid===G.user)msg('Team Doctor',`${pname(p)} is fit again`,`${pname(p)} has completed his rehab and is available for selection.`,'med');}}
+function teamCtx(tid,home,code,neutral,oth){const t=G.teams[tid],vday=vDay(t),rest=t.vd!=null&&vday-t.vd<30?vday-t.vd:null;
+  const b2b=rest===1||schedB2B(code,tid),short=false;
   let trav=0;if(!home&&!neutral){trav=TRV[code]!=null?TRV[code]:.0015;const far=FAR[code];if(far&&(far.includes(t.short)||far.includes(G.teams[oth].short)))trav+=.002;}
-  return {rest,b2b,short,trav};}
-function ctxLine(c){const r=c.b2b?'back-to-back':c.short?'short rest':c.rest!=null?`${Math.max(0,c.rest-1)} days' rest`:'fully rested';return r+(c.trav>=.003?', long trip':c.trav>0?', away trip':'');}
+  return {rest,b2b,short,trav,vday};}
+function ctxLine(c){const r=c.b2b?'back-to-back':c.rest!=null?`${Math.max(0,c.rest-1)} day${c.rest===2?'':'s'}' rest`:'fully rested';return r+(c.trav>=.003?', long trip':c.trav>0?', away trip':'');}
 function fxCtx(f){if(f.kind==='pre')return null;const code=legOf(f.kind,f.h,f.a);return [teamCtx(f.h,true,code,!!f.neutral,f.a),teamCtx(f.a,false,code,!!f.neutral,f.h)];}
 function matchCtx(m,h,a){const code=legOf(m.kind,h,a);m.code=code;
   const ht=G.teams[h];m.homeB=.02*(HOMEK[code]||1)+(h!==G.user?.003*clamp(((ht.rep||70)-70)/22,0,1):0);
   m.s.forEach((s,i)=>{const c=teamCtx(s.tid,i===0,code,m.neutral,i?h:a);Object.assign(s,c);
-    s.adj=(c.b2b?-.012:c.short?-.004:0)-c.trav;
+    recoverTo(G.teams[s.tid],c.vday);s.adj=(c.b2b?-.012:0)-c.trav;
+    // AI coaches manage minutes: tired players play less, EuroLeague clubs ease off in domestic games against much weaker teams, NBA stars sit a bit on back-to-backs
+    if(s.tid!==G.user){const T=G.teams[s.tid],gap=strength(s.tid)-strength(i?h:a),easy=isNlK(m.kind)&&!T.dom&&gap>=8&&m.kind==='nl';
+      s.ord.forEach((p,j)=>{let f=1;const e=p.energy;if(e<70)f*=.8;else if(e<80)f*=.9;if(easy&&j<5)f*=.82;if(c.b2b&&j<3&&(T.dom==='NBA'||T.dom==='GL'))f*=.9;s.tgt[p.id]=Math.round(s.tgt[p.id]*f);});}
     const top=s.ord.slice(0,8),ath=avg(top.map(p=>p.a.ath)),age=avg(top.map(p=>p.age||27));
     // running and pressing pay off for young, athletic squads and wear everybody out
     if(s.tac.pace==='fast')s.adj+=clamp((ath-68)*.0005-(age-27)*.0006,-.007,.007);
@@ -976,7 +988,7 @@ function newGame(tid,mgr){
   G.fin.sponsor=Math.round(G.fin.wageBudget*.62/1e5)*1e5;
   G.fin.bal=Math.max(400000,Math.round(((u.rep-70)*230000+500000)/1e5)*1e5);
   G.fin.hist.push({l:'Start',bal:G.fin.bal});
-  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();coachTick();
+  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();coachTick();
   msg('Club President',`Welcome to ${u.name}`,`Welcome to ${u.city}, coach. The board's objective for ${seasonStr()} is clear: ${OBJ[G.obj].toLowerCase()}. Our fans expect a team that competes every night. Good luck.`,'board');
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(tid))}). The transfer market is open until the end of the regular season.`,'fin');
   msg('Assistant Coach','Rotation and tactics',`I have set the rotation by position. The first five in the squad list start, numbers 6 to 8 get rotation minutes, 9 and 10 play spot minutes. Reorder the list in Squad and adjust our game plan in Tactics.`,'staff');
@@ -2117,7 +2129,7 @@ const isNatK=k=>isKlsK(k)||isBihK(k)||isNlK(k);
 
 function applyResult(m,f){
   const [h,a]=m.s,hw=h.pts>a.pts,th=G.teams[h.tid],ta=G.teams[a.tid];
-  if(m.kind!=='pre'){aiRoom(th,hw);aiRoom(ta,!hw);th.gd=G.day;ta.gd=G.day;}
+  if(m.kind!=='pre'){aiRoom(th,hw);aiRoom(ta,!hw);th.vd=m.s[0].vday!=null?m.s[0].vday:G.day;ta.vd=m.s[1].vday!=null?m.s[1].vday:G.day;injTickTeam(th);injTickTeam(ta);}
   if(f.kind==='fec'){const r2=f.st==='r2',rh=fecRec(h.tid,r2),ra=fecRec(a.tid,r2);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
   if(f.kind==='bcl'){const r16=f.st==='r16',rh=bclRec(h.tid,r16),ra=bclRec(a.tid,r16);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
   if(f.kind==='ec'){const rh=ecRec(h.tid),ra=ecRec(a.tid);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
@@ -2169,7 +2181,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-30)*.012)*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
+function simStep(um){const r=simStep0(um);if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -2207,8 +2219,7 @@ function betweenRounds(){
   const reg=G.phase==='reg',tr=G.training,SF=staffFx();
   const rec=22+(tr.focus==='conditioning'?6:0)+({light:6,normal:0,hard:-6})[tr.intensity];
   for(const id in G.players){const p=G.players[id];
-    if(p.inj>0){p.inj--;if(p.inj===0&&p.tid===G.user)msg('Team Doctor',`${pname(p)} is fit again`,`${pname(p)} has completed his rehab and is available for selection.`,'med');}
-    p.energy=clamp(p.energy+(p.tid===G.user?rec:22)*ageRec(p.age||27),0,100);
+    if(p.tid==null){if(p.inj>0)p.inj--;p.energy=clamp(p.energy+22,0,100);}
     const devL=!!(p.loan&&p.loan.dev);
     if((p.tid==null&&!devL)||p.age>29)continue;
     const user=p.tid===G.user,focus=user?tr.focus:'balanced',mult=user?({light:.6,normal:1,hard:1.5})[tr.intensity]*SF.train:devL?1.6:1;
@@ -2421,7 +2432,7 @@ function newSeason(){
   }
   ncaaOffseason();acadSeason();merchSeason();
   for(const t of G.teams){if(t.order.length<14&&t.id!==G.user&&!isNBA(t)&&!isCol(t)){const nat=Math.random()<.6?t.nat:pick(NATS);const lv=teamLevel(t);const p=genPlayer(clamp(Math.round(lv-14+rf(-3,3)),30,64),pick(POS),nat,rnd(18,19));p.pot=clamp(p.o+rnd(8,22),p.o,94);p.yrs=3;p.sal=80000;join(p,t);if(t.id===G.user)msg('Youth Academy',`${pname(p)} promoted`,`${pname(p)} (${p.pos}, ${p.age}) joins the first team from the academy. Potential estimate: ${p.pot}.`,'staff');}
-    t.w=0;t.l=0;t.pf=0;t.pa=0;t.form=[];if(t.id!==G.user){t.tac=Math.random()<.3?aiTac():t.tac;aiFix(t);t.order=autoOrder(t.order);}}
+    t.w=0;t.l=0;t.pf=0;t.pa=0;t.form=[];t.vd=null;t.rcd=null;delete t.gd;if(t.id!==G.user){t.tac=Math.random()<.3?aiTac():t.tac;aiFix(t);t.order=autoOrder(t.order);}}
   nbaFAStart();
   aiFASign(.75);
   const ut=G.teams[G.user];if(ut.order.length<SQUADMIN&&!(userNBA()&&G.nfa))msg('Sporting Director','We need more players',`Only ${ut.order.length} players are under contract. You must have at least ${SQUADMIN} before we can play another game. Sign them in the Transfers tab.`,'fin');
@@ -2592,6 +2603,16 @@ function fixBSL(){const N=window.BSL_NO||{},RV={};for(const [k,v] of Object.entr
 // ABA League 2 numbers found after the rosters were made (from the official box scores); applied once per number, also in older saves
 function fixABA2(){const N=window.ABA2_NO||{};for(const t of G.teams){const m=N[t.short];if(!m)continue;for(const id of t.order){const p=G.players[id];if(!p)continue;const n=m[p.f+' '+p.l];if(n==null||p.noAba===n)continue;p.no=n;p.noAba=n;delete p.noFix;}}}
 // the Spanish clubs that came from the European cups get their official ACB roster (once; the user's own players are never removed)
+
+// Cup clubs that also play a national league (window.ACB_SYNC with LKL_RATED): the cup ratings set the club's level, which matches the
+// real league tables; the league research says who carries the team. Keep each club's average, redistribute it in the researched order.
+function relevelSync(){if(!G||G.season!==2026)return;const S=window.ACB_SYNC||{},LR=window.LKL_RATED||{},RR=window.SYNC_RERATE||{};
+  const nz=x=>String(x||'').normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z ]/g,' ').replace(/\b(jr|ii|iii|iv)\b/g,' ').trim();
+  for(const [sh,rows] of Object.entries(S)){if(!LR[sh]||RR[sh])continue;const t=G.teams.find(x=>x.short===sh);if(!t||t.rlv)continue;t.rlv=1;
+    const ps=roster(t.id),pr=[];for(const r of rows){const p=ps.find(q=>!pr.some(x=>x[0]===q)&&nz(q.l).split(' ').pop()===nz(r[2]).split(' ').pop()&&nz(q.f).slice(0,3)===nz(r[1]).slice(0,3));if(p)pr.push([p,r[7]]);}
+    if(pr.length<5)continue;const off=avg(pr.map(x=>x[0].o))-avg(pr.map(x=>x[1]));
+    for(const [p,r7] of pr){const o=clamp(Math.round(r7+off),40,90);for(let i=0;i<30&&p.o!==o;i++){const d=o>p.o?1:-1;for(const k of ATTR)p.a[k]=clamp(p.a[k]+d,25,99);upd(p);}p.pot=Math.max(p.pot||0,p.o);}
+    t.order=autoOrder(t.order);}}
 function acbSync(){const S=window.ACB_SYNC||{},R=window.ACB_SYNC_REP||{};
   const nz=x=>String(x||'').normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z ]/g,' ').replace(/\b(jr|ii|iii|iv)\b/g,' ').trim().split(/\s+/).filter(Boolean);
   const lev=(a,b)=>{const m=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let prev=m[0];m[0]=i;for(let j=1;j<=b.length;j++){const t=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=t;}}return m[b.length];};
@@ -2652,7 +2673,7 @@ let restoring=false;function restoreLost(){if(!G||G.lostFix||restoring)return;re
     const p=JSON.parse(JSON.stringify(q));p.id=G.nid++;p.tid=null;p.age=age;p.yrs=0;p.loan=null;p.last=p.last||(G.teams[q.tid]?G.teams[q.tid].name:'');p.sal=salaryFor(p);G.players[p.id]=p;G.fa.push(p.id);have.add(pname(p));n++;}
   G.lostFix=true;G.lostN=n;}
 function ensureDomestic(){
-  restoreLost();backfillExp();addExtraFA();addAbaFA();ensureKls();ensureBih();ensureNL();autSync();bihSync();glRosterSync();glStaffSync();forSync();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();if(G.spons)nbaFinanceSync();ensureEC();ensureBCL();ensureFEC();acbSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();
+  restoreLost();backfillExp();addExtraFA();addAbaFA();ensureKls();ensureBih();ensureNL();autSync();bihSync();glRosterSync();glStaffSync();forSync();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();if(G.spons)nbaFinanceSync();ensureEC();ensureBCL();ensureFEC();acbSync();relevelSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();fixNumbers();fixColors();nameFix();
   for(const p of Object.values(G.players)){const n=(window.NAT_FIX||{})[pname(p)];if(n)p.nat=n;}
   if(G.dom!==undefined&&(!G.dom||G.dom.v===2)){domStaff();ensureDom2();return;}
   if(G.dom===undefined)addDomClubs();
@@ -2744,7 +2765,7 @@ function domFinish(){const D=G.dom,U=G.user;if(D.champ===U)return 'Champions';
   return `${ordn(domRank(U))} in ${D.groups.A.includes(U)?'Group A':'Group B'}`;}
 function domObjMet(){const f=domFinish(),D=G.dom,U=G.user,lvl=['Champions','Runner-up','Semi-finals','Quarter-finals','Play-In'].indexOf(f);
   return {title:lvl===0,fin:lvl>=0&&lvl<=1,sf:lvl>=0&&lvl<=2,po:lvl>=0&&lvl<=3,top8:!!(D.top8&&D.top8.includes(U)),pi:lvl>=0||!!(D.top8&&D.top8.includes(U))}[D.obj];}
-function domBetween(){for(const id in G.players){const p=G.players[id];p.energy=clamp(p.energy+(p.tid===G.user?8:10)*ageRec(p.age||27),0,100);}G.day+=2;}
+function domBetween(){for(const id in G.players){const p=G.players[id];if(p.tid==null)p.energy=clamp(p.energy+10,0,100);}G.day+=2;}
 function domSilentStep(){const fx=domFixtures(),out=[];for(const f of fx){const m=new Match(f.h,f.a,{kind:f.kind}).run();out.push({f,r:applyResult(m,f)});}domAdvance(out);}
 function domFinishSilent(){let k=0;while(G.dom&&G.dom.phase!=='done'&&k++<200)domSilentStep();}
 function domPlaysUser(){return !!(G.dom&&G.dom.ids.includes(G.user));}
@@ -3613,7 +3634,7 @@ function preLock(){const P=G.pre;if(!P.plan)return;P.plan=false;const T=preT();i
 function preFx(){if(!preOn())return null;const g=G.pre.games[G.pre.i];return g?{h:g.h,a:g.a,kind:'pre',neutral:!!g.neutral,pre:g}:null;}
 function preLabel(g){g=g||(G.pre&&G.pre.games[G.pre.i]);if(!g)return 'Pre-season';const T=preT();
   return g.t==='nba'?'NBA Preseason':g.t==='gl'?'G League exhibition':g.t==='tsf'?`${T.name} · Semi-final`:g.t==='tf'?`${T.name} · Final`:g.t==='t3'?`${T.name} · 3rd place`:'Pre-season friendly';}
-function preApply(m,g){restDone();const P=G.pre,ui=m.s[0].tid===G.user?0:1,me=m.s[ui],op=m.s[1-ui],won=me.pts>op.pts;
+function preApply(m,g){restDone();const P=G.pre,ui=m.s[0].tid===G.user?0:1,me=m.s[ui],op=m.s[1-ui],won=me.pts>op.pts;injTickTeam(G.teams[G.user]);
   for(const p of me.ord){const b=me.box[p.id];if(!b||b.sec<=0)continue;p.energy=clamp(p.energy-b.sec/60*.35,25,100);
     if(Math.random()<.0025*(b.sec/1200)){p.inj=rnd(1,3);msg('Team Doctor',`${pname(p)} injured`,`${pname(p)} picked up a knock in the pre-season game and misses ${p.inj} game${p.inj>1?'s':''}.`,'med');}
     if(p.age<=23&&b.sec>=600&&p.o<p.pot&&Math.random()<.3){const k=pick(ATTR);if(p.a[k]<99){p.a[k]++;upd(p);}}}
