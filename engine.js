@@ -2176,6 +2176,7 @@ function applyResult(m,f){
   if(f.kind==='dom'||f.kind==='d2'){th.dw+=hw?1:0;th.dl+=hw?0:1;ta.dw+=hw?0:1;ta.dl+=hw?1:0;th.dpf+=h.pts;th.dpa+=a.pts;ta.dpf+=a.pts;ta.dpa+=h.pts;}
   if(f.kind==='reg'){th.w+=hw?1:0;th.l+=hw?0:1;ta.w+=hw?0:1;ta.l+=hw?1:0;th.pf+=h.pts;th.pa+=a.pts;ta.pf+=a.pts;ta.pa+=h.pts;}
   th.form.push(hw?'W':'L');ta.form.push(hw?'L':'W');if(th.form.length>5)th.form.shift();if(ta.form.length>5)ta.form.shift();
+  if(m.kind!=='pre')for(const s of m.s)for(const id of G.teams[s.tid].order){const q=G.players[id];if(!q)continue;q.dvt=(q.dvt||0)+1;const bx=s.box[id];if(bx&&bx.sec>0)q.dvm=(q.dvm||0)+bx.sec/60;}
   for(const s of m.s)for(const p of s.ord){const b=s.box[p.id];if(b.sec<=0)continue;
     const st=f.kind==='pok'?(p.pst||(p.pst=blank())):(isEcK(f.kind)||isBclK(f.kind)||isFecK(f.kind))?(p.est||(p.est=blank())):isNatK(f.kind)?(p.kst||(p.kst=blank())):isDomK(f.kind)?(p.dst||(p.dst=blank())):p.st;for(const k in b)st[k]+=b[k];st.gp++;
     // a player loaned out by the user: his games at the other club, whatever competition they are in
@@ -2258,7 +2259,7 @@ function betweenRounds(){
     if(p.tid==null){if(p.inj>0)p.inj--;p.energy=clamp(p.energy+22,0,100);}
     const devL=!!(p.loan&&p.loan.dev);
     if((p.tid==null&&!devL)||p.age>29)continue;
-    const user=p.tid===G.user,focus=user?tr.focus:'balanced',mult=user?({light:.6,normal:1,hard:1.5})[tr.intensity]*SF.train:devL?1.6:1;
+    const user=p.tid===G.user,focus=user?tr.focus:'balanced',mult=(user?({light:.6,normal:1,hard:1.5})[tr.intensity]*SF.train:devL?1.15:1)*(p.age<=25?devK(p):1);
     const gap=p.pot-p.o,ch=(p.age<=22?.25:p.age<=25?.15:.07)*mult*(gap>0?1:.15);
     if(Math.random()<ch){const k=Math.random()<.65?pick(FOCUSATTR[focus]):pick(ATTR);if(p.a[k]<99){const old=p.o;p.a[k]++;upd(p);if(user){G.trainLog.unshift({pid:p.id,k,o:p.o,up:p.o>old,d:dateStr()});if(G.trainLog.length>30)G.trainLog.length=30;}}}
   }
@@ -2456,11 +2457,11 @@ function newSeason(){
   for(const t of ELT())if(t.fin&&t.id!==G.user){const W=teamCosts(t.id);t.fin.rev=Math.round(.5*t.fin.rev+.5*W*(.885+t.owner*.11)*rf(.9,1.06));if(t.bailout)aiAusterity(t);}
   if(userNBA()&&G.fin.bal>30e6){const x=r10k(G.fin.bal-30e6);G.fin.bal=30e6;msg('Owner','Season profit',`We made money last season. I take ${eur(x)} out of the club; you start the new season with ${eur(G.fin.bal)} in cash for buy-outs and other costs.`,'fin');}
   nbaOptions();
-  const left=[],retired=[],ncl=[],mkSnap={};for(const p of Object.values(G.players))if(p.tid!=null)mkSnap[p.id]=[p.tid,G.teams[p.tid].dom||'EL',G.teams[p.tid].name];
+  G.devRep=[];const left=[],retired=[],ncl=[],mkSnap={};for(const p of Object.values(G.players))if(p.tid!=null)mkSnap[p.id]=[p.tid,G.teams[p.tid].dom||'EL',G.teams[p.tid].name];
   for(const id of Object.keys(G.players)){const p=G.players[id];
     if(p.tid!=null&&isNBA(G.teams[p.tid])&&!p.tw)p.exp=(p.exp||0)+1;
     p.age++;p.ld=null;p.st=blank();p.dst=blank();p.est=blank();p.kst=blank();delete p.pst;p.energy=100;p.inj=0;p.fragile=null;p.rm=null;p.offR=-1;
-    const g=p.age<=22?rnd(1,5):p.age<=25?rnd(0,3):p.age<=29?rnd(-1,1):p.age<=32?rnd(-3,0):rnd(-5,-1);
+    const g=(p.age<=22?rnd(1,5):p.age<=25?rnd(0,3):p.age<=29?rnd(-1,1):p.age<=32?rnd(-3,0):rnd(-5,-1))+devSummer(p);
     for(let i=0;i<Math.abs(g)*2;i++){const k=pick(ATTR);if(g>0&&p.o<p.pot)p.a[k]=Math.min(99,p.a[k]+1);else if(g<0)p.a[k]=Math.max(25,p.a[k]-1);upd(p);}
     if(p.age>=38||(p.age>=35&&(Math.random()<.5||p.o<65))){afterCareer(p);if(p.tid===G.user){retired.push(pname(p));noteExit(p,'Retired',`${G.season-1}/${String(G.season).slice(2)}`);}leave(p);G.fa=G.fa.filter(i=>i!==p.id);delete G.players[id];continue;}
     if(p.tid!=null&&isCol(G.teams[p.tid])){p.yrs--;if(p.yrs<=0||p.ncOut)ncGrad(p,ncl);continue;}
@@ -2488,6 +2489,7 @@ function newSeason(){
   msg('Club President',`Objective for ${seasonStr()}`,`The board's target this season: ${objText().toLowerCase()}. ${bonus?`A summer sponsorship bonus of ${eur(bonus)} has been added to your transfer budget.`:''}`,'board');
   if(left.length)msg('Sporting Director','Players left on free transfers',`These players left after their contracts ran out: ${left.join(', ')}.`,'fin');
   if(ncl.length)msg('Assistant Coach','College careers over',`${ncl.join(', ')} used up their eligibility (or stayed in the draft) and left the program.`,'staff');
+  if(G.devRep&&G.devRep.length){const R=G.devRep.map(x=>({p:G.players[x.id],...x})).filter(x=>x.p).sort((a,b)=>b.m-a.m);msg('Assistant Coach','Young players: summer development',`How playing time shaped our young players: ${R.map(x=>`${pname(x.p)} (${x.p.age}, ${x.m} min a game: ${x.ex>0?`+${x.ex} extra`:x.ex<0?'stalled':'normal growth'}, now OVR ${x.p.o}, POT ${x.p.pot})`).join('; ')}. Young players who play 24 minutes or more grow fastest and can raise their potential; those under 6 minutes stall.`,'staff');}G.devRep=null;
   if(retired.length)msg('Club President','Retirements',`${retired.join(', ')} retired from professional basketball.`,'board');
   try{mktDigest(mkSnap);}catch(e){}
   exTick();
@@ -3964,6 +3966,16 @@ function scoutReport(opp){const lvl=scoutLevel(),full=lvl>=62,keys=roster(opp.id
 // shooting level and a risk of breaking down again, longer than the first time. The more rehab he skips, the higher the risk. Good medical staff lower it.
 const INJTYPES={min:['sprained ankle','knee bruise','back spasm','calf strain','bruised hip'],mod:['hamstring strain','groin strain','ankle ligament sprain'],sev:['torn calf muscle','stress fracture','knee ligament tear']};
 const INJS={min:{n:'Minor',k:1},mod:{n:'Moderate',k:1.3},sev:{n:'Serious',k:1.7}};
+
+/* ===================== Development through playing time ===================== */
+// Minutes per team game this season (games he did not play count as zero). Young players who play grow faster, benchwarmers stall.
+const devMpg=p=>p.dvt>=5?(p.dvm||0)/p.dvt:null;
+const devK=p=>{const m=devMpg(p);return m==null?1:m>=25?1.6:m>=18?1.3:m>=10?1:m>=4?.75:.5;};
+const devLabel=p=>{const m=devMpg(p);return m==null?null:m>=25?['Fast','g']:m>=18?['Above normal','g']:m>=10?['Normal','k']:m>=4?['Slow','o']:['Stalling','r'];};
+function devSummer(p){const m=devMpg(p),a=p.age;let ex=0;
+  if(m!=null&&a<=24&&p.dvt>=12){if(m>=24){ex=rnd(1,2);if(a<=23&&Math.random()<.5)p.pot=Math.min(97,p.pot+rnd(1,2));}else if(m>=15)ex=rnd(0,1);else if(m<6){ex=-1;if(a>=21&&Math.random()<.5)p.pot=Math.max(p.o,p.pot-1);}}
+  if(p.tid===G.user&&a<=23&&m!=null)(G.devRep||(G.devRep=[])).push({id:p.id,m:Math.round(m),ex});
+  p.dvm=0;p.dvt=0;return ex;}
 function injSet(p,e0){const r=Math.random(),ak=(p.age||27)>=33?1.6:(p.age||27)>=30?1.25:(p.age||27)<=23?.8:1,s=r<.05*ak?'sev':r<.25*ak?'mod':'min';p.injS=s;p.injT=pick(INJTYPES[s]);p.inj=s==='sev'?rnd(12,24):s==='mod'?rnd(5,10):e0<50?rnd(2,6):e0<65?rnd(1,5):rnd(1,4);if((p.age||27)>=33&&p.inj>2)p.inj=Math.round(p.inj*1.15);}
 const injTotal=p=>Math.max(p.inj0||0,p.inj,1);
 function earlyOpts(p){if(p.inj<=0||p.tid!==G.user)return [];const T=injTotal(p),s=p.injS||'min',floor=s==='sev'?Math.ceil(T*.4):0,cut=p.inj-floor;if(cut<1)return [];
