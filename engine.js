@@ -1036,7 +1036,7 @@ function newGame(tid,mgr){
   G.fin.sponsor=Math.round(G.fin.wageBudget*.62/1e5)*1e5;
   G.fin.bal=Math.max(400000,Math.round(((u.rep-70)*230000+500000)/1e5)*1e5);
   G.fin.hist.push({l:'Start',bal:G.fin.bal});
-  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();lrefEnsure();lforEnsure();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();ageFix();fixNumbers();fixColors();nameFix();coachTick();
+  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();lrefEnsure();lforEnsure();try{aiAcInit();}catch(e){}faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();ageFix();fixNumbers();fixColors();nameFix();coachTick();
   msg('Club President',`Welcome to ${u.name}`,`Welcome to ${u.city}, coach. The board's objective for ${seasonStr()} is clear: ${OBJ[G.obj].toLowerCase()}. Our fans expect a team that competes every night. Good luck.`,'board');
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(tid))}). The transfer market is open until the end of the regular season.`,'fin');
   msg('Assistant Coach','Rotation and tactics',`I have set the rotation by position. The first five in the squad list start, numbers 6 to 8 get rotation minutes, 9 and 10 play spot minutes. Reorder the list in Squad and adjust our game plan in Tactics.`,'staff');
@@ -1048,7 +1048,7 @@ function newGame(tid,mgr){
 // The EuroLeague club the setup used keeps its real head coach, and the inbox only shows the new club's messages.
 function startCareerAt(short,mgr){newGame(0,mgr);const t=G.teams.find(x=>x.short===short);if(!t||t.id===0)return;
   const u0=G.teams[0],row=((window.STAFF||{})[u0.short]||[]).find(r=>r[0]==='HC'),mid=G.mid;
-  takeJob(t.id);G.fin.bal=startBudget(t);G.fin.hist=[{l:'Start',bal:G.fin.bal}];
+  takeJob(t.id);try{aiAcInit();}catch(e){}G.fin.bal=startBudget(t);G.fin.hist=[{l:'Start',bal:G.fin.bal}];
   const tmp=u0.staff.find(x=>x.role==='HC');if(tmp&&row){u0.staff=u0.staff.filter(x=>x!==tmp);tmp.from='';G.staffFA.push(tmp);u0.staff.unshift(genStaff(row,u0.rep));}
   u0.formerHC=null;G.inbox=G.inbox.filter(m=>m.id>=mid);G.coach.extFor=null;
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(t.id))}). The transfer market is open until the end of the regular season.`,'fin');preInit();}
@@ -2558,7 +2558,7 @@ function newSeason(){
     if(p.tid!=null&&isCol(G.teams[p.tid])){p.yrs--;if(p.yrs<=0||p.ncOut)ncGrad(p,ncl);continue;}
     if(p.tid!=null){p.yrs--;if(p.yrs<=0&&isNBA(G.teams[p.tid])){nbaToFA(p);continue;}if(p.yrs<=0){if(p.tid===G.user){left.push(pname(p));if(p.pressKeep===G.season-1){G.fans=clamp(G.fans-4,0,100);G.board=clamp(G.board-3,0,100);msg('Press Review','A promise broken',`You told the press ${pname(p)} would stay. He left on a free transfer. Fans −4, board −3.`,'board');}noteExit(p,'Contract ended',`${G.season-1}/${String(G.season).slice(2)}`);toFA(p);}else if(Math.random()<aiStay(p,G.teams[p.tid])){p.yrs=rnd(1,3);p.sal=salaryFor(p);}else toFA(p);}}
   }
-  ncaaOffseason();acadSeason();merchSeason();
+  ncaaOffseason();acadSeason();try{aiAcSeason();}catch(e){}merchSeason();
   for(const t of G.teams){if(t.order.length<14&&t.id!==G.user&&!isNBA(t)&&!isCol(t)){const nat=Math.random()<.6?t.nat:pick(NATS);const lv=teamLevel(t);const p=genPlayer(clamp(Math.round(lv-14+rf(-3,3)),30,64),pick(POS),nat,rnd(18,19));p.pot=clamp(p.o+rnd(8,22)+(G.lnow&&G.lref&&G.lnow[t.dom||'EL']<G.lref[t.dom||'EL']-1.5?3:0),p.o,Math.min(94,Math.round(lcap(t)-3)));p.yrs=3;p.sal=80000;join(p,t);if(t.id===G.user)msg('Youth Academy',`${pname(p)} promoted`,`${pname(p)} (${p.pos}, ${p.age}) joins the first team from the academy. Potential estimate: ${p.pot}.`,'staff');}
     t.w=0;t.l=0;t.pf=0;t.pa=0;t.form=[];t.vd=null;t.rcd=null;delete t.gd;if(t.id!==G.user){t.tac=Math.random()<.3?aiTac():t.tac;aiFix(t);t.order=autoOrder(t.order);}}
   nbaFAStart();
@@ -4286,7 +4286,7 @@ const facMult=()=>{const F=fac();return {gate:1+.08*F.VIP,att:1+.04*F.SCR,cat:1.
 // better academy. The coach can promote them to the first team or let them go; at 19 they must be promoted or they leave as free agents.
 const ACAD_FEE=[0,150000,350000,700000,1200000];
 const acadScale=t=>clamp(.2+Math.max(0,t.rep-42)/40,.2,1.4);
-function acad(t){t=t||G.teams[G.user];if(!t.acad)t.acad={lvl:t.dom==='RL'||t.dom==='FOUND'?1:t.dom?2:3,ids:[],intake:null};
+function acad(t){t=t||G.teams[G.user];if(!t.acad){t.acad={lvl:t.aiac?Math.min(5,Math.max(1,t.aiac.lvl)):(t.dom==='RL'||t.dom==='FOUND'?1:t.dom?2:3),ids:t.aiac?t.aiac.ids.slice():[],intake:t.aiac?G.season:null};delete t.aiac;}
   t.acad.ids=t.acad.ids.filter(id=>G.players[id]&&G.players[id].yth===t.id);
   if(!t.acad.intake){t.acad.intake=G.season;acadIntake(t,true);}return t.acad;}
 const youth=t=>acad(t).ids.map(id=>G.players[id]);
@@ -4310,6 +4310,24 @@ function promoteYouth(id){const t=G.teams[G.user],p=G.players[id];if(!p||p.yth!=
 function releaseYouth(id){const t=G.teams[G.user],p=G.players[id];if(!p||p.yth!==t.id)return 'He is not in your academy.';
   t.acad.ids=t.acad.ids.filter(x=>x!==id);delete G.players[id];save();return null;}
 // summer: academy players grow (faster with a better academy), the 19-year-olds leave, a new intake arrives, running costs are paid
+
+/* ===================== AI club academies ===================== */
+// AI clubs run academies too (t.aiac {lvl,ids}). The famous ones (level 5) produce more and better talents. Each summer: one or two
+// prospects aged 16-17 arrive, prospects develop, and at 18 they are promoted to the first team (labelled p.acad) or released.
+const ACADQ={RMB:5,FCB:5,JOV:5,ZAL:5,CZV:5,PAR:5,MEG:5,BKN:4,UNI:4,VAL:4,BER:4,ULM:4,ASV:4,RYT:4,LJU:4,CIB:4,BUD:4,MAN:3,BIL:3,VIR:3,MIL:3,OLY:3,PAO:3,EFS:3,FEN:3,BAY:3,ZAD:3,SPL:3,LKB:3,NTR:3,CHO:3,BOU:3,TRE:3,SIG:3};
+function aiAcLvl(t){if(!t||t.id===G.user||!t.dom&&!ELT().includes(t))return 0;if(['NBA','GL','NCAA','GONE','FOUND'].includes(t.dom))return 0;if(ACADQ[t.short])return ACADQ[t.short];const r=t.rep||50;return !t.dom?3:r>=78?2:r>=66?1:0;}
+function aiAcProspect(t,A,age){const base=teamLevel(t),nat=Math.random()<.88?t.nat:pick(NATS),p=genPlayer(clamp(Math.round(base*(.6+.03*A.lvl)+(age-16)*2+rf(-3,3)),30,68),pick(POS),NAMES[nat]||NAMES[NATALIAS[nat]]?nat:t.nat,age);
+  p.pot=clamp(Math.round(p.o+rnd(10,20)+A.lvl*2+(Math.random()<.05*A.lvl?rnd(4,10):0)),p.o,Math.min(96,Math.round(base+8+A.lvl*2)));p.yth=t.id;p.tid=null;p.yrs=0;p.sal=0;p.acad=t.short;A.ids.push(p.id);return p;}
+function aiAcInit(){for(const t of G.teams){if(t.aiac||t.id===G.user)continue;const l=aiAcLvl(t);if(!l)continue;t.aiac={lvl:l,ids:[]};const n=l>=4?3:l>=2?2:1;for(let i=0;i<n;i++)aiAcProspect(t,t.aiac,rnd(16,17));}}
+function aiAcSeason(){aiAcInit();const top=[];
+  for(const t of G.teams){const A=t.aiac;if(!A||t.id===G.user)continue;A.ids=A.ids.filter(id=>G.players[id]&&G.players[id].yth===t.id);
+    for(const p of A.ids.map(id=>G.players[id])){for(let i=0;i<A.lvl*2;i++){const k=pick(ATTR);if(p.o<p.pot){p.a[k]=Math.min(99,p.a[k]+1);upd(p);}}
+      if(p.age<18)continue;A.ids=A.ids.filter(x=>x!==p.id);delete p.yth;const lv=teamLevel(t);
+      if(t.order.length<20&&(p.o>=lv-13||p.pot>=lv+6)){p.yrs=3;p.sal=Math.max(10000,r5k(salaryFor(p,t)*.5));join(p,t);markNew(p,t);p.acadY=G.season;t.order=autoOrder(t.order);if(p.pot>=Math.max(84,lv+10))top.push(`${pname(p)} (${t.name}, ${p.pos}, ${p.age})`);}
+      else if(p.o>=45){p.sal=salaryFor(p);p.yrs=1;toFA(p);}else delete G.players[p.id];}
+    const n=A.lvl>=4?2:A.lvl>=2?1:(Math.random()<.5?1:0);for(let i=0;i<n&&A.ids.length<5;i++)aiAcProspect(t,A,16);
+    while(t.order.length>20){const w=roster(t.id).filter(q=>!q.loan&&q.acadY!==G.season).sort((a,b)=>a.o-b.o)[0];if(!w)break;toFA(w);}}
+  if(top.length)news('Academy talents promoted',`Clubs promoted promising academy products to their first teams: ${top.slice(0,10).join(', ')}.`);}
 function acadSeason(){const out=[];
   for(const t of G.teams){if(!t.acad)continue;const A=t.acad;
     for(const p of youth(t)){for(let i=0;i<A.lvl*2;i++){const k=pick(ATTR);if(p.o<p.pot){p.a[k]=Math.min(99,p.a[k]+1);upd(p);}}
