@@ -1036,7 +1036,7 @@ function newGame(tid,mgr){
   G.fin.sponsor=Math.round(G.fin.wageBudget*.62/1e5)*1e5;
   G.fin.bal=Math.max(400000,Math.round(((u.rep-70)*230000+500000)/1e5)*1e5);
   G.fin.hist.push({l:'Start',bal:G.fin.bal});
-  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();lrefEnsure();lforEnsure();try{aiAcInit();}catch(e){}faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();ageFix();fixNumbers();fixColors();nameFix();coachTick();
+  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();lrefEnsure();lforEnsure();try{dfinEnsure();}catch(e){}try{aiAcInit();}catch(e){}faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();ageFix();fixNumbers();fixColors();nameFix();coachTick();
   msg('Club President',`Welcome to ${u.name}`,`Welcome to ${u.city}, coach. The board's objective for ${seasonStr()} is clear: ${OBJ[G.obj].toLowerCase()}. Our fans expect a team that competes every night. Good luck.`,'board');
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(tid))}). The transfer market is open until the end of the regular season.`,'fin');
   msg('Assistant Coach','Rotation and tactics',`I have set the rotation by position. The first five in the squad list start, numbers 6 to 8 get rotation minutes, 9 and 10 play spot minutes. Reorder the list in Squad and adjust our game plan in Tactics.`,'staff');
@@ -1521,7 +1521,7 @@ const teamCosts=tid=>wageBill(tid)+staffWages(tid)+(tid===G.user?loanCost():0);
 const finState=(bal,W)=>{const r=bal/Math.max(1,W);return r>=-.08?'ok':r>=-.2?'strain':r>=-.35?'crisis':'admin';};
 // bank debt counts half towards the financial status: it is planned debt, not unpaid wages
 const userFinState=()=>finState(G.fin.bal-(G.fin.loan?G.fin.loan.left*.5:0),teamCosts(G.user));
-const teamFinState=tid=>tid===G.user?userFinState():(G.teams[tid].fin||{}).st||'ok';
+const teamFinState=tid=>tid===G.user?userFinState():(G.teams[tid].fin||G.teams[tid].dfin||{}).st||'ok';
 function news(subj,body){if(G.ndg){G.ndg.push(subj);return;}msg('EuroLeague News',subj,body,'board');}
 // summer moves come as one round-up instead of a hundred messages
 function newsFlush(){const L=G.ndg;G.ndg=null;if(!L||!L.length)return;msg('EuroLeague News',`Summer round-up \u00b7 ${L.length} moves`,`${L.slice(0,80).join('. ')}${L.length>80?`. And ${L.length-80} more.`:'.'}`,'board');}
@@ -2402,8 +2402,46 @@ const impTop=(t,p)=>{if(!t.dom||p.nat===t.nat)return 0;lforEnsure();const f=G.lf
 function lcap(t){if(!G.lref)lrefEnsure();const c=t.dom||'EL';if(c==='NBA'||c==='NCAA'||G.lref[c]==null)return 99;return G.lref[c]+5+clamp(((t.rep||60)-(G.lrep[c]||60))*.25,-4,6);}
 // an empty value does not need to be stored for every player
 function slimPlayers(){for(const p of Object.values(G.players)){for(const k of ['dst','est','kst'])if(p[k]&&!p[k].gp)delete p[k];for(const k of ['fragile','rm','ld','dvm','dvt'])if(p[k]==null||p[k]===0)delete p[k];}}
+
+/* ===================== Finances of domestic AI clubs ===================== */
+// Clubs outside the EuroLeague keep a simple budget (t.dfin): revenue that roughly covers wages and staff, moved by results,
+// promotion and relegation, sponsors coming and going. Half a season's result is booked in winter, half in summer.
+// Strain: they sell more readily. Crisis: no free-agent signings, the most overpaid players are released. Insolvent: an owner or
+// the city may rescue the club; otherwise it goes bankrupt: forced relegation where a lower division exists, the best-paid players
+// leave and the club starts again without debt.
+const dfinOK=t=>t&&t.id!==G.user&&!t.fin&&t.dom&&!['NBA','GL','NCAA','GONE','FOUND'].includes(t.dom)&&t.order&&t.order.length;
+function dfinEnsure(){for(const t of G.teams){if(t.dfin||!dfinOK(t))continue;const W=teamCosts(t.id);t.dfin={bal:r10k(W*rf(-.04,.25)),rev:Math.round(W*rf(1.01,1.09)),own:+rf(.15,.8).toFixed(2),st:'ok'};}}
+const dfinMine=t=>{const U=G.teams[G.user];return t.dom===U.dom||(t.rep||0)>=72||Object.values(G.nl||{}).some(L=>L&&L.ids&&L.ids.includes(G.user)&&L.ids.includes(t.id));};
+function dfinBook(half){dfinEnsure();for(const t of G.teams){const F=t.dfin;if(!F||!dfinOK(t))continue;const W=teamCosts(t.id);F.bal=Math.round(F.bal+(F.rev-W)*half);F.st=finState(F.bal,W);}}
+function dfinRank(t){const L=Object.values(G.nl||{}).find(L=>L&&L.ids&&L.ids.includes(t.id));if(!L)return null;const r=nlRank(L,t.id),n=L.ids.length;return {r,n,champ:L.champ===t.id};}
+function dfinSummer(){dfinEnsure();const ev=[];
+  for(const t of G.teams){const F=t.dfin;if(!F||!dfinOK(t))continue;const W=teamCosts(t.id);
+    // revenue drifts toward the club's costs, results and divisions move it
+    let k=rf(.98,1.07);const rk=G.qprev&&G.qprev[t.dom]?G.qprev[t.dom].indexOf(t.id):-1,n=G.qprev&&G.qprev[t.dom]?G.qprev[t.dom].length:0;
+    if(rk===0)k*=1.06;else if(rk>0&&rk<3)k*=1.03;else if(n&&rk>=n-3)k*=.96;
+    F.rev=Math.round(.3*F.rev+.7*W*k*(F.st==='ok'?1:1.07));
+    if(G.prom&&G.prom.y===G.season){if(G.prom.down.includes(t.id))F.rev=Math.round(F.rev*.78);if(G.prom.up.includes(t.id))F.rev=Math.round(F.rev*1.18);}
+    if(Math.random()<.03){F.rev=Math.round(F.rev*rf(.85,.93));if(dfinMine(t))ev.push(`${t.name} lost a main sponsor`);}
+    if(Math.random()<.03){F.bal+=r10k(W*rf(.06,.15));}
+    F.st=finState(F.bal,W);
+    if(F.st==='crisis'||F.st==='admin'){
+      // wage cuts: the most overpaid players go
+      const ps=roster(t.id).filter(p=>!p.loan).sort((a,b)=>b.sal/Math.max(1,value(b))-a.sal/Math.max(1,value(a)));let cut=0;
+      for(const p of ps.slice(0,F.st==='admin'?2:1)){if(t.order.length<=12)break;cut+=p.sal;toFA(p);p.sal=salaryFor(p);}
+      if(cut&&dfinMine(t))ev.push(`${t.name} cut costs and released players`);t.rep=Math.max(30,(t.rep||50)-1);}
+    if(F.st==='admin'){
+      if(Math.random()<.25+F.own*.4){const x=r10k(W*rf(.25,.5));F.bal+=x;F.st=finState(F.bal,W);F.own=Math.max(.1,F.own-.1);if(dfinMine(t))news(`${t.name} rescued`,`The owners of ${t.name} put in ${eur(x)} to save the club from insolvency.`);}
+      else dfinBankrupt(t,ev);}}
+  for(const t of G.teams)if(t.dfin&&dfinOK(t)&&t.order.length<12){aiFix(t);t.order=autoOrder(t.order);}
+  if(ev.length)news('Club finances',ev.slice(0,12).join('. ')+'.');}
+function dfinBankrupt(t,ev){const to=null,name=t.name,from=t.dom;
+  const ps=roster(t.id).filter(p=>!p.loan).sort((a,b)=>b.sal-a.sal);for(const p of ps.slice(0,3)){toFA(p);p.sal=salaryFor(p);}
+  t.rep=Math.max(25,(t.rep||50)-6);
+  const W=teamCosts(t.id);t.dfin={bal:0,rev:Math.round(W*rf(.98,1.04)),own:+rf(.2,.6).toFixed(2),st:'ok'};t.dbk=G.season;
+  news(`${name} declared bankrupt`,`${name} could not pay their debts.${to?` The club restarts in the ${NLCFG[to].name}.`:' The club restarts with a new, smaller budget.'} The best-paid players have left.`);
+  if(G.teams[G.user]&&G.teams[G.user].dom===from)msg('League Office',`${name} bankrupt`,`${name} are bankrupt${to?` and drop to the ${NLCFG[to].name}`:''}. Their players are on the market.`,'board');}
 function aiFASign(rate){if(!G||!G.fa.length)return 0;let n=0;
-  const clubs=G.teams.filter(t=>t.id!==G.user&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t),cap:lcap(t)};});
+  const clubs=G.teams.filter(t=>t.id!==G.user&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&!(t.dfin&&(t.dfin.st==='crisis'||t.dfin.st==='admin')&&t.order.length>=12)).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t),cap:lcap(t)};});
   const fas=G.fa.map(i=>G.players[i]).filter(p=>p&&!p.nfa&&!p.portal&&p.o>=58&&p.yth==null&&!(p.loan&&p.loan.dev)&&!(G.faBid&&G.faBid[p.id])).sort((a,b)=>b.o-a.o);
   for(const p of fas){if(Math.random()>rate)continue;
     // he prefers clubs near his level, but a step or two down (for less money) is also on the table
@@ -2430,7 +2468,7 @@ function loserOf(out,ref){const x=out.find(o=>o.f.ref===ref);return x.r.hs>x.r.a
 function advanceStep(out){
   const U=G.user,po=G.po,u=G.uRes;
   switch(G.phase){
-    case 'reg':G.round++;aiFASign(.06);if(G.round===Math.floor(G.schedule.length/2)){try{aiTransfers('winter');}catch(e){}}if(G.round>=G.schedule.length)startPlayIn();break;
+    case 'reg':G.round++;aiFASign(.06);if(G.round===Math.floor(G.schedule.length/2)){try{dfinBook(.5);}catch(e){}try{aiTransfers('winter');}catch(e){}}if(G.round>=G.schedule.length)startPlayIn();break;
     case 'pi1':{po.seeds[6]=winnerOf(out,'a');po.pi.c={h:loserOf(out,'a'),a:winnerOf(out,'b')};
       if(po.seeds[6]===U){u.qf=true;prize(500000,'Playoff qualification');}
       if(loserOf(out,'b')===U)msg('Assistant Coach','Our season is over','We lost the Play-In game. Time to plan for next season.','staff');
@@ -2570,7 +2608,7 @@ function newSeason(){
   while(G.fa.filter(i=>G.players[i].o<=64).length<30){const p=genPlayer(rnd(52,63),pick(POS),pick(['SRB','SRB','CRO','MNE','BIH','SLO','USA','USA']),rnd(20,32));p.sal=salaryFor(p);G.fa.push(p.id);}
   lrefEnsure();{G.lnow={};const by={};for(const t of G.teams){if(!t.order||t.order.length<8||t.dom==='GONE'||t.dom==='FOUND')continue;(by[t.dom||'EL']=by[t.dom||'EL']||[]).push(teamLevel(t));}for(const c in by)G.lnow[c]=+avg(by[c]).toFixed(1);}if(G.staffFA&&G.staffFA.length>140){G.staffFA.sort((a,b)=>(b.o||0)-(a.o||0));G.staffFA.length=140;}slimPlayers();ensureStaff();for(const t of G.teams)for(const x of t.staff||[]){x.age++;if(t.dom)continue;x.yrs--;if(x.yrs<=0)x.yrs=rnd(1,3);}for(const x of G.staffFA)x.age++;
   G.round=0;G.phase='reg';G.day=0;G.po=null;G.res=[];G.lastResults=null;G.lastGame=null;G.uRes={};G.listed=[];
-  try{elSwap();}catch(e){}G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();try{summerCoaches();}catch(e){}nlApplyMoves();prMarket();try{aiTransfers('summer');}catch(e){}domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();try{cupDraw();}catch(e){G.cupX=null;}ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
+  try{elSwap();}catch(e){}G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();try{summerCoaches();}catch(e){}nlApplyMoves();prMarket();try{dfinBook(.5);dfinSummer();}catch(e){}try{aiTransfers('summer');}catch(e){}domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();try{cupDraw();}catch(e){G.cupX=null;}ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
   G.fin.wageBudget=Math.max(G.fin.wageBudget,Math.round(wageBill(G.user)*1.02/1e5)*1e5);nbaFinanceSync();
   const bo=G.fin.bailout||0,cut=bo?bailoutCut(bo):0;
   if(cut){G.fin.wageBudget=Math.round(G.fin.wageBudget*(1-cut)/1e5)*1e5;ensureSponsors();G.spons.tv=r10k(G.spons.tv*(1-cut));syncSponsor();G.fin.bailout=0;
