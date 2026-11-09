@@ -1036,7 +1036,7 @@ function newGame(tid,mgr){
   G.fin.sponsor=Math.round(G.fin.wageBudget*.62/1e5)*1e5;
   G.fin.bal=Math.max(400000,Math.round(((u.rep-70)*230000+500000)/1e5)*1e5);
   G.fin.hist.push({l:'Start',bal:G.fin.bal});
-  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();lrefEnsure();try{retPlan();}catch(e){}lforEnsure();try{dfinEnsure();}catch(e){}try{aiAcInit();}catch(e){}faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();ageFix();fixNumbers();fixColors();nameFix();coachTick();
+  ensureStaff();ensureFinance();ensureSponsors();G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();ecInit();bclInit();fecInit();acbSync();relevelSync();salScale();lrefEnsure();lforEnsure();try{dfinEnsure();}catch(e){}try{aiAcInit();}catch(e){}faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();ageFix();fixNumbers();fixColors();nameFix();coachTick();
   msg('Club President',`Welcome to ${u.name}`,`Welcome to ${u.city}, coach. The board's objective for ${seasonStr()} is clear: ${OBJ[G.obj].toLowerCase()}. Our fans expect a team that competes every night. Good luck.`,'board');
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(tid))}). The transfer market is open until the end of the regular season.`,'fin');
   msg('Assistant Coach','Rotation and tactics',`I have set the rotation by position. The first five in the squad list start, numbers 6 to 8 get rotation minutes, 9 and 10 play spot minutes. Reorder the list in Squad and adjust our game plan in Tactics.`,'staff');
@@ -1048,7 +1048,7 @@ function newGame(tid,mgr){
 // The EuroLeague club the setup used keeps its real head coach, and the inbox only shows the new club's messages.
 function startCareerAt(short,mgr){newGame(0,mgr);const t=G.teams.find(x=>x.short===short);if(!t||t.id===0)return;
   const u0=G.teams[0],row=((window.STAFF||{})[u0.short]||[]).find(r=>r[0]==='HC'),mid=G.mid;
-  takeJob(t.id);try{aiAcInit();}catch(e){}try{const ret=roster(G.user).filter(p=>p.retAt===G.season).map(pname);if(ret.length)setTimeout(()=>{},0),msg('Sporting Director','Retiring at the end of the season',`${ret.join(', ')} ${ret.length>1?'have':'has'} decided that this will be ${ret.length>1?'their':'his'} last season. ${ret.length>1?'They':'He'} will not sign a new contract.`,'fin');}catch(e){}G.fin.bal=startBudget(t);G.fin.hist=[{l:'Start',bal:G.fin.bal}];
+  takeJob(t.id);try{aiAcInit();}catch(e){}G.fin.bal=startBudget(t);G.fin.hist=[{l:'Start',bal:G.fin.bal}];
   const tmp=u0.staff.find(x=>x.role==='HC');if(tmp&&row){u0.staff=u0.staff.filter(x=>x!==tmp);tmp.from='';G.staffFA.push(tmp);u0.staff.unshift(genStaff(row,u0.rep));}
   u0.formerHC=null;G.inbox=G.inbox.filter(m=>m.id>=mid);G.coach.extFor=null;
   msg('Sporting Director','Your budget for the season',`You have ${eur(G.fin.bal)} to spend on transfer fees and a wage budget of ${eur(G.fin.wageBudget)} per season (current wage bill ${eur(wageBill(t.id))}). The transfer market is open until the end of the regular season.`,'fin');preInit();}
@@ -2293,7 +2293,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
+function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -2461,10 +2461,10 @@ function budMove(dir,amt){if(userNBA())return 'NBA clubs work with the salary ca
 
 // Players decide at the start of a season whether it is their last (p.retAt = that season), so the user knows before contract talks.
 // Only they retire next summer; a player with years left on his deal is less likely to stop. Old saves without plans use the old roll once.
-function retPlan(){if(!G||G.retV===G.season)return;G.retV=G.season;const mine=[];
-  for(const p of Object.values(G.players)){if(p.yth!=null||p.retAt===G.season)continue;if(p.retAt!=null&&p.retAt<G.season)delete p.retAt;
+function retPlan(){if(!G||G.retV===G.season)return;G.retV=G.season;const mine=[];// called once a season on 1 January (game day 92)
+  for(const p of Object.values(G.players)){if(p.yth!=null||p.retAt===G.season||p.extS===G.season||(p.tid===G.user&&p.newAt===G.season))continue;if(p.retAt!=null&&p.retAt<G.season)delete p.retAt;
     const r=retireP({age:p.age+1,o:p.o,tid:p.tid})*(p.yrs>1?.4:1);if(Math.random()<r){p.retAt=G.season;if(p.tid===G.user)mine.push(pname(p));}}
-  if(mine.length)msg('Sporting Director','Retiring at the end of the season',`${mine.join(', ')} ${mine.length>1?'have':'has'} decided that this will be ${mine.length>1?'their':'his'} last season. ${mine.length>1?'They':'He'} will not sign a new contract.`,'fin');}
+  if(mine.length)msg('Sporting Director','Farewell season',`${mine.join(', ')} ${mine.length>1?'have':'has'} decided that this will be ${mine.length>1?'their':'his'} last season. ${mine.length>1?'They':'He'} will not sign a new contract.`,'fin');}
 function aiFASign(rate){if(!G||!G.fa.length)return 0;let n=0;
   const clubs=G.teams.filter(t=>t.id!==G.user&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&!(t.dfin&&(t.dfin.st==='crisis'||t.dfin.st==='admin')&&t.order.length>=12)).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t),cap:lcap(t)};});
   const fas=G.fa.map(i=>G.players[i]).filter(p=>p&&!p.nfa&&!p.portal&&p.o>=58&&p.yth==null&&!(p.loan&&p.loan.dev)&&!(G.faBid&&G.faBid[p.id])).sort((a,b)=>b.o-a.o);
@@ -2646,7 +2646,6 @@ function newSeason(){
   if(G.devRep&&G.devRep.length){const R=G.devRep.map(x=>({p:G.players[x.id],...x})).filter(x=>x.p).sort((a,b)=>b.m-a.m);msg('Assistant Coach','Young players: summer development',`How playing time shaped our young players: ${R.map(x=>`${pname(x.p)} (${x.p.age}, ${x.m} min a game: ${x.ex>0?`+${x.ex} extra`:x.ex<0?'stalled':'normal growth'}, now OVR ${x.p.o}, POT ${x.p.pot})`).join('; ')}. Young players who play 24 minutes or more grow fastest and can raise their potential; those under 6 minutes stall.`,'staff');}G.devRep=null;
   if(retired.length)msg('Club President','Retirements',`${retired.join(', ')} retired from professional basketball.`,'board');
   try{mktDigest(mkSnap);}catch(e){}
-  try{retPlan();}catch(e){}
   exTick();
 }
 
@@ -4952,7 +4951,7 @@ function acceptOffer(mid,so){
 }
 function releaseCost(p){return r5k(p.sal*.5*p.yrs);}
 function releasePlayer(pid){const p=G.players[pid],c=releaseCost(p);if(p.loan)return 'He is only here on loan. Send him back instead.';if(G.teams[G.user].order.length<=10)return 'You need at least 10 players.';G.fin.bal-=c;G.fin.season.rel+=c;noteExit(p,'Released');toFA(p);p.sal=salaryFor(p);msg('Sporting Director',`${pname(p)} released`,`${pname(p)} was released. The buyout cost ${eur(c)}.`,'fin');save();return null;}
-function extendPlayer(pid){const p=G.players[pid],d=demand(p);if(p.retAt===G.season)return `${pname(p)} has decided to retire at the end of the season.`;if(moodOf(p)<25&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal. Speak to him first.`;if(!userNBA()&&wageBill(G.user)-p.sal+d>G.fin.wageBudget)return `His new wage of ${eur(d)} would exceed your wage budget.`;p.sal=d;p.yrs+=2;msg('Sporting Director',`${pname(p)} extended`,`${pname(p)} signed a two-year extension at ${eur(d)} per season.`,'fin');save();return null;}
+function extendPlayer(pid){const p=G.players[pid],d=demand(p);if(p.retAt===G.season)return `${pname(p)} has decided to retire at the end of the season.`;p.extS=G.season;if(moodOf(p)<25&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal. Speak to him first.`;if(!userNBA()&&wageBill(G.user)-p.sal+d>G.fin.wageBudget)return `His new wage of ${eur(d)} would exceed your wage budget.`;p.sal=d;p.yrs+=2;msg('Sporting Director',`${pname(p)} extended`,`${pname(p)} signed a two-year extension at ${eur(d)} per season.`,'fin');save();return null;}
 
 
 
