@@ -2595,7 +2595,7 @@ function pdRun(){const D=G.pdraft;if(!D||D.done)return;D.done=true;const U=G.use
   D.last={y:D.y,picks:out};D.cls=[];D.board=[];
   for(const t of pdTeams())if(t.id!==U){let n=0;while(roster(t.id).length>17&&n++<6){const w=roster(t.id).filter(q=>!q.draft||q.draft.y!==D.y).sort((a,b)=>a.o-b.o)[0];if(!w)break;toFA(w);}}}
 function newSeason(){
-  try{awRun();}catch(e){}try{cupCapture();}catch(e){}
+  try{awRun();}catch(e){}try{cupCapture();}catch(e){}try{a2Capture();}catch(e){}
   if(G.pdraft&&G.pdraft.y===G.season+1&&!G.pdraft.done&&pdIn())pdRun();pdRank();
   boardSeason();
   fanSeason();
@@ -2946,14 +2946,54 @@ function domPromRel(){const D=G.dom,el=window.ABA_EL||[];
   klsStartSL();bihStartPO();
   if(down===G.user){G.board=clamp(G.board-30,0,100);msg('Club President','Relegated','We finished last in the ABA League and drop to ABA League 2 next season. This is a disaster for the club.','board');G.relegated=true;}
 }
+
+// ABA League 2 is put together again every summer (real 2026-27 rule): the two highest-placed clubs of six national leagues
+// that are not ABA League members (Serbia KLS, Bosnia Liga 14, Montenegro, North Macedonia, Croatia, Slovenia) plus wild cards
+// up to 16 clubs. The club relegated from the ABA League keeps a place; wild cards go to the strongest clubs already in the league,
+// then to the next-placed national clubs. A club that does not qualify again plays only its national league.
+const A2NL={KLS:'SRB',BIH:'BIH',CGL:'MNE',MKD:'MKD',CRL:'CRO',SKL:'SLO'};
+const a2Home=t=>Object.keys(A2NL).find(c=>A2NL[c]===t.nat)||null;
+const a2Nat=(code,t)=>t.dom==='ABA2'&&A2NL[code]===t.nat;
+// final national order: champion, beaten finalist, semi-final losers, quarter-final losers, then the rest; same stage by regular-season
+// place (top group of a split league before the play-out group). Captured at the end of the season, before the tables reset.
+function a2Capture(){const Q={},ord=(ids,hist,champ,base)=>{const d={},dep={fin:1,sf:2,qf:3,r16:4};for(const i of ids)d[i]=5;
+    for(const st in dep)for(const s of (hist&&hist[st])||[])for(const x of [s.hi,s.lo])if(d[x]!=null)d[x]=Math.min(d[x],dep[st]);
+    if(champ!=null&&d[champ]!=null)d[champ]=0;return ids.slice().sort((a,b)=>d[a]-d[b]||base(a)-base(b));};
+  for(const c of ['CGL','MKD','CRL','SKL']){const L=G.nl&&G.nl[c];if(!L||!L.ids)continue;const T=nlTables(L);
+    Q[c]=ord(L.ids,L.hist,L.champ,i=>{for(let k=0;k<T.length;k++){const j=nlSort(L,T[k].ids).findIndex(t=>t.id===i);if(j>=0)return k*100+j;}return 999;});}
+  if(G.kls&&G.kls.ids)Q.KLS=ord(G.kls.ids,G.kls.hist,G.kls.champ,i=>klsFLRank(i)||99);
+  if(G.bih&&G.bih.ids)Q.BIH=ord(G.bih.ids,G.bih.hist,G.bih.champ,i=>bihRank(i)||99);
+  G.a2q=Q;}
+function aba2Rebuild(keep){const Q=G.a2q;if(!Q||!(window.ABA2_CLUBS||[]).length)return;if(!Object.keys(A2NL).every(c=>Q[c]&&Q[c].length))return;
+  const ok=t=>t&&!t.bankrupt&&t.dom!=='GONE'&&t.dom!=='ABA'&&!!t.dom&&!isNBA(t)&&(t.dom==='ABA2'||t.dom===a2Home(t)||(t.dom==='BIH'&&t.nat==='BIH'));
+  const cur=G.teams.filter(t=>t.dom==='ABA2'),field=new Set(),how={};
+  if(keep!=null&&G.teams[keep]&&G.teams[keep].dom==='ABA2'){field.add(keep);how[keep]='relegated from the ABA League';}
+  for(const t of cur)if(!a2Home(t)&&!field.has(t.id)){field.add(t.id);how[t.id]='wild card';}// clubs from outside the six countries have no national route
+  const nextUp={};
+  for(const c in A2NL){const L=Q[c].map(i=>G.teams[i]).filter(t=>ok(t)&&t.nat===A2NL[c]);let n=0;
+    for(const t of L){if(n>=2)break;if(!field.has(t.id)){field.add(t.id);how[t.id]=`${ordn(Q[c].indexOf(t.id)+1)} in ${c==='KLS'?'the KLS':c==='BIH'?'Liga 14':NLCFG[c].name}`;}n++;}
+    nextUp[c]=L.slice(2);}
+  const N=Math.max(16,field.size);G.a2q=null;
+  for(const t of cur.filter(t=>!field.has(t.id)).sort((a,b)=>strength(b.id)-strength(a.id))){if(field.size>=N)break;if(a2Home(t)&&!ok(t))continue;field.add(t.id);how[t.id]='wild card';}
+  for(let k=0;field.size<N&&k<4;k++)for(const c in A2NL){const t=nextUp[c][k];if(t&&field.size<N&&!field.has(t.id)){field.add(t.id);how[t.id]='wild card';}}
+  const up=[],out=[];
+  for(const t of cur)if(!field.has(t.id)){const c=a2Home(t);if(!c)continue;t.dom=c;out.push(t);}
+  for(const id of field){const t=G.teams[id];if(t.dom!=='ABA2'){t.dom='ABA2';up.push(t);}}
+  G.a2how=Object.fromEntries([...field].map(i=>[G.teams[i].short,how[i]||'wild card']));
+  if(up.length||out.length)news('ABA League 2 field for the new season',`${up.length?`New: ${up.map(t=>`${t.name} (${G.a2how[t.short]})`).join(', ')}. `:''}${out.length?`No longer in it: ${out.map(t=>t.name).join(', ')}; they play only their national league.`:''}`);
+  const U=G.teams[G.user];if(!U)return;
+  if(up.includes(U))msg('Club President','We play ABA League 2',`Our place in the national league (${G.a2how[U.short]}) earned us a spot in ABA League 2 next season, alongside the national league. A big step for the club.`,'board');
+  if(out.includes(U))msg('Club President','No ABA League 2 next season',`We did not finish high enough in the national league and got no wild card, so we play only the national league next season.`,'board');
+  if(field.has(U.id)&&!up.includes(U)&&how[U.id]==='wild card')msg('Club President','ABA League 2 wild card','We missed the top two of the national league, but the ABA League gave us a wild card. We stay in ABA League 2.','board');}
 // apply promotion and relegation before the new ABA season is drawn
-function domApplyPromRel(){const D=G.dom;if(!D)return;
+function domApplyPromRel(){const D=G.dom;if(!D)return;const keep=D.releg;
   if(D.releg!=null){const t=G.teams[D.releg];if(t)t.dom='ABA2';D.releg=null;}
   if(D.prom){let t=G.teams.find(x=>x.short===D.prom);const c=(window.ABA2_CLUBS||[]).find(x=>x[0]===D.prom);
     if(t)t.dom='ABA';
     else if(c){t={id:G.teams.length,short:c[0],name:c[1],city:c[2],c1:c[3],c2:c[4],rep:c[5]+6,arena:c[6],cap:c[7],nat:c[8],order:[],w:0,l:0,pf:0,pa:0,form:[],tac:aiTac(),dom:'ABA',owner:.45,staff:[]};
       G.teams.push(t);genRoster(t);G.sid=G.sid||1;t.staff=[genStaff(['HC',pick((NAMES[NATALIAS[c[8]]||c[8]]||NAMES.SRB).f),pick((NAMES[NATALIAS[c[8]]||c[8]]||NAMES.SRB).l),c[8],rnd(1970,1988)],t.rep)];}
     D.prom=null;if(t)news(`${t.name} promoted to the ABA League`,`${t.name} won ABA League 2 and play in the AdmiralBet ABA League this season.`);}
+  try{aba2Rebuild(keep);}catch(e){}
 }
 const domIn=(st,U)=>{const h=G.dom.hist[st]||(G.dom.po&&G.dom.po.stage===st?G.dom.po.ser:null);return !!(h&&h.some(s=>s.hi===U||s.lo===U));};
 function domFinish(){const D=G.dom,U=G.user;if(D.champ===U)return 'Champions';
@@ -3138,7 +3178,7 @@ function endOrKls(){if(G.kls&&G.kls.phase!=='done'){if(G.kls.phase!=='po')klsSta
 // pot 2: Liga 3-6), quarter- and semi-finals over two legs on aggregate (pot-2 / pair A and B teams at home first), final best of three.
 const BIHSTAGE={qf:'Quarter-finals',sf:'Semi-finals',fin:'Final'};
 function bihInit(){
-  const L=window.BIH_LIGA||[];const ids=G.teams.filter(t=>L.includes(t.short)||t.dom==='BIH').map(t=>t.id).filter((v,i,a)=>a.indexOf(v)===i);
+  const L=window.BIH_LIGA||[];const ids=G.teams.filter(t=>L.includes(t.short)||t.dom==='BIH'||(t.dom==='ABA2'&&t.nat==='BIH')).map(t=>t.id).filter((v,i,a)=>a.indexOf(v)===i);
   if(!ids.length){G.bih=null;return;}
   for(const id of ids){const t=G.teams[id];t.bw=0;t.bl=0;t.bpf=0;t.bpa=0;}
   G.bih={ids,sched:genSchedule(ids),round:0,phase:'reg',seeds:null,po:null,champ:null,res:[],hist:{},flfinal:null,obj:null};
@@ -3414,7 +3454,7 @@ function nbaSchedule(T){T=T.map(i=>({id:i,conf:G.teams[i].grp,div:G.teams[i].div
 
 const nlOf=tid=>G.nl?Object.values(G.nl).find(L=>L&&L.ids.includes(tid))||null:null;
 // a guest club (BC Vienna in the Superliga) coached by the user plays its own league; its guest games run in the background
-const nlUser=()=>{if(!G)return null;const t=G.teams[G.user];return G.nl?Object.values(G.nl).find(L=>L&&L.ids.includes(G.user)&&!((NLCFG[L.code].guest||[]).includes(t.short)&&t.dom!==L.code&&!NLCFG[L.code].guestPlay))||null:null;};
+const nlUser=()=>{if(!G)return null;const t=G.teams[G.user];return G.nl?Object.values(G.nl).find(L=>L&&L.ids.includes(G.user)&&!(((NLCFG[L.code].guest||[]).includes(t.short)||a2Nat(L.code,t))&&t.dom!==L.code&&!NLCFG[L.code].guestPlay))||null:null;};
 const nlRec=(L,id)=>L.tab[id]||(L.tab[id]=[0,0,0,0]);
 const nlSort=(L,ids)=>ids.map(i=>G.teams[i]).sort((x,y)=>{const a=nlRec(L,x.id),b=nlRec(L,y.id);if(L.code==='NCAA'){const c=ncRec(L,x.id),d=ncRec(L,y.id),k=(d[0]-d[1])-(c[0]-c[1]);if(k)return k;}return (b[0]-a[0])||((b[2]-b[3])-(a[2]-a[3]))||(x.id-y.id);});
 function nlTables(L){return L.groups?Object.entries(L.groups).map(([k,ids])=>({key:k,name:L.code==='GL'?(L.tip?`Tip-Off \u00b7 ${k} Region`:`${k}ern Conference`):L.code==='NBA'?`${k}ern Conference`:L.code==='NCAA'?k:L.code==='JPN'?`${k} Conference`:L.code==='MKD'?`Super Liga \u00b7 ${k}`:`${NLCFG[L.code].short} ${k}`,ids})):[{key:'all',name:NLCFG[L.code].name,ids:L.ids}];}
@@ -3434,7 +3474,7 @@ function nlInit(code){
   if(code==='LKL'){addCupClubs();addBclClubs();addFecClubs();for(const t of G.teams)if(t.dom==='CUP'&&(window.LKL_FROM_CUP||[]).includes(t.short))t.dom='LKL';}
   if(code==='ISL'){addCupClubs();addBclClubs();addFecClubs();for(const t of G.teams)if(t.dom==='CUP'&&(window.ISL_FROM_CUP||[]).includes(t.short))t.dom='ISL';}
   if(code==='GBL'){addCupClubs();addBclClubs();addFecClubs();for(const t of G.teams)if(t.dom==='CUP'&&(window.GBL_FROM_CUP||[]).includes(t.short))t.dom='GBL';}
-  const C=NLCFG[code],ids=G.teams.filter(t=>t.dom===code||(!t.dom&&((C.el||[]).includes(t.short)||(G.elx&&G.elx[t.short]===code))&&!(G.elx&&G.elx[t.short]&&G.elx[t.short]!==code))||((C.guest||[]).includes(t.short)&&t.dom!=='GONE')).map(t=>t.id);
+  const C=NLCFG[code],ids=G.teams.filter(t=>t.dom===code||(!t.dom&&((C.el||[]).includes(t.short)||(G.elx&&G.elx[t.short]===code))&&!(G.elx&&G.elx[t.short]&&G.elx[t.short]!==code))||((C.guest||[]).includes(t.short)&&t.dom!=='GONE')||a2Nat(code,t)).map(t=>t.id);
   if(!ids.length)return null;
   let groups=null;
   if(C.groups){groups={};for(const g of C.groups)groups[g]=ids.filter(i=>G.teams[i].grp===g);
