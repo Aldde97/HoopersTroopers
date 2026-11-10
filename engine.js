@@ -3905,7 +3905,8 @@ function courseTick(){const C=G.coach;if(!C||!C.course)return;if(dayNo()<C.cours
 // The club has a hidden ceiling (club level, how much it wants him, the Negotiation course level); it opens below it,
 // counters up to twice, and breaks off when the demand is far too high.
 function negInterest(t,kind){if(kind==='ext'){const h=G.history[0];return clamp(.85+(G.board-50)/150+(h&&h.met?.08:0),.7,1.3);}return clamp(1+(coachScore()-t.rep)*.025,.85,1.4);}
-const extRefused=()=>G.board<35;
+function extRefused(){const C=G.coach;if(!C)return false;if(C.extNo&&C.extNo.s===G.season)return C.extNo.no;if(meetDue())return false;
+  const M=G.meet&&G.meet.season===G.season&&G.meet.v?G.meet:null;C.extNo={s:G.season,no:M?M.v==='warn':G.board<35};return C.extNo.no;}
 const extDue=()=>!!(G&&G.coach&&!G.sacked&&!G.bankrupt&&G.pendingJob==null&&G.coach.until<=G.season+1&&G.coach.extFor!==G.season&&seasonOver());
 function negStart(tid,kind,ref){const t=G.teams[tid],base=kind==='ext'?Math.max(coachSalFor(t),G.coach.sal):coachSalFor(t);
   const I=negInterest(t,kind),max=Math.round(base*I*(1+.03*sk('neg'))/1e4)*1e4,offer=Math.max(10000,Math.round(Math.min(max,base*Math.min(I,1))*.92/1e4)*1e4);
@@ -4311,7 +4312,9 @@ function meetVerdict(){const M=G.meet,f=meetFacts(),s=boardScoreMeet(M),t=G.team
   else if(s<B.warn){M.v='warn';G.warn=1;G.board=clamp(Math.max(G.board,28)+M.d*.3,0,100);M.log.push({who:1,t:'You stay, for now. But this is your final warning. A bad start next season and we will act quickly.'});}
   else if(s<B.back||!f.met){M.v='ok';G.board=clamp(Math.max(G.board,42)+M.d*.5,0,100);M.log.push({who:1,t:f.met?'You have our trust. Keep going.':'We believe you can still do this job. But the next season has to be better.'});}
   else{M.v='back';G.board=clamp(Math.max(G.board,60)+M.d*.5+4,0,100);M.log.push({who:1,t:B.back_t});}
-  f.h.verdict=M.v;if(M.v!=='sack')msg(meetBoss(),'Season review',({warn:'Final warning: the board expect a good start next season.',ok:'The board keep their trust in you.',back:'The board give you their full backing.'})[M.v],'board');}
+  const C=G.coach,exp=M.v!=='sack'&&C&&C.until<=G.season+1&&C.extFor!==G.season,no=exp&&M.v==='warn';
+  if(exp){C.extNo={s:G.season,no};if(no)M.log[M.log.length-1]={who:1,t:`Your contract runs out this summer, and we will not offer you a new one. Our ways part here.`};else M.log.push({who:1,t:'Your contract runs out this summer. We want to keep you, so let us talk about a new one.'});}
+  f.h.verdict=M.v;if(M.v!=='sack')msg(meetBoss(),'Season review',no?`The board will not renew your contract. You leave ${t.name} when it runs out this summer.`:({warn:'Final warning: the board expect a good start next season.',ok:'The board keep their trust in you.',back:'The board give you their full backing.'})[M.v]+(exp?' They want to talk about a new contract.':''),'board');}
 function meetClose(){const M=G.meet;if(M&&M.v==='sack'){G.sacked=true;G.jobOffers=null;jobOfferRound(false);}save();}
 function pledgeCheck(h){const P=G.pledge;G.pledge=null;if(!P||!h)return;if(P==='up'){h.met?(G.board=clamp(G.board+5,0,100)):(G.board=clamp(G.board-12,0,100));G.pmsg=[h.met?'You kept your promise':'You promised more',h.met?'You promised a higher target and delivered.':'You sat in my office and promised a higher target. You missed it. Board confidence falls by 12.'];}
   if(P==='youth'){const y=roster(G.user).filter(p=>p.age<=23&&(roleAvg(p)||0)>=15).length;G.board=clamp(G.board+(y>=2?4:-5),0,100);G.pmsg=[y>=2?'The young players are playing':'Where are the young players?',y>=2?`${y} young players had real minutes. That is what we agreed.`:'You promised to build around young players. We did not see it.'];}}
