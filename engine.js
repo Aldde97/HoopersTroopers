@@ -2934,6 +2934,13 @@ function domAdvance(out){const D=G.dom,U=G.user,mine=D.ids.includes(U);
     news(`${G.teams[D.champ].name} win the ABA League`,`${G.teams[D.champ].name} are the champions of the ${seasonStr()} AdmiralBet ABA League.`);
     domPromRel();}
 }
+
+// promotion/relegation series (real format, 2025: Cibona v Ilirija): the ABA League 2 runner-up plays the second-worst ABA League club
+// that is not a EuroLeague club, best of three, the ABA League club at home in games 1 and 3. Played after both seasons.
+function abaQualSeries(aba,a2){const g=[];let wa=0,wb=0;
+  for(let i=0;i<3&&wa<2&&wb<2;i++){const h=i===1?a2:aba,a=i===1?aba:a2,m=new Match(h,a,{kind:'dpo'}).run(),hs=m.s[0].pts,as=m.s[1].pts;
+    const w=hs>as?h:a;if(w===aba)wa++;else wb++;g.push(`${G.teams[h].short} ${hs}–${as} ${G.teams[a].short}`);}
+  return {win:wa===2?aba:a2,lose:wa===2?a2:aba,games:g,score:`${Math.max(wa,wb)}–${Math.min(wa,wb)}`};}
 // last place of the Play-Out goes down to ABA League 2 (EuroLeague clubs are exempt), the ABA League 2 champion comes up
 function domPromRel(){const D=G.dom,el=window.ABA_EL||[];
   const down=(D.plfinal||[]).slice().reverse().find(id=>!el.includes(G.teams[id].short)&&!!G.teams[id].dom);
@@ -2941,7 +2948,15 @@ function domPromRel(){const D=G.dom,el=window.ABA_EL||[];
   const ct=G.dom2&&G.dom2.champ!=null?G.teams[G.dom2.champ]:null;
   const pool=(window.ABA2_CLUBS||[]).filter(c=>!G.teams.some(t=>t.short===c[0]&&t.dom==='ABA'));
   const up=ct?[ct.short,ct.name]:pool.length?wpick(pool,c=>Math.pow(1.35,c[5]-55)):null;
-  D.releg=down!=null?down:null;D.prom=up?up[0]:null;
+  D.releg=down!=null?down:null;D.prom=up?up[0]:null;D.releg2=null;D.prom2=null;
+  const q=(D.plfinal||[]).slice().reverse().filter(id=>!el.includes(G.teams[id].short)&&!!G.teams[id].dom)[1],F=G.dom2&&G.dom2.phase==='done'&&G.dom2.hist&&G.dom2.hist.fin&&G.dom2.hist.fin[0],ru=F?domLoser(F):null;
+  if(q!=null&&ru!=null&&G.teams[ru]&&G.teams[ru].dom==='ABA2'){const S=abaQualSeries(q,ru),A=G.teams[q],B=G.teams[ru],stay=S.win===q;
+    if(!stay){D.releg2=q;D.prom2=B.short;}
+    news(stay?`${A.name} stay in the ABA League`:`${B.name} promoted, ${A.name} relegated`,`Promotion/relegation series, best of three: ${A.name} (second-to-last in the ABA League Play-Out) v ${B.name} (ABA League 2 runner-up), ${S.score} for ${G.teams[S.win].name}. ${S.games.join(', ')}.`);
+    if(q===G.user||ru===G.user){const won=S.win===G.user;
+      msg('Assistant Coach',won?(q===G.user?'We stay in the ABA League':'Promoted to the ABA League!'):(q===G.user?'Relegated after the series':'No promotion this time'),`Promotion/relegation series against ${G.teams[q===G.user?ru:q].name}: ${won?'won':'lost'} ${S.score} (${S.games.join(', ')}).${won?(q===G.user?' We keep our place in the ABA League.':' We play the AdmiralBet ABA League next season.'):(q===G.user?' We drop to ABA League 2.':' We stay in ABA League 2.')}`,'staff');
+      if(q===G.user&&!won){G.board=clamp(G.board-25,0,100);G.relegated=true;}
+      if(ru===G.user&&won){G.board=clamp(G.board+15,0,100);G.fans=clamp(G.fans+8,0,100);}}}
   if(down!=null)news(`${G.teams[down].name} relegated`,`${G.teams[down].name} finished last in the ABA League Play-Out and drop to ABA League 2.${up?` ${up[1]} won ABA League 2 and take their place.`:''}`);
   klsStartSL();bihStartPO();
   if(down===G.user){G.board=clamp(G.board-30,0,100);msg('Club President','Relegated','We finished last in the ABA League and drop to ABA League 2 next season. This is a disaster for the club.','board');G.relegated=true;}
@@ -2967,7 +2982,7 @@ function a2Capture(){const Q={},ord=(ids,hist,champ,base)=>{const d={},dep={fin:
 function aba2Rebuild(keep){const Q=G.a2q;if(!Q||!(window.ABA2_CLUBS||[]).length)return;if(!Object.keys(A2NL).every(c=>Q[c]&&Q[c].length))return;
   const ok=t=>t&&!t.bankrupt&&t.dom!=='GONE'&&t.dom!=='ABA'&&!!t.dom&&!isNBA(t)&&(t.dom==='ABA2'||t.dom===a2Home(t)||(t.dom==='BIH'&&t.nat==='BIH'));
   const cur=G.teams.filter(t=>t.dom==='ABA2'),field=new Set(),how={};
-  if(keep!=null&&G.teams[keep]&&G.teams[keep].dom==='ABA2'){field.add(keep);how[keep]='relegated from the ABA League';}
+  for(const k of [].concat(keep==null?[]:keep))if(G.teams[k]&&G.teams[k].dom==='ABA2'){field.add(k);how[k]='relegated from the ABA League';}
   for(const t of cur)if(!a2Home(t)&&!field.has(t.id)){field.add(t.id);how[t.id]='wild card';}// clubs from outside the six countries have no national route
   const nextUp={};
   for(const c in A2NL){const L=Q[c].map(i=>G.teams[i]).filter(t=>ok(t)&&t.nat===A2NL[c]);let n=0;
@@ -2986,7 +3001,9 @@ function aba2Rebuild(keep){const Q=G.a2q;if(!Q||!(window.ABA2_CLUBS||[]).length)
   if(out.includes(U))msg('Club President','No ABA League 2 next season',`We did not finish high enough in the national league and got no wild card, so we play only the national league next season.`,'board');
   if(field.has(U.id)&&!up.includes(U)&&how[U.id]==='wild card')msg('Club President','ABA League 2 wild card','We missed the top two of the national league, but the ABA League gave us a wild card. We stay in ABA League 2.','board');}
 // apply promotion and relegation before the new ABA season is drawn
-function domApplyPromRel(){const D=G.dom;if(!D)return;const keep=D.releg;
+function domApplyPromRel(){const D=G.dom;if(!D)return;const keep=[D.releg,D.releg2].filter(x=>x!=null);
+  if(D.releg2!=null){const t=G.teams[D.releg2];if(t)t.dom='ABA2';D.releg2=null;}
+  if(D.prom2){const t=G.teams.find(x=>x.short===D.prom2);if(t){t.dom='ABA';news(`${t.name} promoted to the ABA League`,`${t.name} won the promotion/relegation series and play in the AdmiralBet ABA League this season.`);}D.prom2=null;}
   if(D.releg!=null){const t=G.teams[D.releg];if(t)t.dom='ABA2';D.releg=null;}
   if(D.prom){let t=G.teams.find(x=>x.short===D.prom);const c=(window.ABA2_CLUBS||[]).find(x=>x[0]===D.prom);
     if(t)t.dom='ABA';
