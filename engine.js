@@ -3949,7 +3949,7 @@ const LGPAY={ABA:.8,BSL:.8,BBL:.6,ABA2:.5,KLS:.45,BIH:.4,PROA:.3,PROB:.25};
 function coachSalFor(t){const f=t.dom?(LGPAY[t.dom]||.4):1;return Math.max(30000,Math.round(1.2e6*Math.pow(1.09,t.rep-80)*f/1e4)*1e4);}
 const monthKey=()=>{const d=gdate();return d.getFullYear()*12+d.getMonth();};
 const coachLeft=()=>Math.max(0,(G.coach.until*12+5)-monthKey()); // months to the end of June of the final season
-function newCoachDeal(t,yrs){G.coach.sal=coachSalFor(t);G.coach.until=G.season+(yrs||2);G.coach.club=t.id;G.coach.settled=false;G.coach.lastKey=monthKey();}
+function newCoachDeal(t,yrs){G.coach.sal=coachSalFor(t);G.coach.until=G.season+(yrs||2)+(seasonOver()?1:0);G.coach.club=t.id;G.coach.settled=false;G.coach.lastKey=monthKey();}
 function coachTick(){
   if(!G)return;
   if(!G.coach){G.coach={bal:0,earned:0,sev:0};newCoachDeal(G.teams[G.user],2);}

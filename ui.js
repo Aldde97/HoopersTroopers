@@ -841,7 +841,7 @@ function hireModalHTML(){
   else if(n.over)ctl=`<div class="sec"><div class="btns"><button class="btn" data-act="close">Close</button></div></div>`;
   else ctl=`<div class="sec" style="padding-block:10px"><span class="lbl">Convince him</span><div class="seg">${Object.entries(TOPICS).map(([k,l])=>`<button ${n.used.includes(k)?'disabled style="opacity:.4"':''} data-act="negtalk:${k}">${l}</button>`).join('')}</div></div>
    <div class="sec" style="padding-block:10px"><span class="lbl">Your offer</span><div class="feeRow">${(()=>{const sm=Math.max(5000,r5k(n.demand*.02)),bg=Math.max(20000,r5k(n.demand*.08));return `<button class="btn sm" data-act="negwage:${-bg}">\u2212${eur(bg).replace(CUR()+' ','')}</button><button class="btn sm" data-act="negwage:${-sm}">\u2212${eur(sm).replace(CUR()+' ','')}</button>`;})()}<b style="font:800 24px var(--fd);min-width:120px;text-align:center">${eur(n.wage)}</b>${(()=>{const sm=Math.max(5000,r5k(n.demand*.02)),bg=Math.max(20000,r5k(n.demand*.08));return `<button class="btn sm" data-act="negwage:${sm}">+${eur(sm).replace(CUR()+' ','')}</button><button class="btn sm" data-act="negwage:${bg}">+${eur(bg).replace(CUR()+' ','')}</button>`;})()}<span class="mut" style="font-size:13px">per season</span></div>
-   <div class="seg">${[1,2,3].map(y=>`<button class="${n.yrs===y?'on':''}" data-act="negyrs:${y}">${y} year${y>1?'s':''}</button>`).join('')}</div>
+   <div class="seg">${[1,2,3].map(y=>`<button class="${n.yrs===y?'on':''}" data-act="snegyrs:${y}">${y} year${y>1?'s':''}</button>`).join('')}</div>
    <div class="btns"><button class="btn p" data-act="negoffer">Make offer</button><button class="btn" data-act="close">Walk away</button></div></div>`;
   return `<div class="ovl" data-act="ovl"><div class="modal" role="dialog" aria-modal="true" aria-label="Contract talks" style="max-width:620px"><div class="ch"><h3>Contract talks</h3><button class="lnk" data-act="close">Close \u2715</button></div>${head}${meter}${chat}${ctl}</div></div>`;}
 
@@ -1245,7 +1245,7 @@ const ACT={
   staffhire(id){const st=G.staffFA.find(x=>x.id===+id);if(!st)return;UI.modal={kind:'hire',n:staffNegStart(st)};render();},
   negtalk(k){const M=UI.modal,st=G.staffFA.find(x=>x.id===M.n.sid);negTalk(st,M.n,k);render();scrollChat();},
   negwage(d){const M=UI.modal;M.n.wage=Math.max(20000,M.n.wage+(+d));render();},
-  negyrs(y){UI.modal.n.yrs=+y;render();},
+  snegyrs(y){UI.modal.n.yrs=+y;render();},
   negmatch(c){UI.modal.n.wage=+c;ACT.negoffer();},
   negoffer(){const M=UI.modal,st=G.staffFA.find(x=>x.id===M.n.sid);negOffer(st,M.n);render();scrollChat();},
   negsign(){const M=UI.modal,st=G.staffFA.find(x=>x.id===M.n.sid);const e=negSign(st,M.n);if(e){M.err=e;render();return;}UI.modal=null;render();toast(`${st.f} ${st.l} joins your staff`);},
