@@ -2208,6 +2208,7 @@ function sponsorSeason(){
 }
 /* ===================== Season flow ===================== */
 function getFixtures(){
+  if(G.leg==='aq')return aqFixtures();
   if(G.leg==='ec')return ecFixtures();
   if(G.leg==='bcl')return bclFixtures();
   if(G.leg==='fec')return fecFixtures();
@@ -2226,7 +2227,7 @@ function getFixtures(){
   return [];
 }
 const userFx=()=>G&&(preFx()||pokFx()||getFixtures().find(f=>f.h===G.user||f.a===G.user))||null;
-function stepLabel(){if(preOn())return preLabel();if(pokUserDue()){const P=pok();return `${NCUP[P.c].name} \u00b7 ${P.rounds[P.r].n}`;}if(G.leg==='ec')return ecLabel();if(G.leg==='bcl')return bclLabel();if(G.leg==='fec')return fecLabel();if(G.leg==='nl')return nlLabel(nlUser());if(G.leg==='bih')return bihLabel();if(G.leg==='kls')return klsLabel();if(G.leg==='dom2')return dom2Label();if(G.leg==='dom')return domLabel();const P=G.phase;
+function stepLabel(){if(preOn())return preLabel();if(pokUserDue()){const P=pok();return `${NCUP[P.c].name} \u00b7 ${P.rounds[P.r].n}`;}if(G.leg==='aq')return aqLabel();if(G.leg==='ec')return ecLabel();if(G.leg==='bcl')return bclLabel();if(G.leg==='fec')return fecLabel();if(G.leg==='nl')return nlLabel(nlUser());if(G.leg==='bih')return bihLabel();if(G.leg==='kls')return klsLabel();if(G.leg==='dom2')return dom2Label();if(G.leg==='dom')return domLabel();const P=G.phase;
   if(P==='reg')return `Round ${G.round+1}`;if(P==='pi1')return 'Play-In \u00b7 Day 1';if(P==='pi2')return 'Play-In \u00b7 Day 2';
   if(P==='qf'){const n=Math.min(...G.po.qf.filter(s=>s.win==null).map(s=>s.n).concat([4]))+1;return `Playoffs \u00b7 Game ${n}`;}
   if(P==='f4')return 'Final Four \u00b7 Semi-finals';if(P==='fin')return 'Final Four \u00b7 Championship';return 'Season complete';}
@@ -2297,6 +2298,7 @@ function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
+  if(G.leg==='aq'&&aqOn())return aqUserStep(um);
   if(G.leg==='ec'||(userIsCup()&&userCup()==='ec'&&G.ec&&G.ec.phase!=='done'&&ecUserIn()))return ecUserStep(um);
   if(G.leg==='bcl'||(userIsCup()&&userCup()==='bcl'&&G.bcl&&G.bcl.phase!=='done'&&bclUserIn()))return bclUserStep(um);
   if(G.leg==='fec'||(userIsCup()&&userCup()==='fec'&&G.fec&&G.fec.phase!=='done'&&fecUserIn()))return fecUserStep(um);
@@ -2519,6 +2521,7 @@ function startPlayIn(){
 }
 function finishLabel(u){return u.champ?'Champions':u.fin?'Runner-up':u.f4?'Final Four':u.qf?'Quarter-finals':u.pi?'Play-In':'Regular season';}
 function seasonEnd(){
+  if(aqOn()&&(G.aq.aba===G.user||G.aq.a2===G.user)){if(G.leg!=='aq')G.aq.leg=G.leg;G.leg='aq';return;}
   if(G.ec&&G.ec.phase!=='done')ecFinishSilent();if(G.bcl&&G.bcl.phase!=='done')bclFinishSilent();if(G.fec&&G.fec.phase!=='done')fecFinishSilent();
   if(userIsCup())return seasonEndCup();
   if(userIsNL())return seasonEndNL();
@@ -2937,6 +2940,30 @@ function domAdvance(out){const D=G.dom,U=G.user,mine=D.ids.includes(U);
 
 // promotion/relegation series (real format, 2025: Cibona v Ilirija): the ABA League 2 runner-up plays the second-worst ABA League club
 // that is not a EuroLeague club, best of three, the ABA League club at home in games 1 and 3. Played after both seasons.
+
+// the series is played by the user when his club is in it (G.aq, leg 'aq', after all his other competitions, before the season review);
+// otherwise it is simulated at once
+function aqMake(q,ru){if(q==null||ru==null||!G.teams[ru]||G.teams[ru].dom!=='ABA2'||!G.teams[q])return;
+  if(q===G.user||ru===G.user){G.aq={aba:q,a2:ru,wa:0,wb:0,games:[],s:G.season,done:false};const opp=G.teams[q===G.user?ru:q];
+    msg('Assistant Coach','Promotion/relegation series',q===G.user?`We finished second-to-last in the Play-Out. To keep our ABA League place we must beat ${opp.name}, the ABA League 2 runner-up, in a best-of-three series. Games 1 and 3 (if needed) are at home. It starts after our other competitions.`:`We lost the ABA League 2 final, but we get a second chance: a best-of-three series against ${opp.name} for a place in the ABA League. Game 2 is at home, games 1 and 3 away. It starts after our other competitions.`,'staff');return;}
+  aqResolve(q,ru,abaQualSeries(q,ru));}
+function aqResolve(q,ru,S){const D=G.dom,A=G.teams[q],B=G.teams[ru],stay=S.win===q;
+  if(!stay){D.releg2=q;D.prom2=B.short;}
+  news(stay?`${A.name} stay in the ABA League`:`${B.name} promoted, ${A.name} relegated`,`Promotion/relegation series, best of three: ${A.name} (second-to-last in the ABA League Play-Out) v ${B.name} (ABA League 2 runner-up), ${S.score} for ${G.teams[S.win].name}. ${S.games.join(', ')}.`);
+  if(q===G.user||ru===G.user){const won=S.win===G.user;
+    msg('Assistant Coach',won?(q===G.user?'We stay in the ABA League':'Promoted to the ABA League!'):(q===G.user?'Relegated after the series':'No promotion this time'),`Promotion/relegation series against ${G.teams[q===G.user?ru:q].name}: ${won?'won':'lost'} ${S.score} (${S.games.join(', ')}).${won?(q===G.user?' We keep our place in the ABA League.':' We play the AdmiralBet ABA League next season.'):(q===G.user?' We drop to ABA League 2.':' We stay in ABA League 2.')}`,'staff');
+    if(q===G.user&&!won){G.board=clamp(G.board-25,0,100);G.relegated=true;}
+    if(ru===G.user&&won){G.board=clamp(G.board+15,0,100);G.fans=clamp(G.fans+8,0,100);}}}
+const aqOn=()=>!!(G&&G.aq&&!G.aq.done&&G.aq.s===G.season);
+function aqFixtures(){const A=G.aq;if(!aqOn())return [];const h=A.games.length===1?A.a2:A.aba;return [{h,a:h===A.aba?A.a2:A.aba,kind:'dpo',ref:'aq'}];}
+const aqLabel=()=>`Promotion/relegation series · Game ${(G.aq?G.aq.games.length:0)+1}`;
+function aqUserStep(um){const A=G.aq,f=aqFixtures()[0];if(!f){G.leg=A&&A.leg||'el';seasonEnd();return 'Season';}
+  const lbl=aqLabel(),m=um||new Match(f.h,f.a,{kind:f.kind}).run(),r=applyResult(m,f),hs=m.s[0].pts,as=m.s[1].pts,w=hs>as?f.h:f.a;
+  if(w===A.aba)A.wa++;else A.wb++;A.games.push(`${G.teams[f.h].short} ${hs}–${as} ${G.teams[f.a].short}`);
+  G.lastResults={label:lbl,list:[r],dom:false};
+  if(A.wa===2||A.wb===2){A.done=true;aqResolve(A.aba,A.a2,{win:A.wa===2?A.aba:A.a2,games:A.games,score:`${Math.max(A.wa,A.wb)}–${Math.min(A.wa,A.wb)}`});G.leg=A.leg||'el';seasonEnd();}
+  else{const me=A.aba===G.user?A.wa:A.wb,them=A.aba===G.user?A.wb:A.wa;msg('Assistant Coach',`Series ${me}–${them}`,`${w===G.user?'We won':'We lost'} game ${A.games.length} (${A.games[A.games.length-1]}). ${me===1&&them===1?'It all comes down to game 3.':me===1?'One more win and we are through.':'We must win the next game.'}`,'staff');}
+  return lbl;}
 function abaQualSeries(aba,a2){const g=[];let wa=0,wb=0;
   for(let i=0;i<3&&wa<2&&wb<2;i++){const h=i===1?a2:aba,a=i===1?aba:a2,m=new Match(h,a,{kind:'dpo'}).run(),hs=m.s[0].pts,as=m.s[1].pts;
     const w=hs>as?h:a;if(w===aba)wa++;else wb++;g.push(`${G.teams[h].short} ${hs}–${as} ${G.teams[a].short}`);}
@@ -2949,14 +2976,8 @@ function domPromRel(){const D=G.dom,el=window.ABA_EL||[];
   const pool=(window.ABA2_CLUBS||[]).filter(c=>!G.teams.some(t=>t.short===c[0]&&t.dom==='ABA'));
   const up=ct?[ct.short,ct.name]:pool.length?wpick(pool,c=>Math.pow(1.35,c[5]-55)):null;
   D.releg=down!=null?down:null;D.prom=up?up[0]:null;D.releg2=null;D.prom2=null;
-  const q=(D.plfinal||[]).slice().reverse().filter(id=>!el.includes(G.teams[id].short)&&!!G.teams[id].dom)[1],F=G.dom2&&G.dom2.phase==='done'&&G.dom2.hist&&G.dom2.hist.fin&&G.dom2.hist.fin[0],ru=F?domLoser(F):null;
-  if(q!=null&&ru!=null&&G.teams[ru]&&G.teams[ru].dom==='ABA2'){const S=abaQualSeries(q,ru),A=G.teams[q],B=G.teams[ru],stay=S.win===q;
-    if(!stay){D.releg2=q;D.prom2=B.short;}
-    news(stay?`${A.name} stay in the ABA League`:`${B.name} promoted, ${A.name} relegated`,`Promotion/relegation series, best of three: ${A.name} (second-to-last in the ABA League Play-Out) v ${B.name} (ABA League 2 runner-up), ${S.score} for ${G.teams[S.win].name}. ${S.games.join(', ')}.`);
-    if(q===G.user||ru===G.user){const won=S.win===G.user;
-      msg('Assistant Coach',won?(q===G.user?'We stay in the ABA League':'Promoted to the ABA League!'):(q===G.user?'Relegated after the series':'No promotion this time'),`Promotion/relegation series against ${G.teams[q===G.user?ru:q].name}: ${won?'won':'lost'} ${S.score} (${S.games.join(', ')}).${won?(q===G.user?' We keep our place in the ABA League.':' We play the AdmiralBet ABA League next season.'):(q===G.user?' We drop to ABA League 2.':' We stay in ABA League 2.')}`,'staff');
-      if(q===G.user&&!won){G.board=clamp(G.board-25,0,100);G.relegated=true;}
-      if(ru===G.user&&won){G.board=clamp(G.board+15,0,100);G.fans=clamp(G.fans+8,0,100);}}}
+  const q=(D.plfinal||[]).slice().reverse().filter(id=>!el.includes(G.teams[id].short)&&!!G.teams[id].dom)[1],F=G.dom2&&G.dom2.phase==='done'&&G.dom2.hist&&G.dom2.hist.fin&&G.dom2.hist.fin[0];
+  D.aqQ=null;if(F)aqMake(q,domLoser(F));else if(q!=null)D.aqQ=q;// ABA League 2 still running (the user coaches there): the series is set when its final ends
   if(down!=null)news(`${G.teams[down].name} relegated`,`${G.teams[down].name} finished last in the ABA League Play-Out and drop to ABA League 2.${up?` ${up[1]} won ABA League 2 and take their place.`:''}`);
   klsStartSL();bihStartPO();
   if(down===G.user){G.board=clamp(G.board-30,0,100);msg('Club President','Relegated','We finished last in the ABA League and drop to ABA League 2 next season. This is a disaster for the club.','board');G.relegated=true;}
@@ -3055,7 +3076,7 @@ function dom2Init(){
   for(const id of ids){const t=G.teams[id];t.dw=0;t.dl=0;t.dpf=0;t.dpa=0;}
   G.dom2={lg:'ABA2',name:'ABA League 2',ids,groups,sched:'ABCD'.split('').map(k=>genSchedule(groups[k])).reduce(mergeRounds,[]),round:0,phase:'reg',po:null,champ:null,res:[],obj:null,hist:{}};
   if(ids.includes(G.user)){G.dom2.obj=dom2Objective();G.leg='dom2';
-    msg('Club President','ABA League 2 target',`We play ABA League 2 in Group ${dom2GroupOf(G.user)}. The group winners go straight to the quarter-finals, 2nd and 3rd play the Play-In. Only the champion is promoted to the ABA League. The board's target: ${DOM2OBJ[G.dom2.obj].toLowerCase()}.`,'board');}
+    msg('Club President','ABA League 2 target',`We play ABA League 2 in Group ${dom2GroupOf(G.user)}. The group winners go straight to the quarter-finals, 2nd and 3rd play the Play-In. The champion is promoted to the ABA League; the runner-up plays a best-of-three series against an ABA League club for a place. The board's target: ${DOM2OBJ[G.dom2.obj].toLowerCase()}.`,'board');}
 }
 function dom2Fixtures(){const D=G.dom2;if(!D)return [];
   if(D.phase==='reg')return (D.sched[D.round]||[]).filter(([h,a])=>h>=0&&a>=0).map(([h,a])=>({h,a,kind:'d2'}));
@@ -3081,7 +3102,7 @@ function dom2Advance(out){const D=G.dom2,U=G.user,mine=D.ids.includes(U);
   else if(P.stage==='qf')D.po={stage:'sf',ser:domSeries([ord(W[0],W[1]),ord(W[2],W[3])],2)};
   else if(P.stage==='sf')D.po={stage:'fin',ser:domSeries([ord(W[0],W[1])],2)};
   else{D.champ=W[0];D.phase='done';if(D.champ===U)prize(150000,'ABA League 2 champions!');
-    news(`${G.teams[D.champ].name} win ABA League 2`,`${G.teams[D.champ].name} are the ${seasonStr()} ABA League 2 champions and are promoted to the AdmiralBet ABA League.`);return;}
+    news(`${G.teams[D.champ].name} win ABA League 2`,`${G.teams[D.champ].name} are the ${seasonStr()} ABA League 2 champions and are promoted to the AdmiralBet ABA League.`);if(G.dom&&G.dom.aqQ!=null){const q=G.dom.aqQ;G.dom.aqQ=null;aqMake(q,domLoser(P.ser[0]));}return;}
   for(const s of D.po.ser)if(s.win==null&&(s.hi==null||s.lo==null))s.win=s.hi!=null?s.hi:s.lo;
   if(D.po.ser.every(s=>s.win!=null))dom2Advance([]);
 }
@@ -3798,7 +3819,7 @@ function nlApplyMoves(){if(!G.nl)return;const moves=[];
   // keep the two Suedost groups level: the weakest club of the bigger group moves over
   const so=g=>G.teams.filter(x=>x.dom==='RL'&&x.grp===g&&x.id!==G.user);for(let k=0;k<4;k++){const a=so(RL_SON),b=so(RL_SOS);if(Math.abs(a.length-b.length)<2)break;const big=a.length>b.length?a:b;big.sort((x,y)=>x.rep-y.rep)[0].grp=big===a?RL_SOS:RL_SON;}
 }
-const seasonOver=()=>seasonOver0()&&(!G.ec||G.ec.phase==='done')&&(!G.bcl||G.bcl.phase==='done')&&(!G.fec||G.fec.phase==='done');
+const seasonOver=()=>!aqOn()&&seasonOver0()&&(!G.ec||G.ec.phase==='done')&&(!G.bcl||G.bcl.phase==='done')&&(!G.fec||G.fec.phase==='done');
 const seasonOver0=()=>userIsNL()?(G.phase==='done'&&!!nlUser()&&nlUser().phase==='done'):userIsKls()?(G.phase==='done'&&!!G.kls&&G.kls.phase==='done'):userIsBih()?(G.phase==='done'&&!!G.bih&&G.bih.phase==='done'):G.leg!=='kls'&&G.leg!=='bih'&&G.leg!=='nl'&&G.phase==='done'&&(!G.dom||G.dom.phase==='done'||!domPlaysUser())&&(!userIs2()||!G.dom2||G.dom2.phase==='done');
 const userIsDom=()=>!!(G&&G.teams[G.user]&&G.teams[G.user].dom==='ABA');
 const userIs2=()=>!!(G&&G.teams[G.user]&&G.teams[G.user].dom==='ABA2');
