@@ -3146,7 +3146,11 @@ function klsUserCatchUp(){const K=G.kls;
   if(K.phase==='reg'){if(G.phase==='reg'&&G.round<K.round)elSilentStep();return;}
   if(K.phase==='wait'){let k=0;while(G.phase!=='done'&&k++<150)elSilentStep();if(G.dom2&&G.dom2.phase!=='done')dom2FinishSilent();if(G.dom&&G.dom.phase!=='done')domFinishSilent();if(K.phase==='wait')klsStartSL();}
   if(K.phase==='po'&&klsUserIn())return;
-  klsFinishSilent();seasonEnd();
+  klsFinishSilent();
+  let k=0;while(G.phase!=='done'&&k++<200)elSilentStep();
+  if(G.dom2&&G.dom2.phase!=='done')dom2FinishSilent();if(G.dom&&G.dom.phase!=='done')domFinishSilent();if(G.bih&&G.bih.phase!=='done')bihFinishSilent();
+  for(const X of Object.values(G.nl||{}))if(X&&X.phase!=='done')nlFinishSilent(X);
+  seasonEnd();
 }
 function seasonEndKls(){
   const K=G.kls,met=klsObjMet(),fin=klsFinish();
