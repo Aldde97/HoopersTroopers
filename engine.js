@@ -2776,6 +2776,9 @@ function domObjective(){const r=domTeams().map(t=>({id:t.id,s:strength(t.id)})).
 function domCross(X,Y){const L=Math.max(X.length,Y.length),x=X.concat(Array(L-X.length).fill(-1)),y=Y.concat(Array(L-Y.length).fill(-1)),R=[];
   for(let k=0;k<L;k++)R.push(x.map((h,i)=>(i+k)%2?[y[(i+k)%L],h]:[h,y[(i+k)%L]]));
   return R.concat(shuffle(R.map(g=>g.map(([h,a])=>[a,h]))));}
+// groups of different sizes: the smaller group's game days are spread evenly over the season instead of all at the start
+// (before, ProB Nord sat out the last four game days and the 8-club Regionalliga groups the last sixteen)
+const spreadMerge=S=>{const N=Math.max(0,...S.map(x=>x.length)),out=Array.from({length:N},()=>[]);for(const x of S){const n=x.length;x.forEach((r,j)=>{const i=n===N?j:Math.min(N-1,Math.floor((j+.5)*N/n));out[i]=out[i].concat(r);});}return out;};
 const mergeRounds=(a,b)=>Array.from({length:Math.max(a.length,b.length)},(_,i)=>(a[i]||[]).concat(b[i]||[]));
 function domInit(){
   domApplyPromRel();
@@ -3075,7 +3078,7 @@ function dom2Init(){
   for(const k in groups)groups[k]=ids.filter(i=>(GR[k]||[]).includes(G.teams[i].short));
   for(const i of ids)if(!'ABCD'.split('').some(k=>groups[k].includes(i))){const k='ABCD'.split('').sort((a,b)=>groups[a].length-groups[b].length)[0];groups[k].push(i);}
   for(const id of ids){const t=G.teams[id];t.dw=0;t.dl=0;t.dpf=0;t.dpa=0;}
-  G.dom2={lg:'ABA2',name:'ABA League 2',ids,groups,sched:'ABCD'.split('').map(k=>genSchedule(groups[k])).reduce(mergeRounds,[]),round:0,phase:'reg',po:null,champ:null,res:[],obj:null,hist:{}};
+  G.dom2={lg:'ABA2',name:'ABA League 2',ids,groups,sched:spreadMerge('ABCD'.split('').map(k=>genSchedule(groups[k]))),round:0,phase:'reg',po:null,champ:null,res:[],obj:null,hist:{}};
   if(ids.includes(G.user)){G.dom2.obj=dom2Objective();G.leg='dom2';
     msg('Club President','ABA League 2 target',`We play ABA League 2 in Group ${dom2GroupOf(G.user)}. The group winners go straight to the quarter-finals, 2nd and 3rd play the Play-In. The champion is promoted to the ABA League; the runner-up plays a best-of-three series against an ABA League club for a place. The board's target: ${DOM2OBJ[G.dom2.obj].toLowerCase()}.`,'board');}
 }
@@ -3522,7 +3525,7 @@ function nlInit(code){
   let groups=null;
   if(C.groups){groups={};for(const g of C.groups)groups[g]=ids.filter(i=>G.teams[i].grp===g);
     for(const i of ids)if(!C.groups.some(g=>groups[g].includes(i))){const g=C.groups.slice().sort((a,b)=>groups[a].length-groups[b].length)[0];groups[g].push(i);G.teams[i].grp=g;}}
-  const sched=code==='CRL'?genSchedule(ids).concat(genSchedule(ids).slice(0,ids.length-1)):code==='AUS'?genSchedule(ids).concat(genSchedule(ids).slice(0,15)):code==='KOS'?genSchedule(ids).concat(genSchedule(ids)):code==='JPN'&&groups?jpSchedule(groups):code==='LKL'||code==='GBR'?genSchedule(ids).concat(genSchedule(ids)):code==='CBA'?cbaSchedule(ids):code==='NBA'?nbaSchedule(ids):code==='GL'?glTipSchedule(ids):groups?Object.values(groups).map(g=>genSchedule(g)).reduce(mergeRounds,[]):genSchedule(ids);
+  const sched=code==='CRL'?genSchedule(ids).concat(genSchedule(ids).slice(0,ids.length-1)):code==='AUS'?genSchedule(ids).concat(genSchedule(ids).slice(0,15)):code==='KOS'?genSchedule(ids).concat(genSchedule(ids)):code==='JPN'&&groups?jpSchedule(groups):code==='LKL'||code==='GBR'?genSchedule(ids).concat(genSchedule(ids)):code==='CBA'?cbaSchedule(ids):code==='NBA'?nbaSchedule(ids):code==='GL'?glTipSchedule(ids):groups?spreadMerge(Object.values(groups).map(g=>genSchedule(g))):genSchedule(ids);
   const L={code,ids,groups,sched,round:0,phase:'reg',po:null,hist:{},champ:null,res:[],tab:{},final:null,obj:null,up:[],down:[]};
   if(code==='NCAA')L.sched=ncSchedule(L);
   if(code==='GL'){L.confs=groups;L.tip=1;L.groups=glRegions(L);}
