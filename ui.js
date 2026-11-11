@@ -71,7 +71,7 @@ function render(){
   else if(UI.view==='match'&&UI.match)body=matchHTML();
   else if(UI.view==='season'&&seasonOver())body=seasonHTML();
   else{UI.view='main';body=({home:homeHTML,squad:squadHTML,medical:medicalHTML,tactics:tacticsHTML,training:trainingHTML,staff:staffHTML,transfers:transfersHTML,finances:financesHTML,club:clubTabHTML,business:businessHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
-  app.innerHTML=headerHTML()+clubHTML()+navHTML()+`<main class="main gut"><div class="inner">${body}</div></main>`+modalHTML();try{ntTheme();}catch(e){}
+  app.innerHTML=headerHTML()+clubHTML()+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. Open the game without <code>#nt-demo</code> to return to your own career.</div>':''}${body}</div></main>`+modalHTML();try{ntTheme();}catch(e){}
   if(UI.view==='match')updMatch();
   if(UI.view==='main'&&UI.tab==='club'&&window.arena3dMount)arena3dMount();
 }
@@ -1421,7 +1421,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.modal){UI.modal=
 
 function scrollChat(){const c=document.getElementById('negchat');if(c)c.scrollTop=c.scrollHeight;}
 /* ===================== Boot ===================== */
-function boot(data){if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();}
+function boot(data){if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
 window.claude?.hot?.ready?window.claude.hot.ready(boot):boot(window.claude?.hot?.data??{});
 try{SAVE_READY.then(()=>{if(SAVE_TXT&&(!G||UI.view==='start'))render();});}catch(e){}

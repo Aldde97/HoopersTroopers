@@ -3815,6 +3815,9 @@ function ntJobAfterTournament(T){const J=G.nt.job;if(!J)return;const c=J.c;if(!T
   else if(lv===tl-1)msg(`${ntName(c)} Basketball Federation`,`${T.name}: ${res}`,`We reached ${res}; the target was to ${tg}. A disappointment, but we keep faith in you for the next cycle. The next target must be met.`,'nt');
   else ntSack(`At the ${T.name} ${ntName(c)} reached ${res}; the target was to ${tg}.`);}
 
+// demo (link ending in #nt-demo): Igokea, head coach of Bosnia and Herzegovina, just before the November window
+function ntDemo(){NT_DEMO=true;startCareerAt('IGO','Demo Coach');G.demo=1;let k=0;while(preOn()&&k++<40)simStep();k=0;while(G.day<44&&k++<200&&!seasonOver())simStep();
+  ntInit();G.nt.offers={s:G.season,list:['BIH']};G.nt.offSent=1;ntTakeJob('BIH');ntJobTick();}
 function ntInit(){if(G.nt)return;G.nt={hist:[],cyc:null,last:null};
   if(G.season===2026){G.nt.cyc=ntWC27();}
 
@@ -5727,7 +5730,8 @@ async function saveZ(txt){if(SAVE_BUSY){SAVE_NEXT=txt;return;}SAVE_BUSY=true;
   try{const z='gz1:'+b64(await gz(txt));try{localStorage.setItem(KEYZ,z);try{localStorage.removeItem(KEY);}catch(e){}SAVE_WARNED=false;}catch(e){saveFailed();}}
   catch(e){try{localStorage.setItem(KEY,txt);}catch(e2){saveFailed();}}
   finally{SAVE_BUSY=false;if(SAVE_NEXT!=null){const t=SAVE_NEXT;SAVE_NEXT=null;saveZ(t);}}}
-function save(){ownerProtect();coachTick();arenaTick();let txt;try{txt=JSON.stringify(G);}catch(e){return;}SAVE_TXT=txt;
+let NT_DEMO=false;
+function save(){if(NT_DEMO||(G&&G.demo))return;ownerProtect();coachTick();arenaTick();let txt;try{txt=JSON.stringify(G);}catch(e){return;}SAVE_TXT=txt;
   if(ZOK)saveZ(txt);else{try{localStorage.setItem(KEY,txt);}catch(e){saveFailed();}}}
 function loadSave(){try{if(SAVE_TXT)return JSON.parse(SAVE_TXT);const s=localStorage.getItem(KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
 function wipeSave(){SAVE_TXT=null;SAVE_NEXT=null;try{localStorage.removeItem(KEY);}catch(e){}try{localStorage.removeItem(KEYZ);}catch(e){}}
