@@ -3712,6 +3712,20 @@ function ksNext(L,P,W){const s=L.seedsA,o=(a,b)=>nlOrd(L,a,b),U=G.user;
 
 // projected playoffs of a national league before they start: the real start function runs on a scratch copy built from the
 // current table, with messages and news switched off. Not for the G League (showcase) and the NCAA (selection committee).
+
+// projected brackets for the ABA League, ABA League 2, KLS and Liga 14 from the current tables (read only)
+const pjS=(hi,lo,need)=>({hi:hi==null?null:hi,lo:lo==null?null:lo,wh:'',wl:'',n:0,need,win:null});
+function domProject(){const D=G.dom;if(!D||D.phase!=='reg')return null;let t8,pl;
+  if(D.top8){t8=domSort(D.top8).map(t=>t.id);pl=domSort(D.playout).map(t=>t.id);}
+  else{const a=domSort(D.groups.A).map(t=>t.id),b=domSort(D.groups.B).map(t=>t.id);t8=domSort(a.slice(0,4).concat(b.slice(0,4))).map(t=>t.id);pl=domSort(a.slice(4).concat(b.slice(4))).map(t=>t.id);}
+  return {hist:{pi1:[pjS(t8[6],t8[7],1),pjS(pl[0],pl[1],1)],pi2:[pjS(null,null,1)],qf:[pjS(t8[0],null,2),pjS(t8[3],t8[4],2),pjS(t8[1],null,2),pjS(t8[2],t8[5],2)]}};}
+function dom2Project(){const D=G.dom2;if(!D||D.phase!=='reg')return null;const g={};for(const k of 'ABCD')g[k]=domSort(D.groups[k]||[]).map(t=>t.id);
+  return {hist:{pi:[pjS(g.A[1],g.B[2],1),pjS(g.B[1],g.A[2],1),pjS(g.C[1],g.D[2],1),pjS(g.D[1],g.C[2],1)],qf:[pjS(g.A[0],null,2),pjS(g.B[0],null,2),pjS(g.C[0],null,2),pjS(g.D[0],null,2)]}};}
+function klsProject(){const K=G.kls;if(!K||K.po||K.phase==='done')return null;const D=G.dom,abaOrder=D&&D.t8final?D.t8final.concat(D.plfinal||[]):(D?domStandings().map(t=>t.id):[]);
+  const srb=abaOrder.filter(id=>G.teams[id].nat==='SRB').slice(0,6),fl=klsSort(K.ids).map(t=>t.id).filter(id=>!srb.includes(id)),x=srb.concat(fl).slice(0,8);
+  return {hist:{qf:[pjS(x[0],x[7],2),pjS(x[3],x[4],2),pjS(x[1],x[6],2),pjS(x[2],x[5],2)]}};}
+function bihProject(){const B=G.bih;if(!B||B.po||B.phase==='done')return null;const liga=bihSort(B.ids).map(t=>t.id),direct=G.teams.filter(t=>(window.BIH_DIRECT||[]).includes(t.short)).map(t=>t.id);
+  return {pot1:liga.slice(0,2).concat(direct),pot2:liga.slice(2,6+Math.max(0,2-direct.length))};}
 function nlProject(L){if(!L||L.po||L.phase==='done'||L.code==='GL'||L.code==='NCAA')return null;
   const P=Object.assign({},L,{tab:JSON.parse(JSON.stringify(L.tab||{})),hist:{},res:[],po:null,up:[],down:[],seeds:null,seedsA:null,champ:null,ch:null,natCh:null,phase:'wait'});
   P.final=P.groups?Object.fromEntries(Object.entries(P.groups).map(([k,ids])=>[k,nlSort(P,ids).map(t=>t.id)])):nlSort(P,P.ids).map(t=>t.id);
