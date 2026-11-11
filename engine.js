@@ -1715,10 +1715,10 @@ function takeJob(tid,deal){
   old.fin={bal:G.fin.bal,rev:Math.round(teamCosts(old.id)*(.93+(old.owner||.5)*.09)),st:G.fin.st||'ok'};old.order=autoOrder(old.order);old.tac=aiTac();old.formerHC=null;
   const nhc=nw.staff.filter(x=>x.role==='HC');nw.formerHC=nhc.map(x=>x.f+' '+x.l);nw.staff=nw.staff.filter(x=>x.role!=='HC');for(const x of nhc){x.from=nw.name;G.staffFA.push(x);}
   G.faBid=null;G.user=tid;const W=teamCosts(tid);
-  G.fin.bal=nw.fin?nw.fin.bal:isNBA(nw)?25000000:500000;G.fin.wageBudget=Math.round(wageBill(tid)*1.06/1e5)*1e5;
+  G.fin.bal=nw.fin?nw.fin.bal:isNBA(nw)?25000000:500000;G.fin.wageBudget=Math.round(wageBill(tid)*1.06/1e5)*1e5;{const dd=deal||G.pendingDeal;if(dd&&dd.tb)G.fin.bal+=dd.tb;if(dd&&dd.wr)G.fin.wageBudget=r10k(G.fin.wageBudget*(1+dd.wr));}
   if(!isNBA(nw))G.fin.ticket=Math.max(4,Math.round(tkRef(nw)*25/30));const gate=nw.cap*.8*(isNBA(nw)?110:G.fin.ticket)*.55*19;G.fin.sponsor=Math.max(G.salV&&nw.dom?Math.max(40000,r10k(W*.2)):500000,Math.round(((nw.fin?nw.fin.rev:W)-gate)/1e5)*1e5);
   nw.fin=null;G.spons=null;ensureSponsors();nbaFinanceSync();G.fin.st=userFinState();G.fin.hist=[{l:'New job',bal:G.fin.bal}];
-  deal=deal||G.pendingDeal;G.pendingDeal=null;newCoachDeal(nw,deal?deal.yrs:2);if(deal)G.coach.sal=deal.sal;msg('Agent',`Contract with ${nw.name}`,`You signed a ${deal?deal.yrs:2}-year contract: ${eur(G.coach.sal)} per season, until summer ${G.coach.until}.`,'fin');G.expired=false;
+  deal=deal||G.pendingDeal;G.pendingDeal=null;newCoachDeal(nw,deal?deal.yrs:2);if(deal)G.coach.sal=deal.sal;msg('Agent',`Contract with ${nw.name}`,`You signed a ${deal?deal.yrs:2}-year contract: ${eur(G.coach.sal)} per season, until summer ${G.coach.until}.${deal&&(deal.tb||deal.wr)?` As agreed, the club adds ${negExtra(deal.tb,deal.wr)}: transfer budget ${eur(G.fin.bal)}, wage budget ${eur(G.fin.wageBudget)}.`:''}`,'fin');G.expired=false;
   G.meet=null;G.pledge=null;G.warn=null;G.sLost=0;G.jobStart=G.season;G.fg=null;G.press=null;G.pressBet=null;G.pressDone=null;G.pStreak=0;G.ulti=null;G.brd=null;G.mseen=null;G.mhype=null;G.board=55;G.fans=60;G.listed=[];G.loanOffers={};G.sacked=false;G.bankrupt=false;G.relegated=false;G.resigned=false;G.jobOffers=null;G.pendingJob=null;G.obj=userNotEL()?'dom':objective();
   if(G.dom){G.dom.obj=G.dom.ids.includes(tid)?domObjective():null;if(userIsDom())G.leg='dom';else if(!domPlaysUser())G.leg='el';}
   if(G.dom2){G.dom2.obj=G.dom2.ids.includes(tid)?dom2Objective():null;if(userIs2())G.leg='dom2';}
@@ -3989,10 +3989,23 @@ const extDue=()=>!!(G&&G.coach&&!G.sacked&&!G.bankrupt&&G.pendingJob==null&&G.co
 function negStart(tid,kind,ref){const t=G.teams[tid],base=kind==='ext'?Math.max(coachSalFor(t),G.coach.sal):coachSalFor(t);
   const I=negInterest(t,kind),max=Math.round(base*I*(1+.03*sk('neg'))/1e4)*1e4,offer=Math.max(10000,Math.round(Math.min(max,base*Math.min(I,1))*.92/1e4)*1e4);
   G.neg={tid,kind,ref:ref==null?null:ref,offer,max,yrs:2,round:0,over:false,agreed:false,final:false,
-    log:[kind==='ext'?`The board offer a new contract: ${eur(offer)} per season for two seasons (you earn ${eur(G.coach.sal)} now).`:`${t.name} offer ${eur(offer)} per season for two seasons.`]};return G.neg;}
+    log:[kind==='ext'?`The board offer a new contract: ${eur(offer)} per season for two seasons (you earn ${eur(G.coach.sal)} now).`:`${t.name} offer ${eur(offer)} per season for two seasons.`]};
+  if(kind==='job'&&!isNBA(t)){const fs=teamFinState(tid),fk=fs==='ok'?1:fs==='strain'?.5:0,fr=clamp((I-.85)/.55,0,1),step=r10k(Math.max(50000,wageBill(tid)*.08));
+    Object.assign(G.neg,{bud:1,tb:0,wr:0,tbStep:step,tbMax:r10k(step*(.5+2.5*fr)*fk*rf(.8,1.2)),wrMax:Math.round((.03+.09*fr)*fk*rf(.8,1.2)*100)/100});}
+  return G.neg;}
 const negMax=(N,yrs)=>Math.round(N.max*({1:1.05,2:1,3:.95})[yrs]/1e4)*1e4;
 const yrsTxt=y=>`${y} season${y>1?'s':''}`;
-function negPropose(amt,yrs){const N=G.neg;if(!N||N.over||N.final)return;amt=Math.max(10000,Math.round(amt/1e4)*1e4);yrs=clamp(yrs|0,1,3);const t=G.teams[N.tid],M=negMax(N,yrs);
+const negExtra=(tb,wr)=>[tb?`${eur(tb)} extra transfer budget`:'',wr?`${Math.round(wr*100)}% more wage budget`:''].filter(Boolean).join(' and ');
+function negPropose(amt,yrs,tb,wr){const N=G.neg;if(!N||!N.bud||N.over||N.final)return negPropose0(amt,yrs);
+  tb=Math.max(0,tb||0);wr=Math.max(0,wr||0);amt=Math.max(10000,Math.round(amt/1e4)*1e4);yrs=clamp(yrs|0,1,3);const t=G.teams[N.tid],M=negMax(N,yrs),x=negExtra(tb,wr);
+  const ask=`You ask for ${eur(amt)} over ${yrsTxt(yrs)}${x?` plus ${x}`:''}.`;
+  if(amt<=M&&tb<=N.tbMax&&wr<=N.wrMax+1e-9){N.offer=amt;N.yrs=yrs;N.tb=tb;N.wr=wr;N.log.push(`${ask} ${t.name} agree.`);N.over=true;N.agreed=true;return;}
+  N.round++;
+  if(amt>M*1.35||tb>Math.max(N.tbMax*1.6,N.tbMax+2*N.tbStep)||wr>N.wrMax+.06||N.round>=3){N.over=true;N.walked=true;N.log.push(`${ask} ${t.name} break off the talks and withdraw their offer.`);return;}
+  const target=Math.min(amt,M),counter=Math.round((N.offer+(target-N.offer)*.55)/1e4)*1e4;N.offer=Math.max(N.offer,Math.min(counter,M));N.yrs=yrs;N.tb=Math.min(tb,N.tbMax);N.wr=Math.min(wr,N.wrMax);
+  const notes=[];if(tb>N.tbMax)notes.push(N.tbMax?`the most they can add to the transfer budget is ${eur(N.tbMax)}`:'there is no extra transfer money');if(wr>N.wrMax+1e-9)notes.push(N.wrMax?`the wage budget can grow by ${Math.round(N.wrMax*100)}% at most`:'the wage budget stays as planned');
+  const y=negExtra(N.tb,N.wr);N.log.push(`${ask} ${t.name} counter with ${eur(N.offer)} per season${y?` plus ${y}`:''}${notes.length?`; ${notes.join(', and ')}`:''}.${N.round===2?' One more round, then they decide.':''}`);}
+function negPropose0(amt,yrs){const N=G.neg;if(!N||N.over||N.final)return;amt=Math.max(10000,Math.round(amt/1e4)*1e4);yrs=clamp(yrs|0,1,3);const t=G.teams[N.tid],M=negMax(N,yrs);
   if(amt<=M){N.offer=amt;N.yrs=yrs;N.log.push(`You ask for ${eur(amt)} over ${yrsTxt(yrs)}. ${t.name} agree.`);N.over=true;N.agreed=true;return;}
   N.round++;
   if(amt>M*1.35||N.round>=3){
@@ -4001,11 +4014,11 @@ function negPropose(amt,yrs){const N=G.neg;if(!N||N.over||N.final)return;amt=Mat
     return;}
   const target=Math.min(amt,M),counter=Math.round((N.offer+(target-N.offer)*.55)/1e4)*1e4;N.offer=Math.max(N.offer,Math.min(counter,M));N.yrs=yrs;
   N.log.push(`You ask for ${eur(amt)} over ${yrsTxt(yrs)}. ${t.name} counter with ${eur(N.offer)}.${N.round===2?' One more round, then they decide.':''}`);}
-function negAccept(){const N=G.neg;if(!N||(N.over&&!N.agreed))return;N.over=true;N.agreed=true;if(N.log[N.log.length-1].indexOf('agree')<0)N.log.push(`You accept ${eur(N.offer)} per season for ${yrsTxt(N.yrs)}.`);}
+function negAccept(){const N=G.neg;if(!N||(N.over&&!N.agreed))return;N.over=true;N.agreed=true;const x=N.bud?negExtra(N.tb,N.wr):'';if(N.log[N.log.length-1].indexOf('agree')<0)N.log.push(`You accept ${eur(N.offer)} per season for ${yrsTxt(N.yrs)}${x?` plus ${x}`:''}.`);}
 // apply a finished negotiation; returns a short text for the UI
 function negApply(){const N=G.neg;if(!N)return null;G.neg=null;const t=G.teams[N.tid];
   if(!N.agreed){if(N.kind==='job'){if(G.jobOffers)G.jobOffers=G.jobOffers.filter(i=>i!==N.tid);const m=N.ref!=null&&G.inbox.find(x=>x.id===N.ref);if(m)m.done='Talks failed';const mm=N.midRef!=null&&G.inbox.find(x=>x.id===N.midRef);if(mm)mm.done='Talks failed';}save();return null;}
-  const deal={sal:N.offer,yrs:N.yrs};
+  const deal={sal:N.offer,yrs:N.yrs,tb:N.tb||0,wr:N.wr||0};
   if(N.kind==='ext'){G.coach.sal=deal.sal;G.coach.until=Math.max(N.early?G.coach.until:0,G.season+1+deal.yrs);G.coach.extFor=G.season;if(N.early)brd().ext=1;msg('Club President','New contract',`You signed a new contract: ${eur(deal.sal)} per season until summer ${G.coach.until}.`,'board');save();return 'Contract extended';}
   if(N.ref!=null){const m=G.inbox.find(x=>x.id===N.ref);G.pendingJob=N.tid;G.pendingDeal=deal;for(const x of G.inbox)if(x.type==='job'&&!x.done)x.done=x===m?`Accepted · ${eur(deal.sal)}/season · you move next season`:'Declined';save();return `You take over ${t.name} next season`;}
   if(N.midRef!=null){const old=G.teams[G.user].name;for(const x of G.inbox)if(x.type==='midjob'&&!x.done)x.done=x.id===N.midRef?'Accepted':'Declined';takeJob(N.tid,deal);G.fin.season=blankFin();news(`${G.mgr} leaves ${old} for ${t.name}`,`${G.mgr} left ${old} during the season to take over at ${t.name}.`);save();return `Welcome to ${t.name}. The season goes on.`;}
