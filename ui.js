@@ -1145,7 +1145,7 @@ const ACT={
   exhire(id,k){const e=exHire(id,k);toast(e||'Welcome to the staff');render();},
   bidamt(id,d){UI.bidAsk=UI.bidAsk||{};const m=G.inbox.find(x=>x.id===+id);if(!m)return;UI.bidAsk[+id]=Math.max(m.act.fee+10000,(UI.bidAsk[+id]||m.act.fee)+(+d));render();},
   bidask(id){const e=bidCounter(+id,(UI.bidAsk||{})[+id]||0);if(e)toast(e);render();},
-  decline(id){const m=G.inbox.find(x=>x.id===+id);if(m){m.done='Declined';save();}render();},
+  decline(id){const m=G.inbox.find(x=>x.id===+id);if(m){m.done='Declined';if(m.type==='exjob'&&m.act)exElsewhere(m.act.sid);save();}render();},
   list(id){id=+id;if(G.listed.includes(id))G.listed=G.listed.filter(x=>x!==id);else{G.listed.push(id);toast('Listed. Offers will arrive in your inbox.');}save();render();},
   trade(id){const p=G.players[+id];if(!p||p.tid==null)return;const o=nbaTradeOpen();if(!o.ok){toast(o.why);return;}UI.modal={kind:'trade',tid:p.tid,get:[p.id],give:[],done:null};render();},
   trget(id){const M=UI.modal;if(!M||M.done)return;id=+id;M.get=M.get.includes(id)?M.get.filter(x=>x!==id):M.get.concat([id]);render();},

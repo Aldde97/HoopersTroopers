@@ -5290,13 +5290,28 @@ const staffPay=st=>st.sal=st.role==='HC'?r5k(Math.max(150000,(st.o-50)**2*900)):
 const exRate=st=>{st.o=Math.round(avg(Object.values(st.r)));staffPay(st);};
 const exClubs=()=>G.teams.filter(t=>t.staff&&t.dom!=='GONE'&&t.dom!=='FOUND'&&t.dom!=='AUT'&&t.dom!=='BIH'&&!t.bankrupt&&t.order&&t.order.length);
 function exSetRole(st,k){const b=st.o;st.role=k;if(k==='TM'){st.r={neg:b};st.title='Assistant GM';}else if(k==='SC'){st.r={scout:b};st.title='Scout';}else{st.r={coach:b,tac:clamp(b+rnd(-4,4),40,99),scout:clamp(b+rnd(-5,3),40,99)};delete st.title;}exRate(st);}
+
+// where a retired player starts his staff career: mostly his last club, often a club from his home country, sometimes another club
+// of a similar level, or the staff market. `excl` (the user's club) is never picked here; the user is asked instead.
+function exDest(st,T,excl){const room=t=>t&&t.staff&&!t.bankrupt&&t.dom!=='GONE'&&t.dom!=='FOUND'&&t.id!==excl&&staffOf(t.id,st.role).length<ROLEMAX[st.role];
+  const C=exClubs().filter(room),ref=T?T.rep:60,opts=[];
+  if(room(T))opts.push([T,4]);
+  const nat=C.filter(t=>t!==T&&t.nat===st.nat);if(nat.length)opts.push([wpick(nat,t=>1/(1+Math.abs(t.rep-ref)/6)),3]);
+  const any=C.filter(t=>t!==T&&t.rep<=st.o+25);if(any.length)opts.push([wpick(any,t=>1/(1+Math.abs(t.rep-ref)/8)),1.2]);
+  opts.push([null,1]);return wpick(opts,o=>o[1])[0];}
+const exRoleTxt=st=>st.role==='TM'?'an assistant GM':st.role==='SC'?'a scout':'an assistant coach';
+// the user turned down his own retiring player: he looks elsewhere straight away
+function exElsewhere(sid){const st=G.staffFA.find(x=>x.id===sid);if(!st||!st.ex)return;st.ex.u=false;const D=exDest(st,G.teams[G.user],G.user);if(!D)return;
+  G.staffFA=G.staffFA.filter(x=>x!==st);D.staff.push(st);msg('Sporting Director',`${st.f} ${st.l} joins ${D.name}`,`After we turned him down, ${st.f} ${st.l} started his new career at ${D.name} as ${exRoleTxt(st)}.`,'staff');save();}
 function afterCareer(p){if(p.o<58||p.prospect)return;ensureStaff();const T=p.tid!=null?G.teams[p.tid]:null,mine=T&&T.id===G.user,P=persOf(p);
   if(!mine&&Math.random()>.07+(p.o>=70?.08:0)+(p.o>=78?.15:0)+(p.a.pas>=75?.05:0)+(P==='pro'?.04:P==='ego'?-.03:0))return;
   const pot=clamp(Math.round(62+(p.a.pas-60)*.35+(p.o-65)*.25+(P==='pro'?4:P==='ego'?-3:0)+rnd(-6,10)),60,92),st=genStaff(['AC',p.f,p.l,p.nat,G.season-p.age,''],50);
   {const k=p.phk||pname(p);if(p.age>=18&&(window.PHOTOS||{})[k])st.phk=k;}st.o=clamp(pot-rnd(14,22),42,66);st.ex={c:T?T.name:(p.last||''),o:p.o,s:G.season,pot,fa:0,u:!!mine};st.age=p.age;exSetRole(st,(z=>z<(P==='ego'?.15:.2)?'TM':z<.45?'SC':'AC')(Math.random()));const nm=`${st.f} ${st.l}`;
   if(mine){G.staffFA.push(st);msg(nm,'Is there a place for me?',`I am retiring, coach, but I do not want to leave basketball. I would love to stay at ${T.name} and start again from the bottom. Would you give me a job?`,'exjob',{sid:st.id});return;}
-  if(T&&T.staff&&T.dom!=='GONE'&&staffOf(T.id,st.role).length<ROLEMAX[st.role])T.staff.push(st);else G.staffFA.push(st);
-  if(p.o>=80)news(`${nm} retires and joins ${T&&T.staff.includes(st)?`the ${T.name} staff`:'the staff market'}`,`${nm} is starting a new career as ${st.role==='TM'?'an assistant GM':st.role==='SC'?'a scout':'an assistant coach'}.`);}
+  {const U=G.teams[G.user],ours=U&&U.staff&&(G.exp||[]).some(e=>e.id===p.id&&e.club===U.name)&&staffOf(U.id,st.role).length<ROLEMAX[st.role];
+    if(ours&&Math.random()<.6){st.ex.u=true;G.staffFA.push(st);msg(nm,'Is there a place for me?',`I am retiring as a player. I never forgot my time at ${U.name}, and I would love to start my new career there${T?` rather than at ${T.name}`:''}. Would you give me a job?`,'exjob',{sid:st.id});return;}}
+  const D=exDest(st,T,G.user);if(D)D.staff.push(st);else G.staffFA.push(st);
+  if(p.o>=80)news(`${nm} retires and joins ${D?`the ${D.name} staff`:'the staff market'}`,`${nm} is starting a new career as ${st.role==='TM'?'an assistant GM':st.role==='SC'?'a scout':'an assistant coach'}.`);}
 function exHire(mid,k){const m=G.inbox.find(x=>x.id===+mid);if(!m||!m.act)return 'Not found.';const st=G.staffFA.find(x=>x.id===m.act.sid);if(!st){m.done='No longer available';return 'He has taken another job.';}
   if(staffOf(G.user,k).length>=ROLEMAX[k])return `Your ${ROLEN[k].toLowerCase()} places are full. Release someone first.`;if(st.role!==k)exSetRole(st,k);
   G.staffFA=G.staffFA.filter(x=>x!==st);st.yrs=2;G.teams[G.user].staff.push(st);m.done=k==='TM'?'Hired as assistant GM':k==='SC'?'Hired as scout':'Hired as assistant coach';save();return null;}
