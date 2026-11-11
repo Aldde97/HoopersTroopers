@@ -2464,9 +2464,10 @@ function budMove(dir,amt){if(userNBA())return 'NBA clubs work with the salary ca
 // Players decide at the start of a season whether it is their last (p.retAt = that season), so the user knows before contract talks.
 // Only they retire next summer; a player with years left on his deal is less likely to stop. Old saves without plans use the old roll once.
 function retPlan(){if(!G||G.retV===G.season)return;G.retV=G.season;const mine=[];// called once a season on 1 January (game day 92)
-  for(const p of Object.values(G.players)){if(p.yth!=null||p.retAt===G.season||p.extS===G.season||(p.tid===G.user&&p.newAt===G.season))continue;if(p.retAt!=null&&p.retAt<G.season)delete p.retAt;
-    const r=retireP({age:p.age+1,o:p.o,tid:p.tid})*(p.yrs>1?.4:1);if(Math.random()<r){p.retAt=G.season;if(p.tid===G.user)mine.push(pname(p));}}
-  if(mine.length)msg('Sporting Director','Farewell season',`${mine.join(', ')} ${mine.length>1?'have':'has'} decided that this will be ${mine.length>1?'their':'his'} last season. ${mine.length>1?'They':'He'} will not sign a new contract.`,'fin');}
+  const last=[];for(const p of Object.values(G.players)){if(p.oneMore===G.season){p.retAt=G.season;delete p.oneMore;if(p.tid===G.user)last.push(pname(p));continue;}if(p.yth!=null||p.retAt===G.season||p.extS===G.season||(p.tid===G.user&&p.newAt===G.season))continue;if(p.retAt!=null&&p.retAt<G.season)delete p.retAt;
+    const r=retireP({age:p.age+1,o:p.o,tid:p.tid})*(p.yrs>1?.4:1);if(Math.random()<r){p.retAt=G.season;if(p.tid===G.user)mine.push(p);}}
+  for(const p of mine)msg(pname(p),'This is my last season',`Coach, I have thought about it for a long time: this season will be my last as a player. I will not sign a new contract.`,'retire',{pid:p.id});
+  if(last.length)msg('Sporting Director','Farewell season',`As agreed a year ago, this is the last season of ${last.join(', ')}.`,'fin');}
 function aiFASign(rate){if(!G||!G.fa.length)return 0;let n=0;
   const clubs=G.teams.filter(t=>t.id!==G.user&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&!(t.dfin&&(t.dfin.st==='crisis'||t.dfin.st==='admin')&&t.order.length>=12)).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t),cap:lcap(t)};});
   const fas=G.fa.map(i=>G.players[i]).filter(p=>p&&!p.nfa&&!p.portal&&p.o>=58&&p.yth==null&&!(p.loan&&p.loan.dev)&&!(G.faBid&&G.faBid[p.id])).sort((a,b)=>b.o-a.o);
@@ -5303,10 +5304,23 @@ const exRoleTxt=st=>st.role==='TM'?'an assistant GM':st.role==='SC'?'a scout':'a
 // the user turned down his own retiring player: he looks elsewhere straight away
 function exElsewhere(sid){const st=G.staffFA.find(x=>x.id===sid);if(!st||!st.ex)return;st.ex.u=false;const D=exDest(st,G.teams[G.user],G.user);if(!D)return;
   G.staffFA=G.staffFA.filter(x=>x!==st);D.staff.push(st);msg('Sporting Director',`${st.f} ${st.l} joins ${D.name}`,`After we turned him down, ${st.f} ${st.l} started his new career at ${D.name} as ${exRoleTxt(st)}.`,'staff');save();}
-function afterCareer(p){if(p.o<58||p.prospect)return;ensureStaff();const T=p.tid!=null?G.teams[p.tid]:null,mine=T&&T.id===G.user,P=persOf(p);
+
+// the coach can try once to talk a retiring player into one more season, optionally with the promise of an assistant coach job
+// afterwards. Key players, players in a good mood, younger ones and professionals are easier to convince.
+function retTalk(mid,promise){const m=G.inbox.find(x=>x.id===mid);if(!m||m.done||!m.act)return 'This is settled.';const p=G.players[m.act.pid];
+  if(!p||p.tid!==G.user||p.retAt!==G.season){m.done='Settled';return 'He is no longer with us.';}
+  const ps=roster(G.user).slice().sort((a,b)=>b.o-a.o),key=ps.indexOf(p)<8,md=moodOf(p),P=persOf(p),nm=pname(p);
+  const c=clamp(.3+(promise?.25:0)+(p.age<=34?.1:p.age>=38?-.15:0)+(key?.1:-.05)+(md>=60?.1:md<35?-.15:0)+(P==='pro'?.05:P==='ego'?-.05:0)-(p.inj>20?.1:0)-(p.fragile?.05:0),.08,.85);
+  if(Math.random()<c){delete p.retAt;p.oneMore=G.season+1;if(promise)p.acProm=1;let txt='';
+    if(p.yrs<=1){const sal=r10k(Math.min(p.sal,demand(p)));p.yrs+=1;p.sal=sal;p.extS=G.season;txt=` I sign a one-year extension at ${eur(sal)} per season.`;}
+    m.done=promise?'Stays one more season · staff job promised':'Stays one more season';
+    msg(nm,'One more season',`You convinced me, coach. I will play one more season${promise?', and after that I join your staff as an assistant coach':''}.${txt}`,'fin');save();return null;}
+  m.done='He keeps his decision';msg(nm,'My decision stands',`Thank you, coach${promise?'. The offer of a job on your staff means a lot to me':''}. But my body tells me it is time. This is my last season.`,'fin');save();return null;}
+function afterCareer(p){if((p.o<58&&!(p.acProm&&p.tid===G.user))||p.prospect)return;ensureStaff();const T=p.tid!=null?G.teams[p.tid]:null,mine=T&&T.id===G.user,P=persOf(p);
   if(!mine&&Math.random()>.07+(p.o>=70?.08:0)+(p.o>=78?.15:0)+(p.a.pas>=75?.05:0)+(P==='pro'?.04:P==='ego'?-.03:0))return;
   const pot=clamp(Math.round(62+(p.a.pas-60)*.35+(p.o-65)*.25+(P==='pro'?4:P==='ego'?-3:0)+rnd(-6,10)),60,92),st=genStaff(['AC',p.f,p.l,p.nat,G.season-p.age,''],50);
   {const k=p.phk||pname(p);if(p.age>=18&&(window.PHOTOS||{})[k])st.phk=k;}st.o=clamp(pot-rnd(14,22),42,66);st.ex={c:T?T.name:(p.last||''),o:p.o,s:G.season,pot,fa:0,u:!!mine};st.age=p.age;exSetRole(st,(z=>z<(P==='ego'?.15:.2)?'TM':z<.45?'SC':'AC')(Math.random()));const nm=`${st.f} ${st.l}`;
+  if(mine&&p.acProm&&staffOf(G.user,'AC').length<ROLEMAX.AC){exSetRole(st,'AC');st.yrs=2;G.teams[G.user].staff.push(st);msg(nm,'Ready for the next chapter',`As we agreed a year ago, I hang up my shoes and join your staff as an assistant coach. Thank you for believing in me, coach.`,'staff');return;}
   if(mine){G.staffFA.push(st);msg(nm,'Is there a place for me?',`I am retiring, coach, but I do not want to leave basketball. I would love to stay at ${T.name} and start again from the bottom. Would you give me a job?`,'exjob',{sid:st.id});return;}
   {const U=G.teams[G.user],ours=U&&U.staff&&(G.exp||[]).some(e=>e.id===p.id&&e.club===U.name)&&staffOf(U.id,st.role).length<ROLEMAX[st.role];
     if(ours&&Math.random()<.6){st.ex.u=true;G.staffFA.push(st);msg(nm,'Is there a place for me?',`I am retiring as a player. I never forgot my time at ${U.name}, and I would love to start my new career there${T?` rather than at ${T.name}`:''}. Would you give me a job?`,'exjob',{sid:st.id});return;}}
