@@ -2294,7 +2294,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();return r;}
+function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -2651,6 +2651,7 @@ function newSeason(){
   if(retired.length)msg('Club President','Retirements',`${retired.join(', ')} retired from professional basketball.`,'board');
   try{mktDigest(mkSnap);}catch(e){}
   exTick();
+  try{ntSummer();}catch(e){}
 }
 
 // ABA-level free agents (real players without a club in the game), added once per career
@@ -3726,6 +3727,108 @@ function klsProject(){const K=G.kls;if(!K||K.po||K.phase==='done')return null;co
   return {hist:{qf:[pjS(x[0],x[7],2),pjS(x[3],x[4],2),pjS(x[1],x[6],2),pjS(x[2],x[5],2)]}};}
 function bihProject(){const B=G.bih;if(!B||B.po||B.phase==='done')return null;const liga=bihSort(B.ids).map(t=>t.id),direct=G.teams.filter(t=>(window.BIH_DIRECT||[]).includes(t.short)).map(t=>t.id);
   return {pot1:liga.slice(0,2).concat(direct),pot2:liga.slice(2,6+Math.max(0,2-direct.length))};}
+
+/* ===================== National teams ===================== */
+// FIBA windows in late November and late February (domestic leagues pause; NBA, EuroLeague and NCAA clubs do not release players),
+// summer tournaments with everyone available. Cycle 1 is the real FIBA Basketball World Cup 2027 European Qualifiers, second round,
+// from the FIBA standings after the August 2026 window (all six first-round games carry over, then two in August); the remaining
+// pairings follow from the groups, the 26 November games are the real ones. Then EuroBasket 2029, World Cup 2031, and so on.
+const NTN={ESP:'Spain',MNE:'Montenegro',UKR:'Ukraine',GEO:'Georgia',GRE:'Greece',POR:'Portugal',TUR:'Türkiye',ITA:'Italy',SRB:'Serbia',LTU:'Lithuania',ISL:'Iceland',BIH:'Bosnia and Herzegovina',POL:'Poland',CRO:'Croatia',GER:'Germany',ISR:'Israel',NED:'Netherlands',LAT:'Latvia',FIN:'Finland',FRA:'France',HUN:'Hungary',EST:'Estonia',SWE:'Sweden',SLO:'Slovenia',BEL:'Belgium',CZE:'Czechia',GBR:'Great Britain',AUT:'Austria',ROU:'Romania',BUL:'Bulgaria',SVK:'Slovakia',SUI:'Switzerland',
+  USA:'USA',CAN:'Canada',ARG:'Argentina',BRA:'Brazil',PUR:'Puerto Rico',DOM:'Dominican Republic',MEX:'Mexico',VEN:'Venezuela',AUS:'Australia',NZL:'New Zealand',JPN:'Japan',CHN:'China',LBN:'Lebanon',PHI:'Philippines',IRN:'Iran',JOR:'Jordan',KOR:'South Korea',QAT:'Qatar',SSD:'South Sudan',NGR:'Nigeria',SEN:'Senegal',CIV:"Côte d'Ivoire",EGY:'Egypt',ANG:'Angola',CMR:'Cameroon',TUN:'Tunisia'};
+// level of the players a federation can add from outside this game (fills empty places in the top eight)
+const NT_BASE={ISL:64,POR:65,UKR:66,HUN:65,EST:65,SWE:66,FIN:66,BEL:70,CZE:69,GBR:67,AUT:63,ROU:63,BUL:63,SVK:62,SUI:62,USA:84,CAN:80,ARG:74,BRA:74,PUR:72,DOM:72,MEX:70,VEN:71,AUS:78,NZL:71,JPN:71,CHN:70,LBN:70,PHI:70,IRN:69,JOR:68,KOR:65,QAT:66,SSD:73,NGR:72,SEN:72,CIV:69,EGY:68,ANG:67,CMR:70,TUN:67};
+const NT_EUR=['ESP','MNE','UKR','GEO','GRE','POR','TUR','ITA','SRB','LTU','ISL','BIH','POL','CRO','GER','ISR','NED','LAT','FIN','FRA','HUN','EST','SWE','SLO','BEL','CZE','GBR','AUT','ROU','BUL','SVK','SUI'];
+const NT_REG={AM:['USA','CAN','ARG','BRA','PUR','DOM','MEX','VEN'],AS:['AUS','NZL','JPN','CHN','LBN','PHI','IRN','JOR','KOR'],AF:['SSD','NGR','SEN','CIV','EGY','ANG','CMR','TUN']};
+const ntName=c=>NTN[c]||c;
+const NTW_DAYS={nov:[56,59],feb:[147,150]};// 26/29 November and 25/28 February (day 0 = 1 October)
+const ntGs=()=>{let s=0;for(let i=0;i<6;i++)s+=Math.random();return (s-3)*1.41;};
+// a squad: the 12 best players of a nation; in season windows only clubs that release players
+function ntPool(c,win){return Object.values(G.players).filter(p=>p.nat===c&&p.tid!=null&&p.age>=18&&!p.prospect&&(!win||(p.inj||0)<=2)&&(()=>{const t=G.teams[p.tid];if(!t||t.dom==='GONE')return false;if(!win)return true;return !!t.dom&&!isNBA(t)&&t.dom!=='NCAA';})()).sort((a,b)=>b.o-a.o).slice(0,12);}
+function ntStr(c,sq){const w=[1.25,1.2,1.12,1.05,1,.92,.85,.78],o=sq.map(p=>p.o).slice(0,8),b=NT_BASE[c]||62;while(o.length<8)o.push(b-2);let s=0,t=0;o.sort((x,y)=>y-x).forEach((v,i)=>{s+=Math.max(v,i<3?0:b-6)*w[i];t+=w[i];});return s/t;}
+function ntGame(h,a,S,neutral){const m=(S[h]-S[a])*1.7+(neutral?0:3)+ntGs()*10,T=158+ntGs()*9;let hs=Math.round((T+m)/2),as=Math.round((T-m)/2);if(hs===as)hs+=m>=0?rnd(2,6):-rnd(2,6);return [h,a,hs,as];}
+const ntRec=(tab,c)=>tab[c]||(tab[c]={w:0,l:0,pf:0,pa:0});
+function ntApply(tab,r){const [h,a,hs,as]=r,H=ntRec(tab,h),A=ntRec(tab,a);H.pf+=hs;H.pa+=as;A.pf+=as;A.pa+=hs;if(hs>as){H.w++;A.l++;}else{A.w++;H.l++;}}
+const ntSort=(ids,tab,S)=>ids.slice().sort((x,y)=>{const a=ntRec(tab,x),b=ntRec(tab,y);return (2*b.w+b.l)-(2*a.w+a.l)||b.w-a.w||(b.pf-b.pa)-(a.pf-a.pa)||((S&&S[y])||0)-((S&&S[x])||0);});
+function rr4(ids){const [a,b,c,d]=ids,r=[[[a,b],[c,d]],[[a,c],[b,d]],[[a,d],[b,c]]];return r.concat(r.map(x=>x.map(([h,g])=>[g,h])));}
+function rr6x(X,Y){const r=[0,1,2].map(k=>X.map((x,i)=>[x,Y[(i+k)%3]]));return r.concat(r.map(x=>x.map(([h,a])=>[a,h])));}
+const ntSnake=(ids,n)=>{const g=Array.from({length:n},()=>[]);ids.forEach((c,i)=>{const r=Math.floor(i/n),k=i%n;g[r%2?n-1-k:k].push(c);});return g;};
+const ntStrAll=(cs,win)=>Object.fromEntries(cs.map(c=>[c,ntStr(c,ntPool(c,win))]));
+// cycle 1, real data
+function ntWC27(){const tab={},T={UKR:[6,2],ESP:[5,3],GEO:[5,3],POR:[4,4],GRE:[4,4],MNE:[4,4],TUR:[8,0],SRB:[6,2],ITA:[5,3],LTU:[4,4],BIH:[3,5],ISL:[3,5],GER:[7,1],CRO:[7,1],POL:[7,1],LAT:[4,4],NED:[2,6],ISR:[2,6],FRA:[7,1],FIN:[5,3],SLO:[4,4],SWE:[4,4],HUN:[4,4],EST:[3,5]};
+  for(const c in T)tab[c]={w:T[c][0],l:T[c][1],pf:0,pa:0};
+  const D={"I":[[["ESP","MNE"],["UKR","POR"],["GEO","GRE"]],[["ESP","GRE"],["MNE","UKR"],["POR","GEO"]],[["ESP","POR"],["GRE","UKR"],["MNE","GEO"]],[["MNE","ESP"],["POR","UKR"],["GRE","GEO"]]],"J":[[["BIH","ISL"],["ITA","TUR"],["LTU","SRB"]],[["BIH","LTU"],["ISL","TUR"],["ITA","SRB"]],[["TUR","ITA"],["SRB","LTU"],["ISL","BIH"]],[["LTU","TUR"],["ISL","SRB"],["ITA","BIH"]]],"K":[[["CRO","POL"],["GER","LAT"],["NED","ISR"]],[["ISR","LAT"],["NED","CRO"],["POL","GER"]],[["ISR","NED"],["POL","CRO"],["LAT","GER"]],[["ISR","POL"],["LAT","CRO"],["NED","GER"]]],"L":[[["FRA","EST"],["FIN","SLO"],["HUN","SWE"]],[["FIN","SWE"],["SLO","FRA"],["EST","HUN"]],[["HUN","SLO"],["SWE","FRA"],["EST","FIN"]],[["EST","FRA"],["SLO","FIN"],["SWE","HUN"]]]};const day=k=>Object.keys(D).flatMap(g=>D[g][k]);
+  return {id:'WC2027',kind:'WC',year:2027,name:'FIBA Basketball World Cup 2027',host:'QAT',stage:'r2',groups:{"I":["ESP","UKR","GEO","MNE","GRE","POR"],"J":["TUR","SRB","BIH","ITA","LTU","ISL"],"K":["CRO","GER","ISR","LAT","NED","POL"],"L":["FRA","FIN","HUN","SLO","SWE","EST"]},tab,
+    wins:[{s:2026,day:56,lbl:'November 2026 window',days:[day(0),day(1)],done:false,res:[]},{s:2026,day:147,lbl:'February 2027 window',days:[day(2),day(3)],done:false,res:[]}],
+    note:'Tables after the August 2026 window (FIBA). Results from the first round carry over.'};}
+// later cycles: EuroBasket in 2029, 2033 ...; World Cup in 2031, 2035 ... with the same European format as 2027
+function ntCycle(year){const S=ntStrAll(NT_EUR,false),seed=NT_EUR.slice().sort((a,b)=>S[b]-S[a]),G8=ntSnake(seed,8),L='ABCDEFGH';const groups={};G8.forEach((g,i)=>groups[L[i]]=g);
+  const fx=k=>Object.values(groups).flatMap(g=>rr4(g)[k]);
+  if((year-2029)%4===0){const s0=year-2;// windows Nov and Feb of season year-2, Feb of season year-1
+    return {id:'EB'+year,kind:'EB',year,name:`FIBA EuroBasket ${year}`,stage:'q',groups,tab:{},
+      wins:[{s:s0,day:56,lbl:`November ${s0} window`,days:[fx(0),fx(1)],done:false,res:[]},{s:s0,day:147,lbl:`February ${s0+1} window`,days:[fx(2),fx(3)],done:false,res:[]},{s:s0+1,day:147,lbl:`February ${s0+2} window`,days:[fx(4),fx(5)],done:false,res:[]}]};}
+  const s0=year-2;// World Cup: first round Nov, Feb and July (summer), second round August (summer), Nov, Feb
+  return {id:'WC'+year,kind:'WC',year,name:`FIBA Basketball World Cup ${year}`,stage:'r1',groups,tab:{},
+    wins:[{s:s0,day:56,lbl:`November ${s0} window`,days:[fx(0),fx(1)],done:false,res:[]},{s:s0,day:147,lbl:`February ${s0+1} window`,days:[fx(2),fx(3)],done:false,res:[]},{s:s0+1,day:-1,lbl:`July ${s0+1} window`,days:[fx(4),fx(5)],done:false,res:[]}]};}
+function ntInit(){if(G.nt)return;G.nt={hist:[],cyc:null,last:null};
+  if(G.season===2026){G.nt.cyc=ntWC27();}
+  else{let y=G.season+1;while(!((y-2027)%4===0||(y-2029)%4===0))y++;G.nt.cyc=ntCycle(y);for(const w of G.nt.cyc.wins.slice())if(w.s<G.season||(w.s===G.season&&(w.day<0||w.day<G.day)))ntWindow(w,true);}}
+// second round of a World Cup cycle: groups A+B, C+D, E+F, G+H; the top three of each carry all their results
+function ntRound2(C){const L='ABCDEFGH',N='IJKL',g={},sub={};const S=ntStrAll(NT_EUR,false);for(let i=0;i<4;i++){const X=ntSort(C.groups[L[2*i]],C.tab,S).slice(0,3),Y=ntSort(C.groups[L[2*i+1]],C.tab,S).slice(0,3);g[N[i]]=X.concat(Y);sub[N[i]]=[X,Y];}
+  C.r1groups=C.groups;C.groups=g;C.stage='r2';const fx=k=>Object.values(sub).flatMap(([X,Y])=>rr6x(X,Y)[k]),y=C.year;
+  C.wins.push({s:y-1,day:-1,lbl:`August ${y-1} window`,days:[fx(0),fx(1)],done:false,res:[]},{s:y-1,day:56,lbl:`November ${y-1} window`,days:[fx(2),fx(3)],done:false,res:[]},{s:y-1,day:147,lbl:`February ${y} window`,days:[fx(4),fx(5)],done:false,res:[]});
+  news('World Cup Qualifiers: second round set',`${Object.entries(g).map(([k,v])=>`Group ${k}: ${v.map(ntName).join(', ')}`).join('. ')}. Results from the first round carry over.`);}
+function ntQualified(C){const S=ntStrAll(NT_EUR,false);return Object.values(C.groups).flatMap(g=>ntSort(g,C.tab,S).slice(0,3));}
+// one window: call-ups (in season), two game days, effects on the players, news
+function ntWindow(w,silent){const C=G.nt.cyc;if(!C||w.done)return;const inSeason=w.day>=0&&!silent,nats=[...new Set(Object.values(C.groups).flat())],sq={},S={};
+  for(const c of nats){sq[c]=ntPool(c,w.day>=0);S[c]=ntStr(c,sq[c]);}
+  for(const d of w.days)for(const [h,a] of d){const r=ntGame(h,a,S,false);w.res.push(r);ntApply(C.tab,r);}
+  w.done=true;const U=G.user,mine=[],hurt=[];
+  for(const c of nats)for(const p of sq[c]){p.ntc=(p.ntc||0)+2;p.ntN=c;if(!inSeason)continue;
+    p.energy=Math.max(40,(p.energy==null?100:p.energy)-rnd(6,14));moodAdd(p,3);if((p.inj||0)<=0&&Math.random()<.025){injSet(p,70);if(p.tid===U)hurt.push(`${pname(p)} (${p.injT}, out ${p.inj} games)`);}
+    if(p.tid===U)mine.push(`${pname(p)} (${ntName(c)})`);}
+  const txt=w.res.map(([h,a,hs,as])=>`${ntName(h)} ${hs}–${as} ${ntName(a)}`).join(', ');
+  if(!silent)news(`${C.kind==='EB'?'EuroBasket':'World Cup'} Qualifiers: ${w.lbl}`,`Results: ${txt}.`);
+  if(inSeason&&mine.length)msg('Assistant Coach','International window',`${mine.join(', ')} ${mine.length>1?'were':'was'} with ${mine.length>1?'their national teams':'his national team'} for the ${C.kind==='EB'?'EuroBasket':'World Cup'} Qualifiers. The league paused for the window; ${mine.length>1?'they are':'he is'} back but a little tired.${hurt.length?` Injured on international duty: ${hurt.join(', ')}.`:''}`,'staff');
+  // stage changes once all windows of a stage are played
+  if(C.wins.every(x=>x.done)){if(C.kind==='WC'&&C.stage==='r1')ntRound2(C);else{C.qual=ntQualified(C);C.stage='done';news(`Qualified for the ${C.name}`,`From Europe: ${C.qual.map(ntName).join(', ')}.`);}}}
+// in-season windows are played when the calendar reaches them
+function ntTick(){if(!G||preOn())return;ntInit();const C=G.nt.cyc;if(!C)return;for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day)ntWindow(w,false);}
+// a tournament: groups, (second round for the World Cup), knockout; squads with everyone available
+function ntTournament(C){const nE=C.kind==='EB'?24:12;let field=(C.qual||ntQualified(C)).slice(0,nE);
+  if(C.kind==='WC'){const S0=ntStrAll([].concat(...Object.values(NT_REG),[C.host].filter(Boolean)),false),pickR=(L,n)=>L.filter(c=>!field.includes(c)&&c!==C.host).map(c=>[c,S0[c]+ntGs()*2.5]).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+    field=field.concat(C.host?[C.host]:[],pickR(NT_REG.AM,7),pickR(NT_REG.AS,C.host?7:8),pickR(NT_REG.AF,5));}
+  const sq={},S={};for(const c of field){sq[c]=ntPool(c,false);S[c]=ntStr(c,sq[c]);}
+  const seed=field.slice().sort((a,b)=>S[b]-S[a]),T={name:C.name,year:C.year,kind:C.kind,groups:{},g1:[],g2:{},ko:{},tab:{}},L='ABCDEFGH';
+  const nG=C.kind==='EB'?4:8;ntSnake(seed,nG).forEach((g,i)=>T.groups[L[i]]=g);
+  const play=(h,a)=>{const r=ntGame(h,a,S,true);return r;},win=r=>r[2]>r[3]?r[0]:r[1],lose=r=>r[2]>r[3]?r[1]:r[0];
+  for(const k in T.groups){const g=T.groups[k];for(let i=0;i<g.length;i++)for(let j=i+1;j<g.length;j++){const r=play(g[i],g[j]);T.g1.push(r);ntApply(T.tab,r);}}
+  const st=k=>ntSort(T.groups[k],T.tab,S);T.final1=Object.fromEntries(Object.keys(T.groups).map(k=>[k,st(k)]));
+  let qf;
+  if(C.kind==='WC'){const tab2={},N='IJKL';for(let i=0;i<4;i++){const A=T.final1[L[2*i]].slice(0,2),B=T.final1[L[2*i+1]].slice(0,2),g=A.concat(B);T.g2[N[i]]=g;
+      for(const [x,y] of [[A[0],A[1]],[B[0],B[1]]]){const r=T.g1.find(r=>(r[0]===x&&r[1]===y)||(r[0]===y&&r[1]===x));if(r)ntApply(tab2,r);}
+      for(const x of A)for(const y of B){const r=play(x,y);T.g1.push(r);ntApply(tab2,r);}}
+    T.tab2=tab2;const s2=k=>ntSort(T.g2[k],tab2,S);T.final2=Object.fromEntries(N.split('').map(k=>[k,s2(k)]));
+    const f=T.final2;qf=[[f.I[0],f.J[1]],[f.J[0],f.I[1]],[f.K[0],f.L[1]],[f.L[0],f.K[1]]];}
+  else{const f=T.final1,r16=[[f.A[0],f.B[3]],[f.B[1],f.A[2]],[f.A[1],f.B[2]],[f.B[0],f.A[3]],[f.C[0],f.D[3]],[f.D[1],f.C[2]],[f.C[1],f.D[2]],[f.D[0],f.C[3]]].map(([a,b])=>play(a,b));T.ko.r16=r16;qf=[[win(r16[0]),win(r16[1])],[win(r16[2]),win(r16[3])],[win(r16[4]),win(r16[5])],[win(r16[6]),win(r16[7])]];}
+  T.ko.qf=qf.map(([a,b])=>play(a,b));const W=T.ko.qf.map(win);T.ko.sf=[play(W[0],W[2]),play(W[1],W[3])];
+  T.ko.bronze=play(lose(T.ko.sf[0]),lose(T.ko.sf[1]));T.ko.fin=play(win(T.ko.sf[0]),win(T.ko.sf[1]));
+  T.podium=[win(T.ko.fin),lose(T.ko.fin),win(T.ko.bronze)];T.field=field;T.str=S;
+  // the players: caps, honours, a tired start to the season, a few injuries
+  const U=G.user,mine=[],medal=['gold','silver','bronze'];
+  for(const c of field)for(const p of sq[c]){p.ntc=(p.ntc||0)+5;p.ntN=c;p.energy=Math.min(p.energy==null?100:p.energy,88);const m=T.podium.indexOf(c);
+    if(m>=0){(p.ntHon=p.ntHon||[]).push(`${C.kind==='EB'?'EuroBasket':'World Cup'} ${C.year} ${medal[m]}`);moodAdd(p,6-m*2);}
+    let inj='';if(Math.random()<.03){injSet(p,75);inj=` · injured (${p.injT}, ${p.inj} games)`;}
+    if(p.tid===U)mine.push(`${pname(p)} (${ntName(c)}${m>=0?', '+medal[m]:''}${inj})`);}
+  news(`${ntName(T.podium[0])} win the ${C.name}`,`Final: ${ntName(T.ko.fin[0])} ${T.ko.fin[2]}–${T.ko.fin[3]} ${ntName(T.ko.fin[1])}. Bronze: ${ntName(T.podium[2])}.`);
+  if(mine.length)msg('Assistant Coach',`${C.kind==='EB'?'EuroBasket':'World Cup'} ${C.year}`,`Our players at the ${C.name}: ${mine.join('; ')}. They report back a little tired.`,'staff');
+  G.nt.hist.unshift({y:C.year,name:C.name,podium:T.podium});G.nt.last=T;}
+// summer: summer windows of the cycle, the tournament, then the next cycle
+function ntSummer(){ntInit();const C=G.nt.cyc;if(!C)return;
+  for(const w of C.wins.slice())if(!w.done&&w.day<0&&w.s===G.season)ntWindow(w,true);
+  for(const w of C.wins.slice())if(!w.done&&w.day<0&&w.s===G.season)ntWindow(w,true);// the August window appears after the July one
+  if(C.year===G.season){if(C.stage!=='done'){for(const w of C.wins)if(!w.done)ntWindow(w,true);if(C.stage!=='done'){C.qual=ntQualified(C);C.stage='done';}}
+    ntTournament(C);let y=C.year+2;G.nt.cyc=ntCycle(y);}}
+
 function nlProject(L){if(!L||L.po||L.phase==='done'||L.code==='GL'||L.code==='NCAA')return null;
   const P=Object.assign({},L,{tab:JSON.parse(JSON.stringify(L.tab||{})),hist:{},res:[],po:null,up:[],down:[],seeds:null,seedsA:null,champ:null,ch:null,natCh:null,phase:'wait'});
   P.final=P.groups?Object.fromEntries(Object.entries(P.groups).map(([k,ids])=>[k,nlSort(P,ids).map(t=>t.id)])):nlSort(P,P.ids).map(t=>t.id);
