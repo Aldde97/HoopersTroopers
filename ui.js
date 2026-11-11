@@ -646,7 +646,7 @@ function prematchHTML(){const f=userFx(),h=G.teams[f.h],a=G.teams[f.a],rh=rating
 const RATN={tac:'Tactics',mot:'Motivation',dev:'Player development',coach:'Coaching',scout:'Scouting',med:'Medical care',neg:'Negotiation'};
 const RORDER=['HC','AC','DOC','TM','SC'];
 const RPL={AC:'Assistant coaches',DOC:'Medical staff',TM:'Team managers',SC:'Scouts'};
-const SPH=x=>{const v=(window.STAFF_PHOTOS||{})[x.f+' '+x.l];return v?{sheet:window.SPRITES.s[v[0]],t:v[1]}:null;};
+const SPH=x=>{const v=(window.STAFF_PHOTOS||{})[x.f+' '+x.l];if(v)return {sheet:window.SPRITES.s[v[0]],t:v[1]};const k=x.phk||(x.ex?x.f+' '+x.l:null),w=k&&!(x.age!=null&&x.age<18)&&(window.PHOTOS||{})[k];return w?{sheet:window.SPRITES.p[w[0]],t:w[1]}:null;};
 const sAvatar=x=>`<span class="avatar ph" style="width:56px;height:56px;flex:none">${SPH(x)?spr(SPH(x),x.f+' '+x.l):SIL(ROLEN[x.role].split(' ').map(w=>w[0]).join(''))}</span>`;
 function staffRow(x,act){
   const keys=Object.keys(x.r);

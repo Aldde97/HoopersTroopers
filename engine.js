@@ -5293,7 +5293,7 @@ function exSetRole(st,k){const b=st.o;st.role=k;if(k==='TM'){st.r={neg:b};st.tit
 function afterCareer(p){if(p.o<58||p.prospect)return;ensureStaff();const T=p.tid!=null?G.teams[p.tid]:null,mine=T&&T.id===G.user,P=persOf(p);
   if(!mine&&Math.random()>.07+(p.o>=70?.08:0)+(p.o>=78?.15:0)+(p.a.pas>=75?.05:0)+(P==='pro'?.04:P==='ego'?-.03:0))return;
   const pot=clamp(Math.round(62+(p.a.pas-60)*.35+(p.o-65)*.25+(P==='pro'?4:P==='ego'?-3:0)+rnd(-6,10)),60,92),st=genStaff(['AC',p.f,p.l,p.nat,G.season-p.age,''],50);
-  st.o=clamp(pot-rnd(14,22),42,66);st.ex={c:T?T.name:(p.last||''),o:p.o,s:G.season,pot,fa:0,u:!!mine};st.age=p.age;exSetRole(st,(z=>z<(P==='ego'?.15:.2)?'TM':z<.45?'SC':'AC')(Math.random()));const nm=`${st.f} ${st.l}`;
+  {const k=p.phk||pname(p);if(p.age>=18&&(window.PHOTOS||{})[k])st.phk=k;}st.o=clamp(pot-rnd(14,22),42,66);st.ex={c:T?T.name:(p.last||''),o:p.o,s:G.season,pot,fa:0,u:!!mine};st.age=p.age;exSetRole(st,(z=>z<(P==='ego'?.15:.2)?'TM':z<.45?'SC':'AC')(Math.random()));const nm=`${st.f} ${st.l}`;
   if(mine){G.staffFA.push(st);msg(nm,'Is there a place for me?',`I am retiring, coach, but I do not want to leave basketball. I would love to stay at ${T.name} and start again from the bottom. Would you give me a job?`,'exjob',{sid:st.id});return;}
   if(T&&T.staff&&T.dom!=='GONE'&&staffOf(T.id,st.role).length<ROLEMAX[st.role])T.staff.push(st);else G.staffFA.push(st);
   if(p.o>=80)news(`${nm} retires and joins ${T&&T.staff.includes(st)?`the ${T.name} staff`:'the staff market'}`,`${nm} is starting a new career as ${st.role==='TM'?'an assistant GM':st.role==='SC'?'a scout':'an assistant coach'}.`);}
