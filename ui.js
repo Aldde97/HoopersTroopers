@@ -1136,7 +1136,7 @@ const ACT={
   train(k,v){G.training[k]=v;save();render();},
   exall(){UI.exAll=!UI.exAll;render();},
   trtab(k){UI.tr=k;render();},trpos(k){UI.trPos=k;render();},trsort(k){UI.trSort=k;render();},
-  comp(k){UI.comp=k;render();},budmv(d,m){const e=budMove(d,budStep()*(+m||1));if(e)toast(e);render();},scoutp(id){const e=scoutAssign(+id);toast(e||'Scout assigned: report in a few weeks');render();},pokopen(){UI.view='main';UI.tab='comp';UI.comp='pok';render();window.scrollTo(0,0);},rnd(d){UI.fixR=clamp(UI.fixR+(+d),0,G.schedule.length-1);render();},
+  comp(k){UI.comp=k;if(UI.view!=='main'||UI.tab!=='comp'){UI.view='main';UI.tab='comp';UI.modal=null;window.scrollTo(0,0);}render();},budmv(d,m){const e=budMove(d,budStep()*(+m||1));if(e)toast(e);render();},scoutp(id){const e=scoutAssign(+id);toast(e||'Scout assigned: report in a few weeks');render();},pokopen(){UI.view='main';UI.tab='comp';UI.comp='pok';render();window.scrollTo(0,0);},rnd(d){UI.fixR=clamp(UI.fixR+(+d),0,G.schedule.length-1);render();},
   msg(id){UI.msg=+id;if(UI.tab!=='inbox'||UI.view!=='main'){UI.view='main';UI.tab='inbox';}render();},
   readall(){G.inbox.forEach(m=>m.read=true);save();render();},
   accept(id){const e=acceptOffer(+id);if(e)toast(e);else toast('Player sold');render();},
