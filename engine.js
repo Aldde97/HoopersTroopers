@@ -2356,7 +2356,7 @@ function betweenRounds(){
     if(!userNBA())for(const pid of G.listed)if(Math.random()<.3){const p=G.players[pid];const b=pick(ELT().filter(t=>t.id!==G.user&&teamFinState(t.id)==='ok'));if(!b)continue;const fee=r10k(value(p)*rf(.75,1.15));
       msg(b.name,`Offer for ${pname(p)}`,`${b.name} would like to sign ${pname(p)} (${p.pos}, ${p.age}, OVR ${p.o}) and offer a transfer fee of ${eur(fee)}.`,'offer',{pid,tid:b.id,fee});}
     if(!userNBA()&&Math.random()<.07){const top=roster(G.user).filter(p=>!p.loan).sort((a,b)=>b.o-a.o).slice(0,4);const p=pick(top);const b=pick(ELT().filter(t=>t.id!==G.user&&t.rep>=G.teams[G.user].rep-3&&teamFinState(t.id)==='ok'));
-      if(p&&b){const fee=r10k(value(p)*rf(1.05,1.45));msg(b.name,`Bid for ${pname(p)}`,`${b.name} have made an unsolicited bid of ${eur(fee)} for ${pname(p)}. Their sporting director says the offer is final.`,'offer',{pid:p.id,tid:b.id,fee});}}
+      if(p&&b){const fee=r10k(value(p)*rf(1.05,1.45));msg(b.name,`Bid for ${pname(p)}`,`${b.name} have made an unsolicited bid of ${eur(fee)} for ${pname(p)}. Their sporting director is open to talks about the fee.`,'offer',{pid:p.id,tid:b.id,fee});}}
     if(G.round===29){const ex=roster(G.user).filter(p=>p.yrs<=1);if(ex.length)msg('Sporting Director','Contracts expiring this summer',`These contracts end after the season: ${ex.map(p=>`${pname(p)} (OVR ${p.o})`).join(', ')}. Open a player's profile in Squad to offer an extension, or let them leave for free.`,'fin');}
   }
   G.day+=nlUser()&&nlUser().code==='NCAA'&&userIsNL()&&nlUser().phase!=='done'?(nlUser().phase==='reg'?3:1):nlUser()&&nlUser().code==='JPN'&&userIsNL()&&nlUser().phase!=='done'?(nlUser().phase==='reg'?2:1):nlUser()&&nlUser().code==='AUS'&&userIsNL()&&nlUser().phase!=='done'?(nlUser().phase==='reg'?2:3):G.phase==='reg'?((domPlaysUser()&&G.dom.phase==='reg')||(nlUser()&&!userIsNL()&&nlUser().phase==='reg')?3:5):G.phase==='qf'?3:G.phase==='f4'?2:3;
@@ -5021,6 +5021,21 @@ function makeOffer(pid,fee,yrs){
   msg('Sporting Director',`${pname(p)} signed`,`${pname(p)} has signed a ${yrs}-year contract worth ${eur(sal)} per season${fee?` for a fee of ${eur(fee)}`:''}. He has been added to the end of the squad list.`,'fin');
   save();return {ok:true,text:`${pname(p)} signed for ${yrs} year${yrs>1?'s':''} at ${eur(sal)} per season.`};
 }
+
+// talks about a bid for one of the user's players: the buying club has a hidden limit (keener for players they approached unasked,
+// capped by its cash). Each counter-offer moves them halfway towards it; a demand far above it can end the talks. After three
+// rounds they make a final offer. An agreed fee stays on the message, the user still clicks Accept.
+function bidMax(m){const a=m.act;if(a.max==null){const b=G.teams[a.tid],k=/^Bid for/.test(m.subj||'')?rf(1.1,1.32):/^Last-minute/.test(m.subj||'')?rf(1.06,1.22):rf(1.03,1.18);
+    let mx=r10k(a.fee*k);if(b&&b.fin&&b.fin.bal>0)mx=Math.min(mx,Math.max(a.fee,r10k(b.fin.bal*.6)));a.max=mx;a.round=0;a.log=a.log||[];}return a.max;}
+function bidCounter(mid,ask){const m=G.inbox.find(x=>x.id===mid);if(!m||m.done||!m.act)return 'This offer is no longer available.';const a=m.act,p=G.players[a.pid],b=G.teams[a.tid];
+  if(!p||p.tid!==G.user){m.done='Expired';return 'He is no longer at the club.';}if(G.phase!=='reg'){m.done='Expired';return 'The transfer window has closed.';}
+  if(a.final||a.agreed)return null;bidMax(m);ask=r10k(ask);if(ask<=a.fee)return `That is not more than their offer of ${eur(a.fee)}. Accept it instead.`;a.round++;
+  if(ask<=a.max){a.fee=ask;a.agreed=true;a.log.push(`You ask for ${eur(ask)}. ${b.name} agree.`);save();return null;}
+  if(ask>a.max*1.3&&Math.random()<.5){m.done='Talks broken off';a.log.push(`You ask for ${eur(ask)}. ${b.name} find that unrealistic and withdraw their offer.`);save();return null;}
+  const nf=Math.max(a.fee,r10k(a.fee+(a.max-a.fee)*(a.round>=3?1:.5)));a.fee=nf;
+  if(a.round>=3){a.final=true;a.log.push(`You ask for ${eur(ask)}. ${b.name} make their final offer: ${eur(nf)}. Take it or leave it.`);}
+  else a.log.push(`You ask for ${eur(ask)}. ${b.name} raise their offer to ${eur(nf)}.${a.round===2?' One more round, then they decide.':''}`);
+  save();return null;}
 function acceptOffer(mid,so){
   const m=G.inbox.find(x=>x.id===mid);if(!m||m.done)return 'This offer is no longer available.';
   const p=G.players[m.act.pid];if(!p||p.tid!==G.user){m.done='Expired';return 'He is no longer at the club.';}
