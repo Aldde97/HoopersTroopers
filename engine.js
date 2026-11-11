@@ -3709,6 +3709,20 @@ function ksNext(L,P,W){const s=L.seedsA,o=(a,b)=>nlOrd(L,a,b),U=G.user;
   if(P.stage==='qf'){const w=W.slice().sort((a,b)=>s.indexOf(a)-s.indexOf(b));L.po={stage:'sf',ser:domSeries([[s[0],w[1]],[s[1],w[0]]],3)};return;}
   if(P.stage==='sf'){L.po={stage:'fin',ser:domSeries([o(W[0],W[1])],4)};return;}
   L.champ=W[0];L.phase='done';L.down=[];if(L.champ===U){prize(NLCFG.KOS.prize,'Kosovo champions!');G.board=clamp(G.board+5,0,100);}news('Kosovo champions',`${G.teams[L.champ].name} won the Superliga final.`);}
+
+// projected playoffs of a national league before they start: the real start function runs on a scratch copy built from the
+// current table, with messages and news switched off. Not for the G League (showcase) and the NCAA (selection committee).
+function nlProject(L){if(!L||L.po||L.phase==='done'||L.code==='GL'||L.code==='NCAA')return null;
+  const P=Object.assign({},L,{tab:JSON.parse(JSON.stringify(L.tab||{})),hist:{},res:[],po:null,up:[],down:[],seeds:null,seedsA:null,champ:null,ch:null,natCh:null,phase:'wait'});
+  P.final=P.groups?Object.fromEntries(Object.entries(P.groups).map(([k,ids])=>[k,nlSort(P,ids).map(t=>t.id)])):nlSort(P,P.ids).map(t=>t.id);
+  const m=window.msg,n=window.news,z=window.prize;window.msg=()=>{};window.news=()=>{};window.prize=()=>{};
+  try{nlStartPO(P);if(!P.po)return null;const first=P.po.stage,unk=new Set();let g=0;
+    // play-in leagues: carry the projection on to the quarter-finals so the seeds already through are shown; play-in teams stay open
+    while(P.po&&/^pi/.test(P.po.stage)&&g++<4){const Q=P.po;for(const x of Q.ser){if(x.win==null)x.win=x.hi!=null?x.hi:x.lo;unk.add(x.hi);unk.add(x.lo);}P.hist[Q.stage]=Q.ser;nlNext(P,Q,Q.ser.map(x=>x.win));}
+    const clean=(st,S)=>{for(const x of S||[]){if(st!==first){if(unk.has(x.hi))x.hi=null;if(unk.has(x.lo))x.lo=null;}x.win=null;x.wh='';x.wl='';}};
+    for(const st in P.hist)clean(st,P.hist[st]);if(P.po)clean(P.po.stage,P.po.ser);
+  }catch(e){return null;}finally{window.msg=m;window.news=n;window.prize=z;}
+  return P.po&&P.po.ser&&[P.po.ser,...Object.values(P.hist)].some(S=>S.some(x=>x.hi!=null&&x.lo!=null))?P:null;}
 function nlStartPO(L){if(!L||L.phase!=='wait')return;const f=L.final;L.phase='po';
   if(L.code==='KOS'){L.seedsA=f.slice(0,6);L.po={stage:'qf',ser:domSeries([[f[2],f[5]],[f[3],f[4]]],2)};if(f.slice(0,2).includes(G.user))msg('Assistant Coach','Superliga playoffs','We finished in the top two and wait in the semi-finals.','staff');return;}
   if(L.code==='MKD'){const s=(f['Top 6']||[]).slice(0,4);L.seedsA=s;L.po={stage:'sf',ser:domSeries([[s[0],s[3]],[s[1],s[2]]],3)};if(nlUserIn(L))msg('Assistant Coach','Super Liga semi-finals','The semi-finals start now: best of five.','staff');return;}
