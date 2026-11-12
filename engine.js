@@ -3946,7 +3946,7 @@ function ntTourGo(kind,name,year,field,nG,key){const N=G.nt,J=N.job;
   for(let d=0;d<nd;d++)ntTourDay(w,R.flatMap(r=>r[d]||[]),`${kind==='OQ'?'Group day':'Group game'} ${d+1}`);ntTourLbl(w);
   const mine=!!(J&&field.includes(J.c));N.tour={T,w,mine,coach:mine?J.c:null};
   if(mine){const c=J.c,gk=Object.keys(T.groups).find(k=>T.groups[k].includes(c));N.sel={key:w.key,ids:sqi[c].slice()};if(typeof UI!=='undefined')UI.ntv=undefined;
-    msg(`${ntName(c)} Basketball Federation`,`${name}: the twelve`,`The squad for the ${name}: ${sqi[c].map(i=>pname(G.players[i])).join(', ')}. ${ntName(c)} play in group ${gk} with ${T.groups[gk].filter(x=>x!==c).map(ntName).join(', ')}. Your games are on the home page, live or simulated; the club pre-season waits until the tournament is over.${kind==='WC'||kind==='EB'?` Target: ${J.tgt||ntTarget()}.`:kind==='OQ'?' Only the winner goes to the Olympic Games.':''}`,'nt');}
+    msg(`${ntName(c)} Basketball Federation`,`Your squad for the ${name}`,`The twelve players for the ${name}: ${sqi[c].map(i=>pname(G.players[i])).join(', ')}. ${ntName(c)} play in group ${gk} with ${T.groups[gk].filter(x=>x!==c).map(ntName).join(', ')}. Your games are on the home page, live or simulated; the club pre-season waits until the tournament is over.${kind==='WC'||kind==='EB'?` Target: ${J.tgt||ntTarget()}.`:kind==='OQ'?' Only the winner goes to the Olympic Games.':''}`,'nt');}
   else ntTourPlay(null);
   // a rest day first (groups of three): play it, the coach starts with his first game
   if(mine&&!w.days[0].some(x=>x[0]===J.c||x[1]===J.c))ntTourPlay(1);}
@@ -4031,13 +4031,13 @@ function ntOgSetup(T){const y=T.year+1,host=NT_OGHOST[y]||null,rank=ntTourRank(T
 // next step of the Olympic summer: the qualifying tournaments (the coach's own last), then the Games
 function ntOgStep(){const N=G.nt,O=N.og,J=N.job;if(!O||O.stage==='done')return;O.go=1;
   if(O.stage==='oq'){if(!O.ord){const mi=J?O.oq.findIndex(g=>g.includes(J.c)):-1;O.ord=[0,1,2,3].filter(i=>i!==mi).concat(mi>=0?[mi]:[]);}
-    while(O.ordP<O.ord.length){const g=O.oq[O.ord[O.ordP++]];ntTourGo('OQ',`Olympic Qualifying Tournament ${O.y} · ${ntName(g[0])}`,O.y,g,2,'OG'+O.y);if(N.tour)return;}
+    while(O.ordP<O.ord.length){const g=O.oq[O.ord[O.ordP++]];ntTourGo('OQ',`Olympic Qualifying Tournament in ${ntName(g[0])}`,O.y,g,2,'OG'+O.y);if(N.tour)return;}
     O.stage='og';}
   if(O.stage==='og')ntTourGo('OG',O.name,O.y,O.direct.concat(O.oqW),3,'OG'+O.y);}
 function ntOgVerdict(T,c){const J=G.nt.job;if(!J)return;const fed=`${ntName(c)} Basketball Federation`,res=ntTourRes(T,c),tr=d=>{J.trust=clamp((J.trust==null?60:J.trust)+d,0,100);};
-  if(T.kind==='OQ'){if(T.podium[0]===c){tr(10);msg(fed,`${ntName(c)} are going to the Olympics!`,`We won the ${T.name} and play at the Olympic Games ${T.year}. The twelve stay together for the Games.`,'nt');}
-    else msg(fed,`${T.name}: ${res}`,`The Olympic dream is over for this cycle. The qualifying tournament was a bonus; your target with us stays the same.`,'nt');}
-  else{const m=T.podium.indexOf(c);if(m>=0)tr(15-m*3);msg(fed,`Olympic Games ${T.year}: ${res}`,m>=0?'An Olympic medal: a moment the country will not forget.':'Being at the Olympic Games was already a success. Thank you, coach.','nt');}}
+  if(T.kind==='OQ'){if(T.podium[0]===c){tr(10);msg(fed,`${ntName(c)} are going to the Olympics!`,`We won the ${T.name}, so ${ntName(c)} play at the Olympic Games ${T.year}. The same twelve players go to the Games.`,'nt');}
+    else msg(fed,`${T.name}: ${res.toLowerCase()}`,`The Olympic dream is over for this cycle. The qualifying tournament was a bonus; your target with us stays the same.`,'nt');}
+  else{const m=T.podium.indexOf(c);if(m>=0)tr(15-m*3);msg(fed,`Olympic Games ${T.year}: ${res.toLowerCase()}`,m>=0?'An Olympic medal: a moment the country will not forget.':'Being at the Olympic Games was already a success. Thank you, coach.','nt');}}
 // the Olympic event the coach picks a squad for (after the season windows before it)
 function ntOgEv(){const N=G.nt,O=N&&N.og,J=N&&N.job;if(!O||O.stage==='done'||!J)return null;const inOg=O.direct.includes(J.c)||(O.oqW||[]).includes(J.c),inOq=O.stage==='oq'&&O.oq.some(g=>g.includes(J.c));
   if(!inOg&&!inOq)return null;return {key:'OG'+O.y,win:false,og:1,y:O.y,lbl:`${inOg?`Olympic Games ${O.y}`:`Olympic qualifying tournament ${O.y}`} (summer ${O.y}, everyone available)`};}
