@@ -70,6 +70,7 @@ function render(){
   if(UI.view==='prematch'&&userFx())body=prematchHTML();
   else if(UI.view==='match'&&UI.match)body=matchHTML();
   else if(UI.view==='season'&&seasonOver())body=seasonHTML();
+  else if(ntMode()){UI.view='main';if(!NT_TABS.some(x=>x[0]===UI.tab))UI.tab='home';if(UI.tab==='comp')UI.comp='nt';body=({home:ntModeHome,squad:ntMyHTML,tactics:ntTacHTML,training:ntCampHTML,staff:ntStaffHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
   else{UI.view='main';body=({home:homeHTML,squad:squadHTML,medical:medicalHTML,tactics:tacticsHTML,training:trainingHTML,staff:staffHTML,transfers:transfersHTML,finances:financesHTML,club:clubTabHTML,business:businessHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
   app.innerHTML=headerHTML()+clubHTML()+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. Open the game without <code>#nt-demo</code> / <code>#nt-window</code> to return to your own career.</div>':''}${body}</div></main>`+modalHTML();try{ntTheme();}catch(e){}
   if(UI.view==='match')updMatch();
@@ -481,7 +482,7 @@ const FL=(()=>{const R=(x,y,w,h,c)=>`<rect x="${x}" y="${y}" width="${w}" height
 const ntFlag=(c,w)=>{w=w||22;const F=(window.NT_FLAGS||{})[c];if(F)return `<img class="ntfl" src="${F}" width="${w}" height="${Math.round(w*3/4)}" alt="${esc(ntName(c))} flag" style="vertical-align:-3px;border-radius:${w>=60?4:2}px;box-shadow:0 0 0 1px #0000001f;flex:none;object-fit:cover">`;const s=FL[c];return s?`<svg viewBox="0 0 30 20" width="${w}" height="${Math.round(w*2/3)}" style="vertical-align:-2px;border-radius:2px;box-shadow:0 0 0 1px #0002;flex:none" aria-label="${esc(ntName(c))} flag" role="img">${s}</svg>`:'';};
 // national colours for the page theme: accent and second accent
 const NT_COL={ESP:['#C60B1E','#E8A600'],MNE:['#C40308','#B8962E'],UKR:['#0057B7','#E5B800'],GEO:['#E00000','#B00000'],GRE:['#0D5EAF','#2C7BD0'],POR:['#DA291C','#046A38'],TUR:['#E30A17','#B5000F'],ITA:['#009246','#CE2B37'],SRB:['#C6363C','#0C4076'],LTU:['#006A44','#E0A100'],ISL:['#02529C','#DC1E35'],BIH:['#002395','#E3B400'],POL:['#DC143C','#B00F2F'],CRO:['#E30000','#171796'],GER:['#DD0000','#E0B400'],ISR:['#0038B8','#2458D0'],NED:['#F36C21','#21468B'],LAT:['#9E3039','#7D2530'],FIN:['#002F6C','#1D4E94'],FRA:['#002395','#ED2939'],HUN:['#CE2939','#477050'],EST:['#0072CE','#005BA4'],SWE:['#006AA7','#D9AE00'],SLO:['#005DA4','#ED1C24'],BEL:['#ED2939','#C9A800'],CZE:['#11457E','#D7141A'],GBR:['#012169','#C8102E'],AUT:['#ED2939','#C21F2D'],ROU:['#002B7F','#CE1126'],BUL:['#00966E','#D62612'],SVK:['#0B4EA2','#EE1C25'],SUI:['#DA291C','#B21E14']};
-function ntTheme(){const J=G&&G.nt&&G.nt.job,on=!!(J&&UI.view==='main'&&UI.tab==='comp'&&UI.comp==='nt'),r=document.documentElement.style,b=document.body;
+function ntTheme(){const J=G&&G.nt&&G.nt.job,on=!!(J&&((UI.view==='main'&&UI.tab==='comp'&&UI.comp==='nt')||ntMode())),r=document.documentElement.style,b=document.body;
   if(on){const [a,c]=NT_COL[J.c]||['#ff6b00','#ff8a1f'];r.setProperty('--or',a);r.setProperty('--or2',c);r.setProperty('--orS',a+'14');r.setProperty('--orL',a+'2e');b.classList.add('ntt');}
   else if(b.classList.contains('ntt')){for(const k of ['--or','--or2','--orS','--orL'])r.removeProperty(k);b.classList.remove('ntt');}}
 // the coach's tab: offers, or the job with the squad picker for the next event
@@ -496,7 +497,7 @@ function ntMyHTML(){const N=G.nt,J=N.job;
   const pg=k=>sq.filter(p=>({G:['PG','SG'],F:['SF','PF'],C:['C']})[k].includes(p.pos)).length,nz=sq.filter(ntIsNat);
   const rc=o=>o>=85?'r1':o>=78?'r2':o>=70?'r3':o>=62?'r4':'r5',tm=p=>p.tid!=null?G.teams[p.tid]:null;
   const tags=p=>[ntIsNat(p)?'<i class="tg n">NAT</i>':'',(p.inj||0)>0?`<i class="tg i">INJ ${p.inj}</i>`:'',E.win&&!ntAvail(p,true)&&(p.inj||0)<=2?'<i class="tg x">NOT RELEASED</i>':''].join('');
-  const card=p=>{const t=tm(p),o=ovrEst(p);return `<div class="ntp"><button class="ntp-x" data-act="ntpick:${p.id}" title="Remove">×</button><div class="ntp-ph">${avatarIn(p,p.no)}</div><span class="ntr ${rc(o)}">${o}</span><b class="click" data-act="prof:${p.id}">${esc(p.l||pname(p))}</b><small>${esc(p.f||'')}</small><small class="ntp-m">${p.pos} · ${p.age}</small><small class="ntp-c">${t?`${mini(t)}${esc(t.short)}`:'Free agent'}</small><div class="ntp-t">${tags(p)}</div></div>`;};
+  const card=(p,i)=>{const t=tm(p),o=ovrEst(p);return `<div class="ntp${i<5?' st':''}"><button class="ntp-x" data-act="ntpick:${p.id}" title="Remove">×</button>${i<5?'<i class="ntp-s">Starter</i>':''}<span class="ntp-mv"><button data-act="ntmv:${p.id}:-1" title="Earlier">‹</button><button data-act="ntmv:${p.id}:1" title="Later">›</button></span><div class="ntp-ph">${avatarIn(p,p.no)}</div><span class="ntr ${rc(o)}">${o}</span><b class="click" data-act="prof:${p.id}">${esc(p.l||pname(p))}</b><small>${esc(p.f||'')}</small><small class="ntp-m">${p.pos} · ${p.age}</small><small class="ntp-c">${t?`${mini(t)}${esc(t.short)}`:'Free agent'}</small><div class="ntp-t">${tags(p)}</div></div>`;};
   const slots=sq.map(card).concat(Array.from({length:Math.max(0,12-sq.length)},()=>`<div class="ntp empty"><span>+</span><small>Open spot</small></div>`)).join('');
   const meter=(l,v,x,pct)=>`<div class="ntm"><small>${l}</small><b>${v}</b>${pct!=null?`<i><u style="width:${clamp(pct,0,100)}%"></u></i>`:''}${x?`<em>${x}</em>`:''}</div>`;
   const pos=UI.ntPos||'all',q=(UI.ntQ||'').trim().toLowerCase(),av=!!UI.ntAv;
@@ -1010,7 +1011,7 @@ const SPEED={1:650,2:260,4:70};
 function clockStr(c){c=Math.max(0,Math.round(c));return `${String(Math.floor(c/60)).padStart(2,'0')}:${String(c%60).padStart(2,'0')}`;}
 const qName=q=>q<=4?`Q${q}`:`OT${q-4>1?q-4:''}`;
 function matchHTML(){const M=UI.match,m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,me=m.s[ui];
-  const seg=(key)=>`<div class="seg">${TAC[key].map(o=>`<button class="${G.tactics[key]===o.v?'on':''}" data-act="tac:${key}:${o.v}">${o.l}</button>`).join('')}</div>`;
+  const seg=(key)=>`<div class="seg">${TAC[key].map(o=>`<button class="${(m.ntU!=null?ntTacs():G.tactics)[key]===o.v?'on':''}" data-act="tac:${key}:${o.v}">${o.l}</button>`).join('')}</div>`;
   const ctl=m.done?`<div class="sec"><button class="btn p" data-act="matchdone">Continue</button><p class="mut">Results from the other games come in when you continue.</p></div>`:
    `<div class="sec"><div class="lbl">Speed</div><div class="seg">${[1,2,4].map(s=>`<button class="${M.speed==s&&!M.paused?'on':''}" data-act="speed:${s}">${s}\u00d7</button>`).join('')}<button class="${M.paused?'on':''}" data-act="pause">${M.paused?'Paused':'Pause'}</button></div>
    <div class="btns"><button class="btn sm" data-act="timeout" ${me.to<=0?'disabled':''}>Timeout (${me.to} left)</button><button class="btn sm" data-act="simend">Sim to end</button></div></div>
@@ -1216,7 +1217,7 @@ const ACT={
   sendback(id){const err=sendBack(+id);if(err)toast(err);UI.modal=null;render();},
   dcomp(k){UI.dcomp=k;render();},
   drnd(d){UI.dfixR=clamp((UI.dfixR||0)+(+d),0,G.dom.sched.length-1);render();},
-  continue(){if(UI.match&&!UI.match.m.done)return;if(typeof ntPend==='function'&&ntPend()){UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast('International window: play the national team games first');return;}if(UI.match&&UI.match.m.done)return ACT.matchdone();if(squadShort()){UI.modal={kind:'short'};render();return;}
+  continue(){if(UI.match&&!UI.match.m.done)return;if(typeof ntPend==='function'&&ntPend()){UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast('International window: play the national team games first');return;}if(ntMode())UI.ntv=false;if(UI.match&&UI.match.m.done)return ACT.matchdone();if(squadShort()){UI.modal={kind:'short'};render();return;}
     if(nbaFAOpen()){const d=G.nfa.day+1;nbaFADay();save();UI.view='main';UI.tab=UI.tab==='home'?'transfers':UI.tab;UI.tr='fa';render();toast(G.nfa?`Free agency \u00b7 day ${d} done`:'Free agency is over \u2013 the season starts');return;}
     if(seasonOver()){UI.view='season';render();return;}
     const f=userFx();if(f&&UI.view==='prematch'){beginMatch(true);return;}if(f){UI.view='prematch';render();window.scrollTo(0,0);return;}
@@ -1229,7 +1230,12 @@ const ACT={
   sqauto(id){const p=G.players[+id];if(p)delete p.mt;save();render();},
   mv(id,d){const t=G.teams[G.user],i=t.order.indexOf(+id),j=i+(+d);if(j<0||j>=t.order.length)return;[t.order[i],t.order[j]]=[t.order[j],t.order[i]];UI.sel=+id;save();render();},
   autolineup(){const t=G.teams[G.user];t.order=autoOrder(t.order);save();render();toast('Rotation set by position and rating');},
-  tac(k,v){G.tactics[k]=v;save();if(UI.view==='match')render();else render();},
+  nttac(k,v){ntTacs()[k]=v;save();render();},
+  ntcamp(k){if(G.nt&&G.nt.job){G.nt.job.camp=k;save();}render();},
+  ntstaff(r,i){ntHireStaff(r,i);render();},
+  ntmode(){UI.ntv=!ntMode();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
+  ntmv(id,d){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};const L=G.nt.sel.ids,i=L.indexOf(+id),j=i+(+d);if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];save();render();},
+  tac(k,v){if(UI.match&&UI.match.m&&UI.match.m.ntU!=null){ntTacs()[k]=v;save();render();return;}G.tactics[k]=v;save();if(UI.view==='match')render();else render();},
   train(k,v){G.training[k]=v;save();render();},
   exall(){UI.exAll=!UI.exAll;render();},
   trtab(k){UI.tr=k;render();},trpos(k){UI.trPos=k;render();},trsort(k){UI.trSort=k;render();},
@@ -1464,6 +1470,41 @@ function ntHomeCard(){const N=G.nt,J=N&&N.job;if(!J||!N.cyc)return '';const C=N.
     return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window in ${n} day${n===1?'':'s'}</small><h2>${esc(ntName(c))}</h2><span>${esc(E.lbl)} · ${N.sel&&N.sel.key===E.key?'squad picked':'pick your twelve'}</span></div><button class="ntw-go" data-act="ntopen">Pick squad</button></div></section>`;}
   return '';}
 homeHTML=(o=>()=>ntHomeCard()+o())(homeHTML);
+
+
+/* ===================== National team mode ===================== */
+// During the coach's international window (or when he switches) the whole game shows the national team: header, colours, tabs,
+// squad, tactics, training camp and staff belong to the nation. Club-only tabs are hidden.
+const ntMode=()=>!!(G&&G.nt&&G.nt.job&&(UI.ntv===true||(UI.ntv!==false&&typeof ntPend==='function'&&ntPend())));
+const NT_TABS=[['home','Home'],['squad','Squad'],['tactics','Tactics'],['training','Training camp'],['staff','Staff'],['comp','Competitions'],['inbox','Inbox']];
+function ntHeaderHTML(){const J=G.nt.job,c=J.c,C=G.nt.cyc,E=ntNextEvent(),grp=Object.keys(C.groups).find(k=>C.groups[k].includes(c)),rk=grp?ntSort(C.groups[grp],C.tab).indexOf(c)+1:0,rec=ntRec(C.tab,c),live=UI.view==='match'&&UI.match&&!UI.match.m.done;
+  const w=ntPend(),g=w?ntUserPair(w,w.dd||0):null,opp=g?(g[0]===c?g[1]:g[0]):null;
+  return `<header class="hdr"><div class="brand"><div class="t1">BASKETBALL MANAGER</div><div class="t2">NATIONAL TEAM <small>${c}</small></div></div><div class="stripe"></div>
+  <div class="hmid"><div class="date"><b>${dateStr()}</b><span>${E?esc(E.lbl):'National team'}${opp?` · game ${(w.dd||0)+1} vs ${esc(ntName(opp))}`:` · ${C.kind==='EB'?'EuroBasket':'World Cup'} Qualifiers`}</span></div>
+  <div class="hstat"><small>Group ${grp||'–'}</small><b>${rk?ordn(rk):'–'} · ${rec.w}–${rec.l}</b></div>
+</div>
+  <button class="cont" data-act="continue" ${live?'disabled':''}>${contLabel()}${IC.arrow}</button></header>`;}
+function ntClubHTML(){const J=G.nt.job,c=J.c,unread=G.inbox.filter(m=>!m.read).length,club=G.teams[G.user];
+  return `<div class="club gut"><span class="ntc-fl">${ntFlag(c,72)}</span><div><h2>${esc(ntName(c))}</h2><div class="who"><span>${esc(G.mgr)} · National team head coach</span></div></div>
+  <div class="meters">${[['Federation trust',J.trust==null?60:J.trust],['Fans',J.fans==null?60:J.fans],['Chemistry',ntChem()]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
+  <div class="icons"><button class="ic ntsw" data-act="ntmode"><span class="ntsw-i">${crest(club)}</span><span>Back to club</span></button><button class="ic" data-act="tab:inbox">${IC.inbox}<span>Inbox</span>${unread?`<em>${unread}</em>`:''}</button><button class="ic" data-act="savegame">${IC.save}<span>Save</span></button></div></div>`;}
+function ntNavHTML(){const unread=G.inbox.filter(m=>!m.read).length;return `<nav class="navw" aria-label="National team"><div class="nav">${NT_TABS.map(([k,l])=>`<button class="${UI.view==='main'&&UI.tab===k?'on':''}" data-act="tab:${k}">${l}${k==='inbox'&&unread?`<em>${unread}</em>`:''}</button>`).join('')}</div></nav>`;}
+function ntModeHome(){const card0=ntHomeCard(),J=G.nt.job;
+  return `${card0||`<section class="ntc"><div class="ntc-h"><div><small>National team</small><b>No window right now</b><span>${(()=>{const E=ntNextEvent();return E?`Next: ${esc(E.lbl)}. Pick your twelve and plan the camp in time.`:'The next cycle starts soon.';})()}</span></div></div><div class="ntc-a"><button data-act="tab:squad">Squad</button><button data-act="ntmode">Back to club</button></div></section>`}
+  <div class="g-2e">${inboxCard()}${card('Training camp & staff',`<div class="cb"><div class="kv"><span>Camp focus</span><b>${NT_CAMP[J.camp||'chem'].n}</b></div><div class="kv"><span>Assistant coach</span><b>${J.staff&&J.staff.ac?esc(J.staff.ac.f+' '+J.staff.ac.l)+' · '+J.staff.ac.o:'none'}</b></div><div class="kv"><span>Team doctor</span><b>${J.staff&&J.staff.doc?esc(J.staff.doc.f+' '+J.staff.doc.l)+' · '+J.staff.doc.o:'none'}</b></div><div class="kv"><span>Chemistry</span><b>${ntChem()}%</b></div></div>`,lnk('tab:training','Camp'))}</div>`;}
+function ntTacHTML(){const T=ntTacs(),J=G.nt.job,E=ntNextEvent(),sq=E?ntUserSquad(J.c,E.win,E.key,true):[];
+  return `<div class="g-2"><div>${card(`Game plan · ${esc(ntName(J.c))}`,optGroup('nttac','pace','Pace',T.pace,TAC)+optGroup('nttac','focus','Offensive focus',T.focus,TAC)+optGroup('nttac','def','Defense',T.def,TAC)+`<div class="sec"><p class="mut">The national team has its own game plan. Your club keeps its tactics. You can change these during a live international game too.</p></div>`)}</div>
+  <div class="stack">${card('Starting five',`<div class="cb">${sq.slice(0,5).map((p,i)=>`<div class="kv"><span>${['PG','SG','SF','PF','C'][i]} slot · ${esc(pname(p))} <small class="mut">${p.pos} · ${p.age}</small></span><span class="ntr ${ovrEst(p)>=85?'r1':ovrEst(p)>=78?'r2':ovrEst(p)>=70?'r3':ovrEst(p)>=62?'r4':'r5'}">${ovrEst(p)}</span></div>`).join('')||'<p class="mut">Pick a squad first.</p>'}<p class="mut" style="font-size:13px;margin-top:8px">Order the squad on the Squad tab: the first five start, the next ones come off the bench in that order.</p></div>`,lnk('tab:squad','Change order'))}</div></div>`;}
+function ntCampHTML(){const J=G.nt.job,cur=J.camp||'chem';
+  return `<section class="ntc"><div class="ntc-h"><div><small>Training camp</small><b>${esc(ntName(J.c))} · window preparation</b><span>The squad meets a few days before the games. Choose what the camp works on.</span></div></div>
+  <div class="ntcamp">${Object.entries(NT_CAMP).map(([k,o])=>`<button class="ntcamp-o${cur===k?' on':''}" data-act="ntcamp:${k}"><b>${o.n}</b><span>${o.d}</span>${cur===k?'<i>Selected</i>':''}</button>`).join('')}</div>
+  <div class="ntms" style="margin-top:14px"><div class="ntm"><small>Chemistry</small><b>${ntChem()}%</b><i><u style="width:${ntChem()}%"></u></i><em>Players who were in the last squad</em></div><div class="ntm"><small>Coaching bonus</small><b>+${ntCoachBonus().toFixed(1)}</b><em>On top of the squad strength</em></div></div></section>`;}
+function ntStaffHTML(){const J=G.nt.job,C=ntStaffCands(),S=J.staff||{};const row=(role,x,i)=>`<div class="kv"><span><b>${esc(x.f+' '+x.l)}</b> <small class="mut">${role==='ac'?'Assistant coach':'Team doctor'} · ${esc(ntName(J.c))}</small></span><span style="display:flex;gap:10px;align-items:center"><span class="ntr ${x.o>=78?'r2':x.o>=70?'r3':x.o>=62?'r4':'r5'}">${x.o}</span>${S[role]&&S[role].f===x.f&&S[role].l===x.l?'<span class="pill g">On staff</span>':`<button class="btn sm" data-act="ntstaff:${role}:${i}">Bring in</button>`}</span></div>`;
+  return `<div class="g-2"><div>${card('Assistant coach',`<div class="cb">${C.ac.map((x,i)=>row('ac',x,i)).join('')}<p class="mut" style="font-size:13px;margin-top:8px">A good assistant raises the team's level in the window games.</p></div>`)}</div><div>${card('Team doctor',`<div class="cb">${C.doc.map((x,i)=>row('doc',x,i)).join('')}<p class="mut" style="font-size:13px;margin-top:8px">A good doctor lowers the risk that your players come back injured to their clubs.</p></div>`)}</div></div>`;}
+// wrap the frame
+headerHTML=(o=>()=>ntMode()?ntHeaderHTML():o())(headerHTML);
+navHTML=(o=>()=>ntMode()?ntNavHTML():o())(navHTML);
+clubHTML=(o=>()=>{if(ntMode())return ntClubHTML();const h=o(),J=G&&G.nt&&G.nt.job;return J?h.replace('<div class="icons">',`<div class="icons"><button class="ic ntsw" data-act="ntmode"><span class="ntsw-i">${ntFlag(J.c,30)}</span><span>National team</span></button>`):h;})(clubHTML);
 
 /* ===================== Boot ===================== */
 function boot(data){if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();}

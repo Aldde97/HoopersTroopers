@@ -1100,7 +1100,7 @@ class Match{
     const t=G.teams[tid];let ord=forDress(t.order.map(id=>G.players[id]).filter(p=>p.inj<=0&&!(p.rest&&tid===G.user)),t,kindRule(t,this.kind));
     if(ord.length<5)ord=ord.concat(t.order.map(id=>G.players[id]).filter(p=>p.inj>0)).slice(0,Math.max(5,ord.length));
     const box={},tgt={},k=this.ql/600;ord.forEach((p,i)=>{box[p.id]=blank();tgt[p.id]=minTgt(p,i,tid,k);});
-    return {tid,home,ord,box,tgt,on:[],pts:0,tac:(tid===G.user||tid===this.ntU)?G.tactics:(t.tac=aiStyle(t)),to:this.ql===720?4:2,hc:hcBonus(tid)+finMalus(tid),pf:{},out:{},fat:{},tf:0,man:false};
+    return {tid,home,ord,box,tgt,on:[],pts:0,tac:tid===this.ntU?ntTacs():tid===G.user?G.tactics:(t.tac=aiStyle(t)),to:this.ql===720?4:2,hc:hcBonus(tid)+finMalus(tid),pf:{},out:{},fat:{},tf:0,man:false};
   }
   gtime(){const Q=this.ql;return this.q<=4?(this.q-1)*Q+(Q-this.clock):4*Q+(this.q-5)*300+(300-this.clock);}
   rotate(){
@@ -3810,7 +3810,7 @@ function ntPick(pid){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;con
   if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};
   const L=G.nt.sel.ids,i=L.indexOf(pid);if(i>=0)L.splice(i,1);else{if(!ntAvail(p,E.win))return 'He is not available for this window.';if(L.length>=12)return 'The squad is full (12). Remove a player first.';const nz=L.map(i=>G.players[i]).find(q=>q&&ntIsNat(q));if(ntIsNat(p)&&nz)return `Only one naturalised player is allowed (FIBA). ${pname(nz)} is already in the squad.`;L.push(pid);}save();return null;}
 function ntAuto(){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};save();}
-const ntCoachBonus=()=>.3*((typeof sk==='function'?sk('tac'):0)||0)+.2*((typeof sk==='function'?sk('coach'):0)||0);
+
 // reminders and the federation's view of the results
 function ntJobTick(){const J=G.nt&&G.nt.job;if(!J)return;const E=ntNextEvent();if(!E)return;G.nt.rem=G.nt.rem||{};if(G.nt.rem[E.key])return;
   const w=E.w,due=w?(w.day>=0?(w.s===G.season&&G.day>=w.day-14):(w.s===G.season+1&&G.day>=170)):(G.nt.cyc.year===G.season+1&&G.day>=170);
@@ -3843,10 +3843,10 @@ function ntQualified(C){const S=ntStrAll(NT_EUR,false);return Object.values(C.gr
 // one window: call-ups (in season), two game days, effects on the players, news
 function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inSeason=w.day>=0&&!silent,nats=[...new Set(Object.values(C.groups).flat())],sq={},S={};
   const J=G.nt.job,key=C.id+':'+C.wins.indexOf(w);for(const c of nats){const me=J&&J.c===c;sq[c]=me?ntUserSquad(c,w.day>=0,key):ntPool(c,w.day>=0);S[c]=ntStr(c,sq[c])+(me?ntCoachBonus():0);}
-  const from=w.dd||0,to=upto==null?w.days.length:Math.min(w.days.length,from+upto);for(let i=from;i<to;i++)for(const [h,a] of w.days[i]){const o=w.ovr&&w.ovr[i],r=o&&o[0]===h&&o[1]===a?o.slice():ntGame(h,a,S,false);w.res.push(r);ntApply(C.tab,r);}w.dd=to;if(to<w.days.length){save();return;}
-  w.done=true;if(G.nt.pend!=null&&C.wins[G.nt.pend]===w)G.nt.pend=null;const U=G.user,mine=[],hurt=[];
+  const from=w.dd||0,to=upto==null?w.days.length:Math.min(w.days.length,from+upto);for(let i=from;i<to;i++)for(const [h,a] of w.days[i]){const o=w.ovr&&w.ovr[i],r=o&&o[0]===h&&o[1]===a?o.slice():ntGame(h,a,S,false);w.res.push(r);ntApply(C.tab,r);ntAfterGame(r);}w.dd=to;if(to<w.days.length){save();return;}
+  w.done=true;if(G.nt.pend!=null&&C.wins[G.nt.pend]===w)G.nt.pend=null;if(J&&sq[J.c])J.prevSq=sq[J.c].map(p=>p.id);const U=G.user,mine=[],hurt=[];
   for(const c of nats)for(const p of sq[c]){p.ntc=(p.ntc||0)+2;p.ntN=c;if(!inSeason)continue;
-    p.energy=Math.max(40,(p.energy==null?100:p.energy)-rnd(6,14));moodAdd(p,3);if((p.inj||0)<=0&&Math.random()<.025){injSet(p,70);if(p.tid===U)hurt.push(`${pname(p)} (${p.injT}, out ${p.inj} games)`);}
+    const mine_=J&&J.c===c;p.energy=Math.max(40,(p.energy==null?100:p.energy)-(mine_&&J.camp==='rec'?rnd(2,6):rnd(6,14)));moodAdd(p,3);if((p.inj||0)<=0&&Math.random()<.025*(mine_&&J.staff&&J.staff.doc?clamp(1.4-J.staff.doc.o/100,.5,1):1)){injSet(p,70);if(p.tid===U)hurt.push(`${pname(p)} (${p.injT}, out ${p.inj} games)`);}
     if(p.tid===U)mine.push(`${pname(p)} (${ntName(c)})`);}
   const txt=w.res.map(([h,a,hs,as])=>`${ntName(h)} ${hs}–${as} ${ntName(a)}`).join(', ');
   if(!silent)news(`${C.kind==='EB'?'EuroBasket':'World Cup'} Qualifiers: ${w.lbl}`,`Results: ${txt}.`);
@@ -3856,7 +3856,7 @@ function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inS
   try{ntJobAfterWindow(w);}catch(e){}}
 // in-season windows are played when the calendar reaches them
 function ntTick(){if(!G||preOn())return;if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}const C=G.nt.cyc;if(!C)return;for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
-    if(J&&G.day<w.day+7){if(G.nt.pend!==i){G.nt.pend=i;msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
+    if(J&&G.day<w.day+7){if(G.nt.pend!==i){G.nt.pend=i;if(typeof UI!=='undefined')UI.ntv=undefined;msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
     else ntWindow(w,false);}}
 // the coach's window that is waiting to be played
 const ntPend=()=>{const N=G&&G.nt;if(!N||!N.job||N.pend==null||!N.cyc)return null;const w=N.cyc.wins[N.pend];return w&&!w.done?w:null;};
@@ -3907,11 +3907,25 @@ function ntTempTeam(c,sq,me){const [c1,c2]=NT_COL[c]||['#2b3038','#8d949d'];cons
 function ntUserPair(w,i){const c=G.nt.job.c;return (w.days[i]||[]).find(x=>x[0]===c||x[1]===c)||null;}
 function ntLiveStart(){const w=ntPend();if(!w)return null;const i=w.dd||0,g=ntUserPair(w,i);if(!g)return null;ntTempClear();
   const C=G.nt.cyc,c=G.nt.job.c,key=C.id+':'+C.wins.indexOf(w),opp=g[0]===c?g[1]:g[0],sq={[c]:ntUserSquad(c,true,key),[opp]:ntPool(opp,true)};
-  const H=ntTempTeam(g[0],sq[g[0]],g[0]===c),A=ntTempTeam(g[1],sq[g[1]],g[1]===c),U=g[0]===c?H:A;
+  if(G.nt.job.camp==='rec')for(const p of sq[c])p.energy=Math.min(100,(p.energy==null?100:p.energy)+12);const H=ntTempTeam(g[0],sq[g[0]],g[0]===c),A=ntTempTeam(g[1],sq[g[1]],g[1]===c),U=g[0]===c?H:A;
   const m=new Match(H.id,A.id,{kind:'pre',log:true,ntU:U.id});m.ntInfo={day:i,h:g[0],a:g[1],lbl:`${C.name} · European Qualifiers · ${w.lbl} · game ${i+1}`};return m;}
 function ntLiveDone(m){const w=ntPend(),I=m.ntInfo;ntTempClear();if(!w||!I)return;w.ovr=w.ovr||{};w.ovr[I.day]=[I.h,I.a,m.s[0].pts,m.s[1].pts];
   const c=G.nt.job.c,me=m.s[I.h===c?0:1],top=me.ord.filter(p=>me.box[p.id]&&me.box[p.id].sec>0).sort((x,y)=>me.box[y.id].pts-me.box[x.id].pts).slice(0,3).map(p=>`${pname(p)} ${me.box[p.id].pts} pts`);
   w.box=w.box||{};w.box[I.day]=top;ntWindow(w,false,1);save();return top;}
+
+
+/* ===================== National team mode: tactics, camp, staff, trust ===================== */
+const NT_CAMP={off:{n:'Offense',d:'Shooting and sets. Better scoring in the window games.'},def:{n:'Defense',d:'Rotations and closeouts. Better defense in the window games.'},
+  chem:{n:'Team chemistry',d:'Gets the twelve used to each other. A strong bonus for a new squad, smaller for one that has played together.'},rec:{n:'Recovery',d:'Light sessions. Players arrive fresher and come back to their clubs less tired.'}};
+const ntTacs=()=>{const J=G.nt&&G.nt.job;if(!J)return G.tactics;return J.tac||(J.tac=Object.assign({},G.tactics));};
+function ntStaffCands(){const J=G.nt.job;if(J.cands)return J.cands;const N=NAMES[NATALIAS[J.c]||J.c]||NAMES.SRB,mk=r=>({f:pick(N.f),l:pick(N.l),o:clamp(Math.round(r+rnd(-6,8)),45,90)}),b=58+Math.max(0,30-ntRankEur().indexOf(J.c))*.6;
+  J.cands={ac:[mk(b),mk(b-4),mk(b+4)],doc:[mk(b),mk(b-6),mk(b+2)]};return J.cands;}
+function ntHireStaff(role,i){const J=G.nt&&G.nt.job;if(!J)return;const x=ntStaffCands()[role][+i];if(!x)return;J.staff=J.staff||{};J.staff[role]=x;save();}
+// chemistry: how many of the twelve were together in the last window (a camp on chemistry adds to it)
+function ntChem(){const J=G.nt&&G.nt.job;if(!J)return 50;const E=ntNextEvent(),sq=E?ntUserSquad(J.c,E.win,E.key):[],prev=J.prevSq||[],share=sq.length?sq.filter(p=>prev.includes(p.id)).length/sq.length:0;return clamp(Math.round(45+45*share+(J.camp==='chem'?12:0)),0,100);}
+const ntCoachBonus=()=>{const J=G.nt&&G.nt.job;let b=.3*((typeof sk==='function'?sk('tac'):0)||0)+.2*((typeof sk==='function'?sk('coach'):0)||0);if(!J)return b;
+  const cp=J.camp||'chem',ac=J.staff&&J.staff.ac;b+=cp==='off'||cp==='def'?.5:cp==='chem'?(100-ntChem())*.012:0;if(ac)b+=(ac.o-60)*.03;b+=(ntChem()-60)*.015;return b;};
+function ntAfterGame(r){const J=G.nt&&G.nt.job;if(!J||(r[0]!==J.c&&r[1]!==J.c))return;const won=(r[0]===J.c)===(r[2]>r[3]);J.trust=clamp((J.trust==null?60:J.trust)+(won?5:-6),0,100);J.fans=clamp((J.fans==null?60:J.fans)+(won?4:-4),0,100);}
 
 function nlProject(L){if(!L||L.po||L.phase==='done'||L.code==='GL'||L.code==='NCAA')return null;
   const P=Object.assign({},L,{tab:JSON.parse(JSON.stringify(L.tab||{})),hist:{},res:[],po:null,up:[],down:[],seeds:null,seedsA:null,champ:null,ch:null,natCh:null,phase:'wait'});
