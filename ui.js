@@ -6,7 +6,7 @@ const SHAPES=['M50 4 L92 20 V66 C92 94 72 110 50 120 C28 110 8 94 8 66 V20Z','M1
 const LOGO=t=>(window.LOGOS||{})[t.short];
 // on dark backgrounds (class 'dk') clubs with a dark logo use their white version
 const LOGOW=t=>(window.LOGOS_DARK||{})[t.short]||LOGO(t);
-function crest(t,cls=''){if(LOGO(t))return `<img class="crest logo ${cls}" src="${/\bdk\b/.test(cls)?LOGOW(t):LOGO(t)}" alt="">`;const d=SHAPES[t.id%3],tc=tcol(t),sz=t.short.length>3?26:31;
+function crest(t,cls=''){if(t&&t.nt&&window.NT_FLAGS&&NT_FLAGS[t.nt])return `<img class="crest ${cls}" src="${NT_FLAGS[t.nt]}" alt="" style="object-fit:contain">`;if(LOGO(t))return `<img class="crest logo ${cls}" src="${/\bdk\b/.test(cls)?LOGOW(t):LOGO(t)}" alt="">`;const d=SHAPES[t.id%3],tc=tcol(t),sz=t.short.length>3?26:31;
   return `<svg class="crest ${cls}" viewBox="0 0 100 124" aria-hidden="true"><path d="${d}" fill="${t.c1}" stroke="${t.c2}" stroke-width="5" stroke-linejoin="round"/><path d="${d}" transform="translate(9 11) scale(.82)" fill="none" stroke="${tc}" stroke-opacity=".45" stroke-width="2.4"/><path d="${d}" fill="url(#gl)"/><path d="M50 26 l3 6.4 7 .6-5.3 4.6 1.6 6.8L50 40.8l-6.3 3.6 1.6-6.8L40 33l7-.6z" fill="${tc}" opacity=".9"/><text x="50" y="84" text-anchor="middle" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="900" font-size="${sz}" fill="${tc}" letter-spacing="1">${t.short}</text></svg>`;}
 const mini=t=>LOGO(t)?`<img class="mini logo" src="${LOGO(t)}" alt="">`:`<span class="mini" style="background:${t.c1};color:${tcol(t)}">${t.short}</span>`;
 // never show a portrait of a minor, even if a generated youngster shares a real player's name
@@ -1009,7 +1009,7 @@ function sponsorModalHTML(){
 const SPEED={1:650,2:260,4:70};
 function clockStr(c){c=Math.max(0,Math.round(c));return `${String(Math.floor(c/60)).padStart(2,'0')}:${String(c%60).padStart(2,'0')}`;}
 const qName=q=>q<=4?`Q${q}`:`OT${q-4>1?q-4:''}`;
-function matchHTML(){const M=UI.match,m=M.m,ui=m.s[0].tid===G.user?0:1,me=m.s[ui];
+function matchHTML(){const M=UI.match,m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,me=m.s[ui];
   const seg=(key)=>`<div class="seg">${TAC[key].map(o=>`<button class="${G.tactics[key]===o.v?'on':''}" data-act="tac:${key}:${o.v}">${o.l}</button>`).join('')}</div>`;
   const ctl=m.done?`<div class="sec"><button class="btn p" data-act="matchdone">Continue</button><p class="mut">Results from the other games come in when you continue.</p></div>`:
    `<div class="sec"><div class="lbl">Speed</div><div class="seg">${[1,2,4].map(s=>`<button class="${M.speed==s&&!M.paused?'on':''}" data-act="speed:${s}">${s}\u00d7</button>`).join('')}<button class="${M.paused?'on':''}" data-act="pause">${M.paused?'Paused':'Pause'}</button></div>
@@ -1022,9 +1022,9 @@ function matchHTML(){const M=UI.match,m=M.m,ui=m.s[0].tid===G.user?0:1,me=m.s[ui
 function sbHTML(m){const [h,a]=m.s,H=G.teams[h.tid],A=G.teams[a.tid],nq=m.qp[0].length;
   const qs=[];const maxQ=Math.max(4,m.q);for(let i=0;i<maxQ;i++)qs.push(i);
   const cell=(si,i)=>i<nq?m.qp[si][i]:i===m.q-1&&!m.done?m.s[si].pts-m.qp[si].reduce((x,y)=>x+y,0):'';
-  return `<div class="sb-main"><div class="sb-t">${crest(H)}<div style="min-width:0"><h3>${esc(H.name)}</h3><p>${H.id===G.user?'You':'Home'}${m.neutral?' \u00b7 neutral':''}</p></div><span class="scr">${h.pts}</span></div>
+  return `<div class="sb-main"><div class="sb-t">${crest(H)}<div style="min-width:0"><h3>${esc(H.name)}</h3><p>${H.id===G.user||H.id===m.ntU?'You':'Home'}${m.neutral?' \u00b7 neutral':''}</p></div><span class="scr">${h.pts}</span></div>
   <div class="sb-c"><div class="q">${m.done?'FINAL':`<span class="live"></span>${qName(m.q)}`}</div><div class="clk">${m.done?`${h.pts}\u2013${a.pts}`:clockStr(m.clock)}</div><div class="st">${m.done?(m.q>4?'After overtime':'Full time'):`${G.teams[m.s[m.poss].tid].short} ball`}</div></div>
-  <div class="sb-t r">${crest(A)}<div style="min-width:0"><h3>${esc(A.name)}</h3><p>${A.id===G.user?'You':'Away'}</p></div><span class="scr">${a.pts}</span></div></div>
+  <div class="sb-t r">${crest(A)}<div style="min-width:0"><h3>${esc(A.name)}</h3><p>${A.id===G.user||A.id===m.ntU?'You':'Away'}</p></div><span class="scr">${a.pts}</span></div></div>
   <div class="qs"><table><thead><tr><th></th>${qs.map(i=>`<th>${qName(i+1)}</th>`).join('')}<th>T</th></tr></thead><tbody>${[0,1].map(si=>`<tr><td>${G.teams[m.s[si].tid].short}</td>${qs.map(i=>`<td>${cell(si,i)}</td>`).join('')}<td class="tot">${m.s[si].pts}</td></tr>`).join('')}</tbody></table></div>`;}
 function feedHTML(m){const cols=m.s.map(s=>{const t=G.teams[s.tid];return lum(t.c1)>.85?t.c2:t.c1;});
   return m.ev.slice(-80).reverse().map(e=>`<div class="ev ${e.type}"><span class="tm">${qName(e.q)} ${clockStr(e.c)}</span><span class="sd" style="background:${e.side>=0?cols[e.side]:'transparent'}"></span><span class="tx">${esc(e.txt)}</span><span class="sc">${e.sc[0]}\u2013${e.sc[1]}</span></div>`).join('');}
@@ -1046,7 +1046,7 @@ function updMatch(){const M=UI.match;if(!M)return;const m=M.m,$=id=>document.get
   const sb=$('subs');if(sb){const x=subsHTML(M);if(x!==M.sbH||!sb.innerHTML){M.sbH=x;sb.innerHTML=x;}}
   const c=$('crunch');if(c){const h=crunchHTML(M);if(h!==M.crH){M.crH=h;c.innerHTML=h;}}}
 // bench calls late in the game; the feed refreshes it, so it is only rewritten when something changed (a click must not lose its button)
-function coachHTML(m){const ui=m.s[0].tid===G.user?0:1,I=assistantInfo(),L=I.max?assistantTips(m,ui):[],icon={tac:'✎',opp:'⚠',tired:'⏸',hot:'★',good:'✓'};
+function coachHTML(m){const ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,I=assistantInfo(),L=I.max?assistantTips(m,ui):[],icon={tac:'✎',opp:'⚠',tired:'⏸',hot:'★',good:'✓'};
   return `<section class="ac"><header><span class="ac-m">AC</span><div><b>Assistant coach</b><small>${I.n?esc(I.n):'No assistant coach hired'}</small></div></header>${I.n?(L.length?L.map(t=>`<div class="ac-t ${t.ty}"><span class="ac-i">${icon[t.ty]}</span><p>${esc(t.t)}</p>${t.act?`<button data-act="${t.act}">${esc(t.l)}</button>`:''}</div>`).join(''):`<p class="ac-q">${m.gtime()<180?'Let me watch them for a few minutes, coach.':m.feed?`Good, the ball goes to ${esc(sname(G.players[m.feed.id]))} now.`:'Nothing to report, coach. Keep it going.'}</p>`):'<p class="ac-q">Hire an assistant coach to get advice during the game.</p>'}</section>`;}
 function subsHTML(M){const m=M.m,ui=m.manual,s=m.s[ui],T=G.teams[s.tid],hc=lum(T.c1)>.85?T.c2:T.c1,lim=m.foulLimit(),sel=M.subOut;
   const dots=p=>{const n=s.pf[p.id]||0;return `<span class="lu-f" title="${n} of ${lim} fouls">${Array.from({length:lim},(_,k)=>`<i class="${k<n?(n>=lim-1?'r':'y'):''}"></i>`).join('')}</span>`;};
@@ -1055,7 +1055,7 @@ function subsHTML(M){const m=M.m,ui=m.manual,s=m.s[ui],T=G.teams[s.tid],hc=lum(T
   const bench=s.ord.slice(0,13).filter(p=>!s.on.includes(p));
   return `<section class="lu" style="--lu1:${hc}"><header><div><b>Line-up</b><small>${s.man?'You pick the line-up':'Auto rotation'} · team fouls ${s.tf}${s.tf>=4?' · next one is free throws':''}</small></div>${s.man?'<button class="lu-auto" data-act="lauto">Back to auto</button>':''}</header>
   <div class="lu-l"><small>On court${sel?' · now pick who comes in':' · tap who comes off'}</small>${s.on.map(p=>row(p,true)).join('')}</div>${bench.length?`<div class="lu-l"><small>Bench</small>${bench.map(p=>row(p,false)).join('')}</div>`:''}</section>`;}
-function crunchHTML(M){const m=M.m,ui=m.s[0].tid===G.user?0:1;if(!m.crunch())return '';const me=m.s[ui],opp=m.s[1-ui],diff=me.pts-opp.pts,armed=m.play[ui];
+function crunchHTML(M){const m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1;if(!m.crunch())return '';const me=m.s[ui],opp=m.s[1-ui],diff=me.pts-opp.pts,armed=m.play[ui];
   const who=k=>{const p=m.playPick(me,k);return p?` \u00b7 ${sname(p)}`:'';};
   const hot=m.run_[1-ui]>=6?`<p style="font-size:13.5px"><span class="pill r">${esc(G.teams[opp.tid].short)} on a ${m.run_[1-ui]}-0 run</span> A timeout now helps most.</p>`:'';
   const plays=Object.keys(LIVEPLAY).map(k=>`<button class="btn sm${armed===k?' p':''}" data-act="lplay:${k}" title="${esc(LIVEPLAY[k].d)}">${LIVEPLAY[k].n}${who(k)}${m.lastPlay[ui]===k?' \u00b7 they know it':''}</button>`).join('');
@@ -1255,6 +1255,7 @@ const ACT={
   ntquit(){ntResign();UI.ntSub='m';toast('You resigned as national team coach');render();},
   ntpick(id){const e=ntPick(+id);if(e)toast(e);render();},
   ntauto(){ntAuto();render();},
+  ntlive(v){const m=ntLiveStart();if(!m){toast('No game to play');return;}UI.boxSide=m.s[0].tid===m.ntU?0:1;if(+v)m.manual=UI.boxSide;else m.run();UI.match={m,speed:1,paused:false,timer:null};UI.view='match';render();window.scrollTo(0,0);if(+v)startTimer();},
   ntday(){ntPlayDay(false);toast(ntPend()?'Game 1 played':'Window complete');render();},
   ntdayall(){ntPlayDay(true);toast('Window complete');render();},
   ntall(){UI.ntAll=!UI.ntAll;render();},
@@ -1339,17 +1340,17 @@ const ACT={
   shortfill(){const L=fillRoster();UI.modal=null;save();render();toast(`${L.length} players signed`);},
   speed(s){UI.match.speed=+s;UI.match.paused=false;render();startTimer();},
   pause(){UI.match.paused=!UI.match.paused;UI.match.why=null;render();startTimer();},
-  timeout(){const m=UI.match.m,ui=m.s[0].tid===G.user?0:1;if(m.timeout(ui)){UI.match.paused=true;UI.match.crH=null;toast('Timeout: set your tactics, then continue');render();startTimer();}},
+  timeout(){const m=UI.match.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1;if(m.timeout(ui)){UI.match.paused=true;UI.match.crH=null;toast('Timeout: set your tactics, then continue');render();startTimer();}},
   dbl(t,p){dblSet(+t,p===''||p==null?null:+p);save();render();},
-  ldbl(p){const m=UI.match.m,ui=m.s[0].tid===G.user?0:1;m.dbl[ui]=p===''?null:+p;UI.match.crH=null;render();},
-  lrest(id){const m=UI.match.m,ui=m.s[0].tid===G.user?0:1,s=m.s[ui];id=+id;s.tgt[id]=Math.min(s.tgt[id],s.box[id].sec);m.rested[id]=1;UI.match.acH=null;if(s.man){const b=m.benchBest(ui);if(b)m.sub(ui,id,b.id);toast('He comes off now');}else toast('He sits at the next rotation');updMatch();},
+  ldbl(p){const m=UI.match.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1;m.dbl[ui]=p===''?null:+p;UI.match.crH=null;render();},
+  lrest(id){const m=UI.match.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,s=m.s[ui];id=+id;s.tgt[id]=Math.min(s.tgt[id],s.box[id].sec);m.rested[id]=1;UI.match.acH=null;if(s.man){const b=m.benchBest(ui);if(b)m.sub(ui,id,b.id);toast('He comes off now');}else toast('He sits at the next rotation');updMatch();},
   lsit(id){const M=UI.match,m=M.m,ui=m.manual,b=m.benchBest(ui);M.acH=null;if(!b)return toast('Nobody left on the bench');m.sub(ui,+id,b.id);toast(`${sname(b)} comes in`);updMatch();},
   lsubo(id){const M=UI.match;id=+id;M.subOut=M.subOut===id?null:id;updMatch();},
   lsubi(id){const M=UI.match,m=M.m;if(M.subOut==null)return toast('First tap the player who comes off');const er=m.sub(m.manual,M.subOut,+id);M.subOut=null;if(er)toast(er);updMatch();},
   lauto(){const M=UI.match;M.subOut=null;M.m.autoSubs(M.m.manual);toast('Back to the normal rotation');updMatch();},
   lfeed(id){const m=UI.match.m;m.feed={id:+id,left:6};UI.match.acH=null;toast('Next plays go to him');updMatch();},
-  lplay(k){const M=UI.match,m=M.m,ui=m.s[0].tid===G.user?0:1;if(!m.crunch())return;m.play[ui]=m.play[ui]===k?null:k;updMatch();},
-  lfoul(){const M=UI.match,m=M.m,ui=m.s[0].tid===G.user?0:1;if(!m.crunch()||m.clock>60||m.s[ui].pts>=m.s[1-ui].pts)return;m.foul[ui]=!m.foul[ui];updMatch();},
+  lplay(k){const M=UI.match,m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1;if(!m.crunch())return;m.play[ui]=m.play[ui]===k?null:k;updMatch();},
+  lfoul(){const M=UI.match,m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1;if(!m.crunch()||m.clock>60||m.s[ui].pts>=m.s[1-ui].pts)return;m.foul[ui]=!m.foul[ui];updMatch();},
   simend(){clearInterval(UI.match.timer);UI.match.m.manual=-1;UI.match.m.run();render();},
   staffhire(id){const st=G.staffFA.find(x=>x.id===+id);if(!st)return;UI.modal={kind:'hire',n:staffNegStart(st)};render();},
   negtalk(k){const M=UI.modal,st=G.staffFA.find(x=>x.id===M.n.sid);negTalk(st,M.n,k);render();scrollChat();},
@@ -1361,7 +1362,7 @@ const ACT={
   stafffire(id){const e=fireStaff(+id);toast(e||'Staff member released');render();},
   staffclub(i){UI.staffClub=+i;render();},staffrole(k){UI.staffRole=k;render();},
   boxside(i){UI.boxSide=+i;if(UI.match)document.getElementById('box').innerHTML=boxHTML(UI.match.m);render();},
-  matchdone(next){UI.pressRes=null;const m=UI.match.m;clearInterval(UI.match.timer);UI.match=null;const lbl=simStep(m);UI.view='main';UI.tab=typeof next==='string'?next:'home';render();window.scrollTo(0,0);toast(`${lbl} complete`);},
+  matchdone(next){if(UI.match&&UI.match.m&&UI.match.m.ntInfo){const m=UI.match.m;clearInterval(UI.match.timer);UI.match=null;ntLiveDone(m);UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast('International game complete');return;}UI.pressRes=null;const m=UI.match.m;clearInterval(UI.match.timer);UI.match=null;const lbl=simStep(m);UI.view='main';UI.tab=typeof next==='string'?next:'home';render();window.scrollTo(0,0);toast(`${lbl} complete`);},
   jobyes(id){const m=G.inbox.find(x=>x.id===+id);if(!m||!m.act)return;G.pendingJob=m.act.tid;for(const x of G.inbox)if(x.type==='job'&&!x.done)x.done=x===m?'Accepted \u00b7 you move next season':'Declined';save();toast(`You take over ${G.teams[m.act.tid].name} next season`);render();},
   newseason(){if(meetDue()){meetStart();UI.modal={kind:'meet'};render();return;}if(extDue()){if(extRefused()){leaveExpired();render();window.scrollTo(0,0);return;}ACT.extneg();toast('Settle your contract first');return;}if(ctDue()){UI.modal={kind:'contracts',gate:true};render();return;}G.ndg=[];newSeason();newsFlush();if(G.pendingJob!=null){const t=G.pendingJob;G.pendingJob=null;takeJob(t);}pledgeApply();preInit();save();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast(`Welcome to the ${seasonStr()} season`);},
   meetgo(){if(meetDue())meetStart();UI.modal={kind:'meet'};render();},
@@ -1448,13 +1449,13 @@ function ntHomeCard(){const N=G.nt,J=N&&N.job;if(!J||!N.cyc)return '';const C=N.
   const grp=Object.keys(C.groups).find(k=>C.groups[k].includes(c)),gd=(i,w)=>{const d=new Date(G.season,9,1+w.day+(i?3:0));return d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();};
   const table=()=>grp?`<div class="ntw-t"><small>Group ${grp}</small>${ntSort(C.groups[grp],C.tab).map((x,i)=>{const r=ntRec(C.tab,x);return `<div class="${x===c?'me':''}${i<3?' q':''}"><span>${i+1}</span>${ntFlag(x,20)}<b>${esc(ntName(x))}</b><em>${r.w}–${r.l}</em></div>`;}).join('')}<p>Top 3 qualify for the ${esc(C.name)}</p></div>`:'';
   const games=w=>w.days.map((d,i)=>{const g=d.find(x=>x[0]===c||x[1]===c);if(!g)return '';const home=g[0]===c,o=home?g[1]:g[0],r=w.res.find(x=>x[0]===g[0]&&x[1]===g[1]),me=r?(home?r[2]:r[3]):null,op=r?(home?r[3]:r[2]):null,won=r&&me>op;
-    return `<div class="ntw-g${r?(won?' w':' l'):''}"><div class="ntw-d"><small>Game ${i+1}</small><b>${gd(i,w)}</b><span>${home?'Home':'Away'}</span></div><div class="ntw-m">${ntFlag(c,44)}<b>${esc(ntName(c))}</b><strong>${r?`${me}<i>–</i>${op}`:'vs'}</strong><b>${esc(ntName(o))}</b>${ntFlag(o,44)}</div>${r?`<div class="ntw-r">${won?'WIN':'LOSS'}</div>`:'<div class="ntw-r up">UPCOMING</div>'}</div>`;}).join('');
+    return `<div class="ntw-g${r?(won?' w':' l'):''}"><div class="ntw-d"><small>Game ${i+1}</small><b>${gd(i,w)}</b><span>${home?'Home':'Away'}</span>${w.box&&w.box[i]?`<em class="ntw-top">${w.box[i].map(esc).join(' \u00b7 ')}</em>`:''}</div><div class="ntw-m">${ntFlag(c,44)}<b>${esc(ntName(c))}</b><strong>${r?`${me}<i>–</i>${op}`:'vs'}</strong><b>${esc(ntName(o))}</b>${ntFlag(o,44)}</div>${r?`<div class="ntw-r">${won?'WIN':'LOSS'}</div>`:'<div class="ntw-r up">UPCOMING</div>'}</div>`;}).join('');
   const style=`style="--na:${ca};--nb:${cb}"`;
   if(pw){const key=C.id+':'+C.wins.indexOf(pw),sq=ntUserSquad(c,true,key),dd=pw.dd||0;
     return `<section class="ntw" ${style}><div class="ntw-wm">${ntFlag(c,520)}</div><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,96)}</div><div><small>International window · the leagues pause</small><h2>${esc(ntName(c))}</h2><span>${esc(C.name)} · European Qualifiers · ${esc(pw.lbl)}</span></div></div>
       <div class="ntw-b"><div class="ntw-gs">${games(pw)}</div>${table()}</div>
       <div class="ntw-sq"><small>Your twelve</small><div>${sq.map(p=>`<span class="ntw-p" title="${esc(pname(p))} · ${p.pos} · OVR ${ovrEst(p)}">${avatarIn(p,p.no)}<i>${esc(p.l||pname(p))}</i></span>`).join('')}</div></div>
-      <div class="ntw-a">${dd<pw.days.length?`<button class="ntw-go" data-act="ntday">Play game ${dd+1}</button>${dd===0?'<button class="ntw-go2" data-act="ntdayall">Play both games</button>':''}<button class="ntw-go3" data-act="ntopen">Edit squad</button>`:''}<span>Your club season continues after the window.</span></div></section>`;}
+      <div class="ntw-a">${dd<pw.days.length?`<button class="ntw-go" data-act="ntlive:1">\u25b6 Play game ${dd+1} live</button><button class="ntw-go2" data-act="ntlive:0">Simulate game ${dd+1}</button>${dd===0?'<button class="ntw-go3" data-act="ntdayall">Quick-sim both</button>':''}<button class="ntw-go3" data-act="ntopen">Edit squad</button>`:''}<span>Your club season continues after the window.</span></div></section>`;}
   // just played: the results for a few days
   const last=C.wins.filter(w=>w.done&&w.s===G.season&&w.day>=0&&G.day-w.day<=10).pop();
   if(last)return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window · complete</small><h2>${esc(ntName(c))}</h2><span>${esc(last.lbl)}</span></div></div><div class="ntw-b"><div class="ntw-gs">${games(last)}</div>${table()}</div></section>`;

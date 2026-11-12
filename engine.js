@@ -1086,7 +1086,7 @@ const minTgt=(p,i,tid,k)=>tid===G.user&&p.mt!=null?Math.round(p.mt*60*k):Math.ro
 const LGBOX={"_":{"p":-1,"t":0.06,"f":1,"e":0},"EL":{"p":-0.9,"t":0.06,"f":1,"e":0},"NBA":{"p":-2.8,"t":-0.02,"f":0.72,"e":0.03},"GL":{"p":-3.6,"t":0.04,"f":0.75,"e":0.015},"NCAA":{"p":1.8,"t":0.04,"f":0.95,"e":0},"CBA":{"p":-3.2,"t":0.07,"f":1,"e":0},"AUS":{"p":-1.6,"t":0.07,"f":1,"e":0},"NZL":{"p":-1.5,"t":0.06,"f":1,"e":0},"PBA":{"p":-2.3,"t":0.05,"f":0.9,"e":0},"JPN":{"p":-1.5,"t":0.06,"f":1,"e":0}};
 class Match{
   constructor(h,a,o={}){
-    this.kind=o.kind||'reg';this.log=!!o.log;this.neutral=!!o.neutral;this.ql=(isNBA(G.teams[h])||G.teams[h].dom==='GL')&&(isNBA(G.teams[a])||G.teams[a].dom==='GL')||G.teams[h].dom==='PBA'&&G.teams[a].dom==='PBA'?720:600;
+    this.ntU=o.ntU;this.kind=o.kind||'reg';this.log=!!o.log;this.neutral=!!o.neutral;this.ql=(isNBA(G.teams[h])||G.teams[h].dom==='GL')&&(isNBA(G.teams[a])||G.teams[a].dom==='GL')||G.teams[h].dom==='PBA'&&G.teams[a].dom==='PBA'?720:600;
     this.s=[this.side(h,true),this.side(a,false)];this.bx=(()=>{try{return LGBOX[legOf(this.kind,h,a)]||LGBOX._;}catch(e){return LGBOX._;}})();
     this.q=1;this.clock=this.ql;this.poss=Math.random()<.5?0:1;this.ev=[];this.flow=[{t:0,d:0}];this.done=false;this.stint=-1;this.qp=[[],[]];this.mom=[0,0];
     this.dbl=[null,null];if(G.dbl&&(h===G.user||a===G.user)){const ui=h===G.user?0:1;if(G.dbl.opp===this.s[1-ui].tid&&this.s[1-ui].ord.some(p=>p.id===G.dbl.pid))this.dbl[ui]=G.dbl.pid;}
@@ -1100,7 +1100,7 @@ class Match{
     const t=G.teams[tid];let ord=forDress(t.order.map(id=>G.players[id]).filter(p=>p.inj<=0&&!(p.rest&&tid===G.user)),t,kindRule(t,this.kind));
     if(ord.length<5)ord=ord.concat(t.order.map(id=>G.players[id]).filter(p=>p.inj>0)).slice(0,Math.max(5,ord.length));
     const box={},tgt={},k=this.ql/600;ord.forEach((p,i)=>{box[p.id]=blank();tgt[p.id]=minTgt(p,i,tid,k);});
-    return {tid,home,ord,box,tgt,on:[],pts:0,tac:tid===G.user?G.tactics:(t.tac=aiStyle(t)),to:this.ql===720?4:2,hc:hcBonus(tid)+finMalus(tid),pf:{},out:{},fat:{},tf:0,man:false};
+    return {tid,home,ord,box,tgt,on:[],pts:0,tac:(tid===G.user||tid===this.ntU)?G.tactics:(t.tac=aiStyle(t)),to:this.ql===720?4:2,hc:hcBonus(tid)+finMalus(tid),pf:{},out:{},fat:{},tf:0,man:false};
   }
   gtime(){const Q=this.ql;return this.q<=4?(this.q-1)*Q+(Q-this.clock):4*Q+(this.q-5)*300+(300-this.clock);}
   rotate(){
@@ -1140,7 +1140,7 @@ class Match{
     const keep=fl?this.iFoul(o,d,oi):this.resolve(o,d,oi,pl);
     if(!keep)this.poss=1-oi;
     for(let i=0;i<2;i++)if(this.s[i].pts>before[i]){this.run_[i]+=this.s[i].pts-before[i];this.run_[1-i]=0;}
-    if(this.log)for(let i=0;i<2;i++)if(i!==this.manual&&this.run_[1-i]>=8&&this.s[i].to>0&&this.s[i].tid!==G.user)this.timeout(i);
+    if(this.log)for(let i=0;i<2;i++)if(i!==this.manual&&this.run_[1-i]>=8&&this.s[i].to>0&&this.s[i].tid!==G.user&&this.s[i].tid!==this.ntU)this.timeout(i);
     this.flow.push({t:this.gtime(),d:this.s[0].pts-this.s[1].pts});
     if(this.clock<=0)this.endPeriod();
   }
@@ -1292,7 +1292,7 @@ function staffFx(){
   const neg=tm.length?clamp((Math.max(...tm)-50)/1000,0,.05):0;
   return {train:train*(1+.06*sk('dev')),injury:clamp(1.35-med*.6,.7,1.35)*(1-.05*sk('med')),neg:neg+.01*sk('neg'),acN:ac.length,docN:doc.length};
 }
-const hcBonus=tid=>{if(tid===G.user)return sk('tac')*.0025;const h=staffOf(tid,'HC')[0];return h?(h.r.tac-76)*.0008:0;};
+const hcBonus=tid=>{if(tid===G.user||(G.teams[tid]&&G.teams[tid].ntU))return sk('tac')*.0025;const h=staffOf(tid,'HC')[0];return h?(h.r.tac-76)*.0008:0;};
 function hireStaff(id){
   const st=G.staffFA.find(x=>x.id===id);if(!st)return 'This person is no longer available.';
   const role=st.role==='HC'?'AC':st.role;
@@ -1534,7 +1534,7 @@ function ensureFinance(){
   }
   if(!G.fin.st)G.fin.st=userFinState();
 }
-const finMalus=tid=>{const st=teamFinState(tid);return st==='crisis'?-.012:st==='admin'?-.02:0;};
+const finMalus=tid=>{if(G.teams[tid]&&G.teams[tid].nt)return 0;const st=teamFinState(tid);return st==='crisis'?-.012:st==='admin'?-.02:0;};
 
 /* ===================== AI transfers with fees ===================== */
 // Clubs buy players under contract from other clubs: richer leagues buy from poorer ones, bigger clubs from smaller ones in the same
@@ -3843,7 +3843,7 @@ function ntQualified(C){const S=ntStrAll(NT_EUR,false);return Object.values(C.gr
 // one window: call-ups (in season), two game days, effects on the players, news
 function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inSeason=w.day>=0&&!silent,nats=[...new Set(Object.values(C.groups).flat())],sq={},S={};
   const J=G.nt.job,key=C.id+':'+C.wins.indexOf(w);for(const c of nats){const me=J&&J.c===c;sq[c]=me?ntUserSquad(c,w.day>=0,key):ntPool(c,w.day>=0);S[c]=ntStr(c,sq[c])+(me?ntCoachBonus():0);}
-  const from=w.dd||0,to=upto==null?w.days.length:Math.min(w.days.length,from+upto);for(let i=from;i<to;i++)for(const [h,a] of w.days[i]){const r=ntGame(h,a,S,false);w.res.push(r);ntApply(C.tab,r);}w.dd=to;if(to<w.days.length){save();return;}
+  const from=w.dd||0,to=upto==null?w.days.length:Math.min(w.days.length,from+upto);for(let i=from;i<to;i++)for(const [h,a] of w.days[i]){const o=w.ovr&&w.ovr[i],r=o&&o[0]===h&&o[1]===a?o.slice():ntGame(h,a,S,false);w.res.push(r);ntApply(C.tab,r);}w.dd=to;if(to<w.days.length){save();return;}
   w.done=true;if(G.nt.pend!=null&&C.wins[G.nt.pend]===w)G.nt.pend=null;const U=G.user,mine=[],hurt=[];
   for(const c of nats)for(const p of sq[c]){p.ntc=(p.ntc||0)+2;p.ntN=c;if(!inSeason)continue;
     p.energy=Math.max(40,(p.energy==null?100:p.energy)-rnd(6,14));moodAdd(p,3);if((p.inj||0)<=0&&Math.random()<.025){injSet(p,70);if(p.tid===U)hurt.push(`${pname(p)} (${p.injT}, out ${p.inj} games)`);}
@@ -3855,7 +3855,7 @@ function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inS
   if(C.wins.every(x=>x.done)){if(C.kind==='WC'&&C.stage==='r1')ntRound2(C);else{C.qual=ntQualified(C);C.stage='done';news(`Qualified for the ${C.name}`,`From Europe: ${C.qual.map(ntName).join(', ')}.`);}}
   try{ntJobAfterWindow(w);}catch(e){}}
 // in-season windows are played when the calendar reaches them
-function ntTick(){if(!G||preOn())return;ntInit();if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}const C=G.nt.cyc;if(!C)return;for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
+function ntTick(){if(!G||preOn())return;if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}const C=G.nt.cyc;if(!C)return;for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
     if(J&&G.day<w.day+7){if(G.nt.pend!==i){G.nt.pend=i;msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
     else ntWindow(w,false);}}
 // the coach's window that is waiting to be played
@@ -3897,6 +3897,21 @@ function ntSummer(){ntInit();const C=G.nt.cyc;if(!C)return;if(G.nt.job)G.coach.b
   if(C.year===G.season){if(C.stage!=='done'){for(const w of C.wins)if(!w.done)ntWindow(w,true);if(C.stage!=='done'){C.qual=ntQualified(C);C.stage='done';}}
     ntTournament(C);let y=C.year+2;G.nt.cyc=ntCycle(y);if(G.nt.job){G.nt.job.cyc=G.nt.cyc.id;G.nt.job.tgt='';}}
   if(!G.nt.job)ntOffers();}
+
+
+/* ===================== National team games in the match engine ===================== */
+// The coach's own window games can be played like club games: two temporary teams (the two squads) are added for the game only,
+// the result goes into the window, then they are removed again.
+function ntTempClear(){if(!G)return;while(G.teams.length&&G.teams[G.teams.length-1].ntTemp)G.teams.pop();}
+function ntTempTeam(c,sq,me){const [c1,c2]=NT_COL[c]||['#2b3038','#8d949d'];const t={id:G.teams.length,short:c,name:ntName(c),city:ntName(c),c1,c2,rep:Math.round(ntStr(c,sq)),arena:`${ntName(c)} national team`,cap:10000,nat:c,order:sq.map(p=>p.id),w:0,l:0,pf:0,pa:0,form:[],staff:[],dom:'NT',nt:c,ntTemp:1,ntU:!!me};G.teams.push(t);t.tac=me?G.tactics:aiStyle(t);return t;}
+function ntUserPair(w,i){const c=G.nt.job.c;return (w.days[i]||[]).find(x=>x[0]===c||x[1]===c)||null;}
+function ntLiveStart(){const w=ntPend();if(!w)return null;const i=w.dd||0,g=ntUserPair(w,i);if(!g)return null;ntTempClear();
+  const C=G.nt.cyc,c=G.nt.job.c,key=C.id+':'+C.wins.indexOf(w),opp=g[0]===c?g[1]:g[0],sq={[c]:ntUserSquad(c,true,key),[opp]:ntPool(opp,true)};
+  const H=ntTempTeam(g[0],sq[g[0]],g[0]===c),A=ntTempTeam(g[1],sq[g[1]],g[1]===c),U=g[0]===c?H:A;
+  const m=new Match(H.id,A.id,{kind:'pre',log:true,ntU:U.id});m.ntInfo={day:i,h:g[0],a:g[1],lbl:`${C.name} · European Qualifiers · ${w.lbl} · game ${i+1}`};return m;}
+function ntLiveDone(m){const w=ntPend(),I=m.ntInfo;ntTempClear();if(!w||!I)return;w.ovr=w.ovr||{};w.ovr[I.day]=[I.h,I.a,m.s[0].pts,m.s[1].pts];
+  const c=G.nt.job.c,me=m.s[I.h===c?0:1],top=me.ord.filter(p=>me.box[p.id]&&me.box[p.id].sec>0).sort((x,y)=>me.box[y.id].pts-me.box[x.id].pts).slice(0,3).map(p=>`${pname(p)} ${me.box[p.id].pts} pts`);
+  w.box=w.box||{};w.box[I.day]=top;ntWindow(w,false,1);save();return top;}
 
 function nlProject(L){if(!L||L.po||L.phase==='done'||L.code==='GL'||L.code==='NCAA')return null;
   const P=Object.assign({},L,{tab:JSON.parse(JSON.stringify(L.tab||{})),hist:{},res:[],po:null,up:[],down:[],seeds:null,seedsA:null,champ:null,ch:null,natCh:null,phase:'wait'});
