@@ -531,7 +531,7 @@ function ntHTML(){const N=G.nt;if(!N||!N.cyc)return card('National teams','<div 
     else{const md=['🥇','🥈','🥉'];
       body=`<div class="cb"><p style="margin:0"><b>${esc(T.name)}</b> · ${T.podium.map((c,i)=>`${md[i]} ${esc(ntName(c))}`).join(' · ')}</p></div>
       <div class="cb"><h4 style="margin:0 0 6px">First round</h4><div class="g-2e">${Object.entries(T.final1).map(([k,g])=>ntTable(g,T.tab,2,`Group ${k}`)).join('')}</div></div>
-      ${T.final2?`<div class="cb"><h4 style="margin:0 0 6px">Second round</h4><div class="g-2e">${Object.entries(T.final2).map(([k,g])=>ntTable(g,T.tab2,2,`Group ${k}`)).join('')}</div></div>`:''}
+      ${T.final2?`<div class="cb"><h4 style="margin:0 0 6px">Second round</h4><div class="g-2e">${Object.entries(T.final2).map(([k,g])=>ntTable(g,T.tab2,2,`Group ${k}`)).join('')}</div></div>`:''}${T.final3?`<div class="cb"><h4 style="margin:0 0 6px">Classification 17–32</h4><div class="g-2e">${Object.entries(T.final3).map(([k,g])=>ntTable(g,T.tab3,0,`Group ${k}`)).join('')}</div></div>`:''}
       <div class="cb"><h4 style="margin:0 0 6px">Knockout</h4>${T.ko.r16?`<p class="mut" style="margin:6px 0 2px">Round of 16</p><div class="rg">${T.ko.r16.map(ntRes).join('')}</div>`:''}<p class="mut" style="margin:6px 0 2px">Quarter-finals</p><div class="rg">${T.ko.qf.map(ntRes).join('')}</div><p class="mut" style="margin:6px 0 2px">Semi-finals</p><div class="rg">${T.ko.sf.map(ntRes).join('')}</div><p class="mut" style="margin:6px 0 2px">Third place</p><div class="rg">${ntRes(T.ko.bronze)}</div><p class="mut" style="margin:6px 0 2px">Final</p><div class="rg">${ntRes(T.ko.fin)}</div></div>`;}}
   else body=N.hist.length?`<div class="tw"><table><thead><tr><th>Year</th><th>Tournament</th><th>Gold</th><th>Silver</th><th>Bronze</th></tr></thead><tbody>${N.hist.map(h=>`<tr><td>${h.y}</td><td>${esc(h.name)}</td><td>${esc(ntName(h.podium[0]))}</td><td>${esc(ntName(h.podium[1]))}</td><td>${esc(ntName(h.podium[2]))}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty"><p class="mut">No tournament played yet in this career. The first is the FIBA Basketball World Cup 2027 in Qatar.</p></div>';
   return card('National teams · FIBA',`<div class="sec">${tabs}</div>${body}`);}
@@ -1269,8 +1269,10 @@ const ACT={
   ntauto(){ntAuto();render();},
   ntlive(v){const m=ntLiveStart();if(!m){toast('No game to play');return;}UI.boxSide=m.s[0].tid===m.ntU?0:1;if(+v)m.manual=UI.boxSide;else m.run();UI.match={m,speed:1,paused:false,timer:null};UI.view='match';render();window.scrollTo(0,0);if(+v)startTimer();},
   ntday(){ntPlayDay(false);toast(ntPend()?'Game 1 played':'Window complete');render();},
-  ntdayall(){const t=ntPend()&&ntPend().tour;ntPlayDay(true);toast(t?'Tournament complete':'Window complete');render();},
+  ntdayall(){const t=ntPend()&&ntPend().tour;ntPlayDay(true);toast(t?'Tournament complete':'Window complete');UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
   ntall(){UI.ntAll=!UI.ntAll;render();},
+  ntsumok(){if(G.nt)G.nt.tourSum=null;save();render();},
+  ntsumall(){UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='t';UI.modal=null;render();window.scrollTo(0,0);},
   ntopen(){UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub=G.nt&&G.nt.job?'m':'m';UI.modal=null;render();window.scrollTo(0,0);},
   decline(id){const m=G.inbox.find(x=>x.id===+id);if(m){m.done='Declined';if(m.type==='exjob'&&m.act)exElsewhere(m.act.sid);save();}render();},
   list(id){id=+id;if(G.listed.includes(id))G.listed=G.listed.filter(x=>x!==id);else{G.listed.push(id);toast('Listed. Offers will arrive in your inbox.');}save();render();},
@@ -1374,7 +1376,7 @@ const ACT={
   stafffire(id){const e=fireStaff(+id);toast(e||'Staff member released');render();},
   staffclub(i){UI.staffClub=+i;render();},staffrole(k){UI.staffRole=k;render();},
   boxside(i){UI.boxSide=+i;if(UI.match)document.getElementById('box').innerHTML=boxHTML(UI.match.m);render();},
-  matchdone(next){if(UI.match&&UI.match.m&&UI.match.m.ntInfo){const m=UI.match.m;clearInterval(UI.match.timer);UI.match=null;ntLiveDone(m);UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast('International game complete');return;}UI.pressRes=null;const m=UI.match.m;clearInterval(UI.match.timer);UI.match=null;const lbl=simStep(m);UI.view='main';UI.tab=typeof next==='string'?next:'home';render();window.scrollTo(0,0);toast(`${lbl} complete`);},
+  matchdone(next){if(UI.match&&UI.match.m&&UI.match.m.ntInfo){const m=UI.match.m;clearInterval(UI.match.timer);UI.match=null;ntLiveDone(m);UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast(!ntPend()&&G.nt.tourSum?'The tournament is over for '+ntName(G.nt.tourSum.c):'International game complete');return;}UI.pressRes=null;const m=UI.match.m;clearInterval(UI.match.timer);UI.match=null;const lbl=simStep(m);UI.view='main';UI.tab=typeof next==='string'?next:'home';render();window.scrollTo(0,0);toast(`${lbl} complete`);},
   jobyes(id){const m=G.inbox.find(x=>x.id===+id);if(!m||!m.act)return;G.pendingJob=m.act.tid;for(const x of G.inbox)if(x.type==='job'&&!x.done)x.done=x===m?'Accepted \u00b7 you move next season':'Declined';save();toast(`You take over ${G.teams[m.act.tid].name} next season`);render();},
   newseason(){if(meetDue()){meetStart();UI.modal={kind:'meet'};render();return;}if(extDue()){if(extRefused()){leaveExpired();render();window.scrollTo(0,0);return;}ACT.extneg();toast('Settle your contract first');return;}if(ctDue()){UI.modal={kind:'contracts',gate:true};render();return;}G.ndg=[];newSeason();newsFlush();if(G.pendingJob!=null){const t=G.pendingJob;G.pendingJob=null;takeJob(t);}pledgeApply();preInit();save();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast(`Welcome to the ${seasonStr()} season`);},
   meetgo(){if(meetDue())meetStart();UI.modal={kind:'meet'};render();},
@@ -1457,7 +1459,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.modal){UI.modal=
 function scrollChat(){const c=document.getElementById('negchat');if(c)c.scrollTop=c.scrollHeight;}
 
 /* ===================== Home: the national team window ===================== */
-function ntHomeCard(){const N=G.nt,J=N&&N.job;if(!J||!N.cyc)return '';const C=N.cyc,c=J.c,[ca,cb]=NT_COL[c]||['#1f2937','#374151'],pw=ntPend();
+function ntHomeCard(){const N=G.nt,J=N&&N.job;if(N&&N.tourSum&&N.last)return ntSumCard(N.tourSum,N.last);if(!J||!N.cyc)return '';const C=N.cyc,c=J.c,[ca,cb]=NT_COL[c]||['#1f2937','#374151'],pw=ntPend();
   const grp=Object.keys(C.groups).find(k=>C.groups[k].includes(c)),gd=(i,w)=>{const d=ntWDate(w,i);return d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();};
   const table=()=>grp?`<div class="ntw-t"><small>Group ${grp}</small>${ntSort(C.groups[grp],C.tab).map((x,i)=>{const r=ntRec(C.tab,x);return `<div class="${x===c?'me':''}${i<3?' q':''}"><span>${i+1}</span>${ntFlag(x,20)}<b>${esc(ntName(x))}</b><em>${r.w}–${r.l}</em></div>`;}).join('')}<p>${C.stage==='r1'?'Top 3 reach the second round, their results carry over':`Top 3 qualify for the ${esc(C.name)}`}</p></div>`:'';
   const games=w=>w.days.map((d,i)=>{const g=d.find(x=>x[0]===c||x[1]===c);if(!g||(w.tour&&(i<w.dd-2||i>w.dd)))return '';const home=g[0]===c,o=home?g[1]:g[0],r=w.res.find(x=>x[0]===g[0]&&x[1]===g[1]),me=r?(home?r[2]:r[3]):null,op=r?(home?r[3]:r[2]):null,won=r&&me>op;
@@ -1476,14 +1478,23 @@ function ntHomeCard(){const N=G.nt,J=N&&N.job;if(!J||!N.cyc)return '';const C=N.
     return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window in ${n} day${n===1?'':'s'}</small><h2>${esc(ntName(c))}</h2><span>${esc(E.lbl)} · ${N.sel&&N.sel.key===E.key?'squad picked':'pick your twelve'}</span></div><button class="ntw-go" data-act="ntopen">Pick squad</button></div></section>`;}
   return '';}
 homeHTML=(o=>()=>ntHomeCard()+o())(homeHTML);
+// the tournament is over for the coach: his games, where he finished, the podium, the federation's verdict
+function ntSumCard(X,T){const c=X.c,[ca,cb]=NT_COL[c]||['#1f2937','#374151'],m=T.podium.indexOf(c),md=['🥇','🥈','🥉'],nm=T.kind==='EB'?'EuroBasket':'World Cup';
+  const g=X.games.map(r=>{const home=r[0]===c,o=home?r[1]:r[0],me=home?r[2]:r[3],op=home?r[3]:r[2],won=me>op;return `<div class="ntw-g ${won?'w':'l'}"><div class="ntw-m">${ntFlag(c,36)}<b>${esc(ntName(c))}</b><strong>${me}<i>–</i>${op}</strong><b>${esc(ntName(o))}</b>${ntFlag(o,36)}</div><div class="ntw-r">${won?'WIN':'LOSS'}</div></div>`;}).join('');
+  const v=X.games.filter(r=>(r[0]===c)===(r[2]>r[3])).length;
+  return `<section class="ntw ntsum" style="--na:${ca};--nb:${cb}"><div class="ntw-wm">${ntFlag(c,520)}</div><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,96)}</div><div><small>${esc(T.name)} · the tournament is over for ${esc(ntName(c))}</small><h2>${m>=0?md[m]+' ':''}${esc(X.res)}</h2><span>${v}–${X.games.length-v} in ${X.games.length} games · ${esc(nm)} ${T.year}: ${T.podium.map((x,i)=>`${md[i]} ${esc(ntName(x))}`).join(' · ')}</span></div></div>
+  <div class="ntw-b"><div class="ntw-gs ntsum-g">${g}</div><div class="ntw-t ntsum-v"><small>The federation</small>${X.verdict.map(x=>`<b>${esc(x.s)}</b><p>${esc(x.b)}</p>`).join('')||'<p>No verdict yet.</p>'}</div></div>
+  <div class="ntw-a"><button class="ntw-go" data-act="ntsumok">Back to the club season</button><button class="ntw-go3" data-act="ntsumall">Full tournament</button></div></section>`;}
 // the coach's group at the tournament (first round, or the World Cup second round once it is set)
-function ntTourTbl(c){const T=G.nt.tour&&G.nt.tour.T;if(!T)return '';const two=T.ph!=='g1'&&T.g2&&Object.keys(T.g2).length,G2=two?T.g2:T.groups,tab=two?T.tab2:T.tab,k=Object.keys(G2).find(k=>G2[k].includes(c));if(!k)return '';
+function ntTourTbl(c){const T=G.nt.tour&&G.nt.tour.T;if(!T)return '';
+  if(T.ph!=='g1'&&T.cl){const k=Object.keys(T.cl).find(k=>T.cl[k].includes(c));if(k)return `<div class="ntw-t"><small>Classification 17–32 · Group ${k}</small>${ntSort(T.cl[k],T.tab3,T.str).map((x,i)=>{const r=ntRec(T.tab3,x);return `<div class="${x===c?'me':''}"><span>${i+1}</span>${ntFlag(x,20)}<b>${esc(ntName(x))}</b><em>${r.w}–${r.l}</em></div>`;}).join('')}<p>Out of the medal race: two more games for the final placing. The game against your group rival carries over.</p></div>`;}const two=T.ph!=='g1'&&T.g2&&Object.keys(T.g2).length,G2=two?T.g2:T.groups,tab=two?T.tab2:T.tab,k=Object.keys(G2).find(k=>G2[k].includes(c));if(!k)return '';
   const cut=two?2:T.kind==='EB'?4:2,note=two?'Top 2 reach the quarter-finals':T.kind==='EB'?'Top 4 reach the round of 16':'Top 2 reach the second round';
   return `<div class="ntw-t"><small>${two?'Second round · ':''}Group ${k}</small>${ntSort(G2[k],tab,T.str).map((x,i)=>{const r=ntRec(tab,x);return `<div class="${x===c?'me':''}${i<cut?' q':''}"><span>${i+1}</span>${ntFlag(x,20)}<b>${esc(ntName(x))}</b><em>${r.w}–${r.l}</em></div>`;}).join('')}<p>${note}</p></div>`;}
 function ntTourLiveHTML(){const {T,w}=G.nt.tour,two=T.g2&&Object.keys(T.g2).length,ko=[['r16','Round of 16'],['qf','Quarter-finals'],['sf','Semi-finals']].filter(([k])=>T.ko[k]);
   return `<div class="cb"><p style="margin:0"><b>${esc(T.name)}</b> · in progress · ${esc(w.lbl||'')}</p></div>
   <div class="cb"><h4 style="margin:0 0 6px">First round</h4><div class="g-2e">${Object.entries(T.groups).map(([k,g])=>ntTable(g,T.tab,T.kind==='EB'?4:2,`Group ${k}`)).join('')}</div></div>
   ${two?`<div class="cb"><h4 style="margin:0 0 6px">Second round</h4><div class="g-2e">${Object.entries(T.g2).map(([k,g])=>ntTable(g,T.tab2,2,`Group ${k}`)).join('')}</div></div>`:''}
+  ${T.cl&&T.tab3?`<div class="cb"><h4 style="margin:0 0 6px">Classification 17–32</h4><div class="g-2e">${Object.entries(T.cl).map(([k,g])=>ntTable(g,T.tab3,0,`Group ${k}`)).join('')}</div></div>`:''}
   ${ko.length?`<div class="cb"><h4 style="margin:0 0 6px">Knockout</h4>${ko.map(([k,l])=>`<p class="mut" style="margin:6px 0 2px">${l}</p><div class="rg">${T.ko[k].map(ntRes).join('')}</div>`).join('')}</div>`:''}
   ${w.dd<w.days.length?`<div class="cb"><h4 style="margin:0 0 6px">Next: ${esc(w.rl[w.dd])}</h4><div class="rg">${w.days[w.dd].map(([h,a])=>ntRes([h,a,null,null])).join('')}</div></div>`:''}`;}
 
@@ -1497,7 +1508,7 @@ function ntHeaderHTML(){const J=G.nt.job,c=J.c,C=G.nt.cyc,E=ntNextEvent(),grp=Ob
   const w=ntPend(),g=w?ntUserPair(w,w.dd||0):null,opp=g?(g[0]===c?g[1]:g[0]):null;
   return `<header class="hdr"><div class="brand"><div class="t1">BASKETBALL MANAGER</div><div class="t2">NATIONAL TEAM <small>${c}</small></div></div><div class="stripe"></div>
   <div class="hmid"><div class="date"><b>${dateStr(w?ntWDate(w,w.dd||0):undefined)}</b><span>${w&&w.tour?esc(w.name.replace('FIBA Basketball ','').replace('FIBA ','')):w&&w.day<0?esc(w.lbl):E?esc(E.lbl):'National team'}${opp?` · ${w.tour?esc(ntRl(w,w.dd||0,c)):`game ${(w.dd||0)+1}`} vs ${esc(ntName(opp))}`:` · ${C.kind==='EB'?'EuroBasket':'World Cup'} Qualifiers`}</span></div>
-  <div class="hstat">${w&&w.tour?(()=>{const r=w.res.filter(x=>x[0]===c||x[1]===c),v=r.filter(x=>(x[0]===c)===(x[2]>x[3])).length;return `<small>${esc(w.name.replace('FIBA ',''))}</small><b>${v}–${r.length-v}</b>`;})():`<small>Group ${grp||'–'}</small><b>${rk?ordn(rk):'–'} · ${rec.w}–${rec.l}</b>`}</div>
+  <div class="hstat">${w&&w.tour?(()=>{const r=w.res.filter(x=>x[0]===c||x[1]===c),v=r.filter(x=>(x[0]===c)===(x[2]>x[3])).length;return `<small>${esc(w.name.replace('FIBA Basketball ','').replace('FIBA ',''))}</small><b>${v}–${r.length-v}</b>`;})():`<small>Group ${grp||'–'}</small><b>${rk?ordn(rk):'–'} · ${rec.w}–${rec.l}</b>`}</div>
 </div>
   <button class="cont" data-act="continue" ${live?'disabled':''}>${contLabel()}${IC.arrow}</button></header>`;}
 function ntClubHTML(){const J=G.nt.job,c=J.c,unread=G.inbox.filter(m=>!m.read).length,club=G.teams[G.user];
