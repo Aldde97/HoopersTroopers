@@ -3789,9 +3789,8 @@ function ntWC27(){const tab={},T={UKR:[6,2],ESP:[5,3],GEO:[5,3],POR:[4,4],GRE:[4
 // later cycles: EuroBasket in 2029, 2033 ...; World Cup in 2031, 2035 ... with the same European format as 2027
 function ntCycle(year){const S=ntStrAll(NT_EUR,false),seed=NT_EUR.slice().sort((a,b)=>S[b]-S[a]),G8=ntSnake(seed,8),L='ABCDEFGH';const groups={};G8.forEach((g,i)=>groups[L[i]]=g);
   const fx=k=>Object.values(groups).flatMap(g=>rr4(g)[k]);
-  if((year-2029)%4===0){const s0=year-2;// windows Nov and Feb of season year-2, Feb of season year-1
-    return {id:'EB'+year,kind:'EB',year,name:`FIBA EuroBasket ${year}`,stage:'q',groups,tab:{},
-      wins:[{s:s0,day:56,lbl:`November ${s0} window`,days:[fx(0),fx(1)],done:false,res:[]},{s:s0,day:147,lbl:`February ${s0+1} window`,days:[fx(2),fx(3)],done:false,res:[]},{s:s0+1,day:147,lbl:`February ${s0+2} window`,days:[fx(4),fx(5)],done:false,res:[]}]};}
+  if((year-2029)%4===0){const s0=year-2;// windows Feb of season year-2, Nov and Feb of season year-1
+    return {id:'EB'+year,kind:'EB',year,name:`FIBA EuroBasket ${year}`,stage:'q',groups,tab:{},hosts:NT_EBHOST[year]||[],wins:ntEBWins(s0,fx)};}
   const s0=year-2;// World Cup: first round Nov, Feb and July (summer), second round August (summer), Nov, Feb
   return {id:'WC'+year,kind:'WC',year,name:`FIBA Basketball World Cup ${year}`,stage:'r1',groups,tab:{},
     wins:[{s:s0,day:56,lbl:`November ${s0} window`,days:[fx(0),fx(1)],done:false,res:[]},{s:s0,day:147,lbl:`February ${s0+1} window`,days:[fx(2),fx(3)],done:false,res:[]},{s:s0+1,day:-1,lbl:`July ${s0+1} window`,days:[fx(4),fx(5)],done:false,res:[]}]};}
@@ -3809,9 +3808,9 @@ function ntTakeJob(c){if(!G.nt||!G.nt.offers||!G.nt.offers.list.includes(c))retu
   G.nt.job={c,since:G.season,cyc:C.id,sal:ntSal(c),q:0};G.nt.offers=null;G.nt.sel=null;
   msg(`${ntName(c)} Basketball Federation`,`Head coach of ${ntName(c)}`,`Welcome. You coach ${ntName(c)} alongside your club. Our target: ${ntTarget()}. You pick the squad for every window and tournament on the National teams page. The federation pays you ${eur(G.nt.job.sal)} per year.`,'nt');save();return null;}
 function ntResign(){const J=G.nt&&G.nt.job;if(!J)return;news(`${G.mgr} leaves ${ntName(J.c)}`,`${G.mgr} has stepped down as head coach of the ${ntName(J.c)} national team.`);G.nt.job=null;G.nt.sel=null;ntOffers();save();}
-function ntTarget(){const J=G.nt&&G.nt.job,C=G.nt&&G.nt.cyc;if(!J||!C)return '';if(C.stage!=='done'||!(C.qual||[]).includes(J.c))return `qualify for the ${C.name}`;
+function ntTarget(){const J=G.nt&&G.nt.job,C=G.nt&&G.nt.cyc;if(!J||!C)return '';if(!(C.hosts||[]).includes(J.c)&&(C.stage!=='done'||!(C.qual||[]).includes(J.c)))return `qualify for the ${C.name}`;
   const i=ntRankEur().indexOf(J.c);return C.kind==='EB'?(i<4?'reach the semi-finals of EuroBasket':i<10?'reach the quarter-finals of EuroBasket':'reach the round of 16 at EuroBasket'):(i<3?'reach the semi-finals of the World Cup':i<8?'reach the quarter-finals of the World Cup':'reach the second round of the World Cup');}
-function ntSack(why){const J=G.nt.job;if(!J)return;msg(`${ntName(J.c)} Basketball Federation`,'You are relieved of your duties',`${why} The federation has decided to part ways with you as head coach of ${ntName(J.c)}.`,'nt');news(`${ntName(J.c)} part ways with ${G.mgr}`,`${why}`);G.nt.job=null;G.nt.sel=null;ntOffers();}
+function ntSack(why){const J=G.nt.job;if(!J)return;msg(`${ntName(J.c)} Basketball Federation`,'You are relieved of your duties',`${why} The federation has decided to part ways with you as head coach of ${ntName(J.c)}.`,'nt');news(`${ntName(J.c)} part ways with ${G.mgr}`,`${why}`);G.nt.job=null;G.nt.sel=null;ntOffers();const L=G.nt.offers&&G.nt.offers.list||[];if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team. See Competitions \u203a National teams.`,'nt');}
 // the next event the user picks a squad for
 function ntNextEvent(){const C=G.nt&&G.nt.cyc;if(!C)return null;const w=C.wins.find(x=>!x.done);
   if(w)return {key:C.id+':'+C.wins.indexOf(w),win:w.day>=0,lbl:w.day<0?`${w.lbl} (played in the summer, everyone available)`:w.lbl,w};
@@ -3860,7 +3859,12 @@ function ntRound2(C){const L='ABCDEFGH',N='IJKL',g={},sub={};const S=ntStrAll(NT
   C.r1groups=C.groups;C.groups=g;C.stage='r2';const fx=k=>Object.values(sub).flatMap(([X,Y])=>rr6x(X,Y)[k]),y=C.year;
   C.wins.push({s:y-1,day:-1,lbl:`August ${y-1} window`,days:[fx(0),fx(1)],done:false,res:[]},{s:y-1,day:56,lbl:`November ${y-1} window`,days:[fx(2),fx(3)],done:false,res:[]},{s:y-1,day:147,lbl:`February ${y} window`,days:[fx(4),fx(5)],done:false,res:[]});
   news('World Cup Qualifiers: second round set',`${Object.entries(g).map(([k,v])=>`Group ${k}: ${v.map(ntName).join(', ')}`).join('. ')}. Results from the first round carry over.`);}
-function ntQualified(C){const S=ntStrAll(NT_EUR,false);return Object.values(C.groups).flatMap(g=>ntSort(g,C.tab,S).slice(0,3));}
+const NT_EBHOST={2029:['EST','GRE','SLO','ESP']};
+const ntEBWins=(s0,fx)=>[{s:s0,day:147,lbl:`February ${s0+1} window`,days:[fx(0),fx(1)],done:false,res:[]},{s:s0+1,day:56,lbl:`November ${s0+1} window`,days:[fx(2),fx(3)],done:false,res:[]},{s:s0+1,day:147,lbl:`February ${s0+2} window`,days:[fx(4),fx(5)],done:false,res:[]}];
+// saves made before: a EuroBasket cycle with the old calendar that has not started yet gets the real one
+function ntCycFix(){const C=G.nt&&G.nt.cyc;if(!C||C.kind!=='EB'||C.wins.some(w=>w.done||w.dd))return;if(!C.hosts)C.hosts=NT_EBHOST[C.year]||[];if(!/^November/.test(C.wins[0].lbl))return;
+  const fx=k=>Object.values(C.groups).flatMap(g=>rr4(g)[k]);C.wins=ntEBWins(C.year-2,fx);G.nt.rem={};}
+function ntQualified(C){const S=ntStrAll(NT_EUR,false),H=C.hosts||[];return Object.values(C.groups).flatMap(g=>{const o=ntSort(g,C.tab,S),h=o.filter(c=>H.includes(c));return h.concat(o.filter(c=>!H.includes(c)).slice(0,Math.max(0,3-h.length)));});}
 // one window: call-ups (in season), two game days, effects on the players, news
 function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inSeason=w.day>=0&&!silent,nats=[...new Set(Object.values(C.groups).flat())],sq={},S={};
   const J=G.nt.job,key=C.id+':'+C.wins.indexOf(w);for(const c of nats){const me=J&&J.c===c;sq[c]=me?ntUserSquad(c,w.day>=0,key):ntPool(c,w.day>=0);S[c]=ntStr(c,sq[c])+(me?ntCoachBonus():0);}
@@ -3876,7 +3880,7 @@ function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inS
   if(C.wins.every(x=>x.done)){if(C.kind==='WC'&&C.stage==='r1')ntRound2(C);else{C.qual=ntQualified(C);C.stage='done';news(`Qualified for the ${C.name}`,`From Europe: ${C.qual.map(ntName).join(', ')}.`);}}
   try{ntJobAfterWindow(w);}catch(e){}}
 // in-season windows are played when the calendar reaches them
-function ntTick(){if(!G||preOn())return;try{ntFill();}catch(e){}if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}const C=G.nt.cyc;if(!C)return;for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
+function ntTick(){if(!G||preOn())return;try{ntFill();}catch(e){}if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();try{ntCycFix();}catch(e){}if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}const C=G.nt.cyc;if(!C)return;for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
     if(J){if(G.nt.pend!==i){G.nt.pend=i;if(typeof UI!=='undefined')UI.ntv=undefined;{const k=C.id+':'+i,sq=ntUserSquad(J.c,true,k);G.nt.sel={key:k,ids:sq.map(p=>p.id)};msg(`${ntName(J.c)} Basketball Federation`,`Squad announced: ${ntName(J.c)}`,`The twelve for the ${w.lbl}: ${sq.map(p=>pname(p)).join(', ')}. Call-ups are now closed; set the starting five and rotation on the Squad tab.`,'nt');}msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
     else ntWindow(w,false);}}
 // the coach's window that is waiting to be played
