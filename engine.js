@@ -3812,7 +3812,7 @@ function ntTarget(){const J=G.nt&&G.nt.job,C=G.nt&&G.nt.cyc;if(!J||!C)return '';
   const i=ntRankEur().indexOf(J.c);return C.kind==='EB'?(i<4?'reach the semi-finals of EuroBasket':i<10?'reach the quarter-finals of EuroBasket':'reach the round of 16 at EuroBasket'):(i<3?'reach the semi-finals of the World Cup':i<8?'reach the quarter-finals of the World Cup':'reach the second round of the World Cup');}
 function ntSack(why){const J=G.nt.job;if(!J)return;msg(`${ntName(J.c)} Basketball Federation`,'You are relieved of your duties',`${why} The federation has decided to part ways with you as head coach of ${ntName(J.c)}.`,'nt');news(`${ntName(J.c)} part ways with ${G.mgr}`,`${why}`);G.nt.job=null;G.nt.sel=null;ntOffers();const L=G.nt.offers&&G.nt.offers.list||[];if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team. See Competitions \u203a National teams.`,'nt');}
 // the next event the user picks a squad for
-function ntNextEvent(){const C=G.nt&&G.nt.cyc;if(!C)return null;const pt=G.nt.tour;if(pt&&pt.mine&&!pt.w.done)return {key:pt.w.key,win:false,lbl:pt.w.name};const w=C.wins.find(x=>!x.done),og=ntOgEv();if(og&&!(w&&w.s<og.y))return og;
+function ntNextEvent(){const C=G.nt&&G.nt.cyc;if(!C)return null;const pt=G.nt.tour;if(G.nt.camp)return {key:G.nt.camp.w.key,win:false,lbl:G.nt.camp.w.name};if(pt&&pt.mine&&!pt.w.done)return {key:pt.w.key,win:false,lbl:pt.w.name};const w=C.wins.find(x=>!x.done),og=ntOgEv();if(og&&!(w&&w.s<og.y))return og;
   if(w)return {key:C.id+':'+C.wins.indexOf(w),win:w.day>=0,lbl:w.day<0?`${w.lbl} (played in the summer, everyone available)`:w.lbl,w};
   if(C.stage==='done')return {key:C.id+':T',win:false,lbl:`${C.name} (summer ${C.year})`};return null;}
 const ntAvail=(p,win)=>{if(win&&(p.inj||0)>2)return false;if(win&&p.ntCol)return false;if(!win||p.tid==null)return true;const t=G.teams[p.tid];return !!t&&!!t.dom&&!isNBA(t)&&t.dom!=='NCAA';};
@@ -3821,9 +3821,9 @@ function ntUserSquad(c,win,key,show){const auto=ntCap(Object.values(G.players).f
   if(!s||s.key!==key)return auto;const ok=ntCap(s.ids.map(i=>G.players[i]).filter(p=>p&&ntNatOf(p)===c&&p.age>=18&&ntAvail(p,win)));
   return ok.length>=8||show?ok:ntCap(ok.concat(auto.filter(p=>!ok.includes(p))));}
 function ntPick(pid){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;if(typeof ntPend==='function'&&ntPend())return 'Call-ups are closed: the twelve for this window are already with the team.';const p=G.players[pid];if(!p||ntNatOf(p)!==J.c)return;
-  if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};
-  const L=G.nt.sel.ids,i=L.indexOf(pid);if(i>=0)L.splice(i,1);else{if(!ntAvail(p,E.win))return 'He is not available for this window.';if(L.length>=12)return 'The squad is full (12). Remove a player first.';const nz=L.map(i=>G.players[i]).find(q=>q&&ntIsNat(q));if(ntIsNat(p)&&nz)return `Only one naturalised player is allowed (FIBA). ${pname(nz)} is already in the squad.`;L.push(pid);}save();return null;}
-function ntAuto(){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E||(typeof ntPend==='function'&&ntPend()))return;G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};save();}
+  if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:(ntEvCamp(E)?ntCampAuto(J.c,[]):ntUserSquad(J.c,E.win,'')).map(x=>x.id)};
+  const L=G.nt.sel.ids,i=L.indexOf(pid);if(i>=0)L.splice(i,1);else{if(!ntAvail(p,E.win))return 'He is not available for this window.';const cm=ntEvCamp(E),lim=cm?20:12;if(L.length>=lim)return `The ${cm?'camp':'squad'} is full (${lim}). Remove a player first.`;const nzs=L.map(i=>G.players[i]).filter(q=>q&&ntIsNat(q));if(ntIsNat(p)&&nzs.length>=(cm?2:1))return cm?'Two naturalised players are already in the camp; only one can make the final twelve.':`Only one naturalised player is allowed (FIBA). ${pname(nzs[0])} is already in the squad.`;L.push(pid);}save();return null;}
+function ntAuto(){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E||(typeof ntPend==='function'&&ntPend()))return;G.nt.sel={key:E.key,ids:(ntEvCamp(E)?ntCampAuto(J.c,[]):ntUserSquad(J.c,E.win,'')).map(x=>x.id)};save();}
 
 // reminders and the federation's view of the results
 function ntJobTick(){const J=G.nt&&G.nt.job;if(!J)return;const E=ntNextEvent();if(!E)return;G.nt.rem=G.nt.rem||{};if(G.nt.rem[E.key])return;
@@ -3887,8 +3887,8 @@ function ntTick(){if(!G||preOn())return;try{ntFill();}catch(e){}if(!(typeof UI!=
     if(J){if(G.nt.pend!==i){G.nt.pend=i;if(typeof UI!=='undefined')UI.ntv=undefined;{const k=C.id+':'+i,sq=ntUserSquad(J.c,true,k);G.nt.sel={key:k,ids:sq.map(p=>p.id)};msg(`${ntName(J.c)} Basketball Federation`,`Squad announced: ${ntName(J.c)}`,`The twelve for the ${w.lbl}: ${sq.map(p=>pname(p)).join(', ')}. Call-ups are now closed; set the starting five and rotation on the Squad tab.`,'nt');}msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
     else ntWindow(w,false);}}
 // the coach's window that is waiting to be played
-const ntPend=()=>{const N=G&&G.nt;if(!N||!N.job||!N.cyc)return null;if(N.tour&&N.tour.mine&&N.tour.w&&!N.tour.w.done)return N.tour.w;if(N.pend==null)return null;const w=N.cyc.wins[N.pend];return w&&!w.done?w:null;};
-function ntPlayDay(all){const w=ntPend();if(!w)return;if(w.tour){ntTourPlay(all?null:1);if(!G.nt.tour)ntAfterTour();}else{ntWindow(w,false,all?null:1);if(w.done&&w.day<0)ntSumNext();}save();}
+const ntPend=()=>{const N=G&&G.nt;if(!N||!N.job||!N.cyc)return null;if(N.camp&&N.camp.w&&!N.camp.w.done)return N.camp.w;if(N.tour&&N.tour.mine&&N.tour.w&&!N.tour.w.done)return N.tour.w;if(N.pend==null)return null;const w=N.cyc.wins[N.pend];return w&&!w.done?w:null;};
+function ntPlayDay(all){const w=ntPend();if(!w)return;if(w.camp){ntCampPlay(all?null:1);save();return;}if(w.tour){ntTourPlay(all?null:1);if(!G.nt.tour)ntAfterTour();}else{ntWindow(w,false,all?null:1);if(w.done&&w.day<0)ntSumNext();}save();}
 // a tournament: groups, (second round for the World Cup), knockout; squads with everyone available
 function ntTournament(C){const nE=C.kind==='EB'?24:12;let field=(C.qual||ntQualified(C)).slice(0,nE);
   if(C.kind==='WC'){const S0=ntStrAll([].concat(...Object.values(NT_REG),[C.host].filter(Boolean)),false),pickR=(L,n)=>L.filter(c=>!field.includes(c)&&c!==C.host).map(c=>[c,S0[c]+ntGs()*2.5]).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
@@ -3923,9 +3923,9 @@ function ntTournament(C){const nE=C.kind==='EB'?24:12;let field=(C.qual||ntQuali
 // The World Cup and EuroBasket are played day by day at the end of the summer (late August to mid-September), the summer qualifier
 // windows in July and August. The coach of a nation that plays them coaches his games (live or simulated) like a season window;
 // the club's pre-season waits until he is done. Without a coached nation in it a tournament is simulated at once.
-const ntKey=w=>w.tour?w.key:G.nt.cyc.id+':'+G.nt.cyc.wins.indexOf(w);
+const ntKey=w=>w.tour||w.camp?w.key:G.nt.cyc.id+':'+G.nt.cyc.wins.indexOf(w);
 const ntWinF=w=>!w.tour&&w.day>=0;
-function ntWDate(w,i){if(w.tour)return new Date(w.yr,9,1+w.dates[Math.min(i,w.dates.length-1)]);const o=w.day>=0?w.day:/^July/.test(w.lbl)?-90:-38;return new Date(G.season,9,1+o+(i?3:0));}
+function ntWDate(w,i){if(w.tour||w.camp)return new Date(w.yr,9,1+w.dates[Math.min(i,w.dates.length-1)]);const o=w.day>=0?w.day:/^July/.test(w.lbl)?-90:-38;return new Date(G.season,9,1+o+(i?3:0));}
 function ntRl(w,i,c){const l=(w.rl&&w.rl[i])||'';if(/^Second round/.test(l)&&w.cl&&w.cl.includes(c))return l.replace('Second round','Classification 17–32');if(/^Final day/.test(l)){const d=w.days[i]||[];return d[0]&&(d[0][0]===c||d[0][1]===c)?'Bronze medal game':'Final';}return l;}
 function ntRR(g){const t=g.slice();if(t.length%2)t.push(null);const n=t.length,R=[];for(let r=0;r<n-1;r++){const d=[];for(let i=0;i<n/2;i++){const a=t[i],b=t[n-1-i];if(a&&b)d.push(r%2?[b,a]:[a,b]);}R.push(d);t.splice(1,0,t.pop());}return R;}
 const ntTourSq=c=>{const T=G.nt.tour&&G.nt.tour.T;return ((T&&T.sqi[c])||[]).map(i=>G.players[i]).filter(Boolean);};
@@ -3938,6 +3938,8 @@ function ntTourStart(C){const nE=C.kind==='EB'?24:12;let field=(C.qual||ntQualif
     field=field.concat(C.host?[C.host]:[],pickR(NT_REG.AM,7),pickR(NT_REG.AS,C.host?7:8),pickR(NT_REG.AF,5));}
   G.nt.tourSum=null;ntTourGo(C.kind,C.name,C.year,field,C.kind==='EB'?4:8,C.id+':T');}
 function ntTourGo(kind,name,year,field,nG,key){const N=G.nt,J=N.job;
+  // the coach's nation goes through a preparation camp first (once per event: the Olympic qualifier and the Games share it)
+  if(J&&field.includes(J.c)&&!(N.campDone&&N.campDone[key])){ntCampStart([kind,name,year,field,nG,key]);return;}
   const S={},sqi={};for(const c of field){const me=J&&J.c===c,sq=me?ntUserSquad(c,false,key):ntPool(c,false);sqi[c]=sq.map(p=>p.id);S[c]=ntStr(c,sq)+(me?ntCoachBonus():0);}
   const seed=field.slice().sort((a,b)=>S[b]-S[a]),T={name,year,kind,groups:{},g1:[],g2:{},ko:{},tab:{},field,str:S,sqi,ph:'g1'},L='ABCDEFGH';
   ntSnake(seed,nG).forEach((g,i)=>T.groups[L[i]]=g);
@@ -3946,7 +3948,7 @@ function ntTourGo(kind,name,year,field,nG,key){const N=G.nt,J=N.job;
   for(let d=0;d<nd;d++)ntTourDay(w,R.flatMap(r=>r[d]||[]),`${kind==='OQ'?'Group day':'Group game'} ${d+1}`);ntTourLbl(w);
   const mine=!!(J&&field.includes(J.c));N.tour={T,w,mine,coach:mine?J.c:null};
   if(mine){const c=J.c,gk=Object.keys(T.groups).find(k=>T.groups[k].includes(c));N.sel={key:w.key,ids:sqi[c].slice()};if(typeof UI!=='undefined')UI.ntv=undefined;
-    msg(`${ntName(c)} Basketball Federation`,`Your squad for the ${name}`,`The twelve players for the ${name}: ${sqi[c].map(i=>pname(G.players[i])).join(', ')}. ${ntName(c)} play in group ${gk} with ${T.groups[gk].filter(x=>x!==c).map(ntName).join(', ')}. Your games are on the home page, live or simulated; the club pre-season waits until the tournament is over.${kind==='WC'||kind==='EB'?` Target: ${J.tgt||ntTarget()}.`:kind==='OQ'?' Only the winner goes to the Olympic Games.':''}`,'nt');}
+    if(!(N.campDone&&N.campDone[key]&&kind!=='OG'))msg(`${ntName(c)} Basketball Federation`,`Your squad for the ${name}`,`The twelve players for the ${name}: ${sqi[c].map(i=>pname(G.players[i])).join(', ')}. ${ntName(c)} play in group ${gk} with ${T.groups[gk].filter(x=>x!==c).map(ntName).join(', ')}. Your games are on the home page, live or simulated; the club pre-season waits until the tournament is over.${kind==='WC'||kind==='EB'?` Target: ${J.tgt||ntTarget()}.`:kind==='OQ'?' Only the winner goes to the Olympic Games.':''}`,'nt');}
   else ntTourPlay(null);
   // a rest day first (groups of three): play it, the coach starts with his first game
   if(mine&&!w.days[0].some(x=>x[0]===J.c||x[1]===J.c))ntTourPlay(1);}
@@ -4005,7 +4007,7 @@ function ntTourEnd(){const N=G.nt,X=N.tour,T=X.T,J=N.job,U=G.user,mine=[],medal=
 // five winners of the pre-qualifying tournaments (August after the World Cup). The seven World Cup places go by region as for Paris 2024
 // (two from the Americas, two from Europe, one each from Africa, Asia and Oceania). Olympics: three groups of four, the top two and the
 // two best third-placed teams reach the quarter-finals. Later Games follow the same system.
-const NT_KN={WC:'World Cup',EB:'EuroBasket',OG:'Olympic Games',OQ:'Olympic qualifier'};
+const NT_KN={CAMP:'Warm-ups',WC:'World Cup',EB:'EuroBasket',OG:'Olympic Games',OQ:'Olympic qualifier'};
 const NT_OGHOST={2028:'USA',2032:'AUS'},NT_OC=['AUS','NZL'];
 const ntCont=c=>NT_OC.includes(c)?'OC':NT_EUR.includes(c)?'EU':NT_REG.AM.includes(c)?'AM':NT_REG.AF.includes(c)?'AF':'AS';
 const ntShort=w=>NT_KN[w.kind]?`${NT_KN[w.kind]} ${w.yr}`:String(w.name||'').replace('FIBA Basketball ','').replace('FIBA ','');
@@ -4031,7 +4033,7 @@ function ntOgSetup(T){const y=T.year+1,host=NT_OGHOST[y]||null,rank=ntTourRank(T
 // next step of the Olympic summer: the qualifying tournaments (the coach's own last), then the Games
 function ntOgStep(){const N=G.nt,O=N.og,J=N.job;if(!O||O.stage==='done')return;O.go=1;
   if(O.stage==='oq'){if(!O.ord){const mi=J?O.oq.findIndex(g=>g.includes(J.c)):-1;O.ord=[0,1,2,3].filter(i=>i!==mi).concat(mi>=0?[mi]:[]);}
-    while(O.ordP<O.ord.length){const g=O.oq[O.ord[O.ordP++]];ntTourGo('OQ',`Olympic Qualifying Tournament in ${ntName(g[0])}`,O.y,g,2,'OG'+O.y);if(N.tour)return;}
+    while(O.ordP<O.ord.length){const g=O.oq[O.ord[O.ordP++]];ntTourGo('OQ',`Olympic Qualifying Tournament in ${ntName(g[0])}`,O.y,g,2,'OG'+O.y);if(N.tour||N.camp)return;}
     O.stage='og';}
   if(O.stage==='og')ntTourGo('OG',O.name,O.y,O.direct.concat(O.oqW),3,'OG'+O.y);}
 function ntOgVerdict(T,c){const J=G.nt.job;if(!J)return;const fed=`${ntName(c)} Basketball Federation`,res=ntTourRes(T,c),tr=d=>{J.trust=clamp((J.trust==null?60:J.trust)+d,0,100);};
@@ -4042,12 +4044,50 @@ function ntOgVerdict(T,c){const J=G.nt.job;if(!J)return;const fed=`${ntName(c)} 
 function ntOgEv(){const N=G.nt,O=N&&N.og,J=N&&N.job;if(!O||O.stage==='done'||!J)return null;const inOg=O.direct.includes(J.c)||(O.oqW||[]).includes(J.c),inOq=O.stage==='oq'&&O.oq.some(g=>g.includes(J.c));
   if(!inOg&&!inOq)return null;return {key:'OG'+O.y,win:false,og:1,y:O.y,lbl:`${inOg?`Olympic Games ${O.y}`:`Olympic qualifying tournament ${O.y}`} (summer ${O.y}, everyone available)`};}
 
+/* ===================== Preparation camp before a tournament ===================== */
+// Before the World Cup, EuroBasket, the Olympic qualifier or the Olympics the coach calls up 16-20 players for a summer camp. The camp
+// plays three warm-up games (form, chemistry, a few injuries), then he cuts the squad to the final twelve (one naturalised player at
+// most). The tournament starts with those twelve.
+const ntEvCamp=E=>!!E&&!E.win&&(/:T$/.test(E.key)||/^OG\d/.test(E.key));
+function ntCampAuto(c,base){const L=(base||[]).map(i=>G.players[i]).filter(p=>p&&ntNatOf(p)===c);let nz=L.filter(ntIsNat).length;
+  for(const p of ntCands(c)){if(L.length>=18)break;if(L.includes(p)||(p.tid==null&&!p.ntOnly)||p.ntCol||(p.inj||0)>3)continue;if(ntIsNat(p)){if(nz>=2)continue;nz++;}L.push(p);}return L;}
+function ntCampList(c,key){const s=G.nt.sel;return s&&s.key===key?s.ids.map(i=>G.players[i]).filter(p=>p&&ntNatOf(p)===c):ntCampAuto(c,[]);}
+// the federation's proposal for the final twelve: rating and camp form, healthy, one naturalised player
+function ntCampSuggest(){const X=G.nt.camp,ps=X.ids.map(i=>G.players[i]).filter(Boolean),f=p=>{const F=X.form[p.id];return F&&F.length?F.reduce((a,b)=>a+b,0)/F.length:6;};
+  return ntCap(ps.filter(p=>(p.inj||0)<=2).sort((a,b)=>(b.o+(f(b)-6)*2.5)-(a.o+(f(a)-6)*2.5))).map(p=>p.id);}
+const ntCampForm=pid=>{const F=G.nt.camp&&G.nt.camp.form[pid];return F&&F.length?F.reduce((a,b)=>a+b,0)/F.length:null;};
+function ntCampStart(args){const N=G.nt,J=N.job,c=J.c,[kind,name,year,field,nG,key]=args,ps=ntCampList(c,key).slice(0,20),S0=ntStrAll([...new Set([...NT_EUR,...Object.values(NT_REG).flat()])].filter(x=>x!==c),false),me=ntStr(c,ntCap(ps));
+  const opp=Object.keys(S0).map(x=>[x,Math.abs(S0[x]-me)+Math.random()*3]).sort((a,b)=>a[1]-b[1]).slice(0,8).map(x=>x[0]);const o3=shuffle(opp).slice(0,3),d0=(NT_TD[kind]||[-35])[0];
+  const w={camp:true,kind:'CAMP',key,name:`Preparation camp · ${name}`,tname:name,yr:year,days:[[[c,o3[0]]],[[o3[1],c]],[[c,o3[2]]]],rl:['Warm-up game 1','Warm-up game 2','Warm-up game 3'],dates:[d0-17,d0-11,d0-5],res:[],dres:[],dd:0,done:false,box:{},ovr:{},lbl:'Warm-up game 1'};
+  N.camp={args,w,ids:ps.map(p=>p.id),form:{},keep:[],inj:[]};N.camp.keep=ntCampSuggest();if(typeof UI!=='undefined')UI.ntv=undefined;
+  msg(`${ntName(c)} Basketball Federation`,`Preparation camp: ${ntName(c)}`,`${ps.length} players report to the camp before the ${name}: ${ps.map(p=>pname(p)).join(', ')}. Three warm-up games against ${o3.map(ntName).join(', ')}, then you cut the squad to the final twelve. The club pre-season waits.`,'nt');}
+// one warm-up game: the result, a form score (3-10) for everyone in the camp, the odd knock
+function ntCampPlay(n){const X=G.nt.camp;if(!X)return;const w=X.w,c=G.nt.job.c;let k=0;
+  while(w.dd<w.days.length&&(n==null||k<n)){const i=w.dd,[h,a]=w.days[i][0],opp=h===c?a:h,top=ntCampTop(),S={[c]:ntStr(c,top)+ntCoachBonus(),[opp]:ntStr(opp,ntPool(opp,false))},o=w.ovr[i];
+    const r=o&&o[0]===h&&o[1]===a?o.slice():ntGame(h,a,S,false);w.res.push(r);w.dres[i]=[r];
+    const ps=X.ids.map(id=>G.players[id]).filter(Boolean),avg=ps.reduce((s,p)=>s+p.o,0)/Math.max(1,ps.length),won=(r[0]===c)===(r[2]>r[3]),live=X.live&&X.live[i]||{};
+    for(const p of ps){if((p.inj||0)>0)continue;const sc=live[p.id]!=null?live[p.id]:clamp(5.6+(p.o-avg)/5+(won?.4:-.3)+ntGs()*1.1,3,10);(X.form[p.id]=X.form[p.id]||[]).push(Math.round(sc*10)/10);
+      p.energy=Math.max(70,(p.energy==null?100:p.energy)-rnd(2,5));if(Math.random()<.018){injSet(p,40);X.inj.push(`${pname(p)} (${p.injT}, out ${p.inj} games)`);if(p.inj>3)X.keep=X.keep.filter(x=>x!==p.id);}}
+    w.dd++;k++;w.lbl=w.rl[Math.min(w.dd,w.rl.length-1)];}
+  if(w.dd>=w.days.length)w.lbl='Final cuts';}
+// the twelve who play a warm-up game: the current keep list, healthy, filled from the rest of the camp
+function ntCampTop(){const X=G.nt.camp,ok=p=>p&&(p.inj||0)<=0;const L=X.keep.map(i=>G.players[i]).filter(ok);for(const id of X.ids){if(L.length>=12)break;const p=G.players[id];if(ok(p)&&!L.includes(p))L.push(p);}return ntCap(L);}
+function ntCampToggle(pid){const X=G.nt.camp;if(!X)return;const p=G.players[pid];if(!p)return;const i=X.keep.indexOf(pid);if(i>=0){X.keep.splice(i,1);save();return null;}
+  if(X.keep.length>=12)return 'Twelve players are already in. Cut someone first.';if((p.inj||0)>3)return `${pname(p)} is injured (out ${p.inj} games).`;
+  const nz=X.keep.map(i=>G.players[i]).find(q=>q&&ntIsNat(q));if(ntIsNat(p)&&nz)return `Only one naturalised player is allowed (FIBA). ${pname(nz)} is already in.`;X.keep.push(pid);save();return null;}
+function ntCampConfirm(){const N=G.nt,X=N.camp,J=N.job;if(!X||!J)return 'No camp.';if(X.w.dd<X.w.days.length)return 'Play the warm-up games first.';const nz0=X.keep.some(i=>G.players[i]&&ntIsNat(G.players[i])),left=X.ids.filter(i=>!X.keep.includes(i)).map(i=>G.players[i]).filter(p=>p&&(p.inj||0)<=3&&!(nz0&&ntIsNat(p)));
+  if(X.keep.length>12||(X.keep.length<12&&left.length))return `Pick exactly twelve (now ${X.keep.length}).`;
+  const c=J.c,keep=X.keep.slice().sort((a,b)=>G.players[b].o-G.players[a].o),cut=X.ids.filter(i=>!keep.includes(i)).map(i=>G.players[i]).filter(Boolean);
+  N.sel={key:X.args[5],ids:keep};N.campDone=N.campDone||{};N.campDone[X.args[5]]=1;J.prevSq=X.ids.slice();
+  msg(`${ntName(c)} Basketball Federation`,`Final twelve for the ${X.args[1]}`,`${keep.map(i=>pname(G.players[i])).join(', ')}. Cut after the camp: ${cut.map(p=>pname(p)).join(', ')||'nobody'}. Warm-up results: ${X.w.res.map(([h,a,hs,as])=>`${ntName(h)} ${hs}–${as} ${ntName(a)}`).join(', ')}.${X.inj.length?` Injured in camp: ${X.inj.join('; ')}.`:''}`,'nt');
+  for(const p of cut)moodAdd(p,-2);const args=X.args;N.camp=null;ntTourGo(...args);save();return null;}
+
 function ntAfterTour(){const O=G.nt.og;if(O&&O.go&&O.stage!=='done')ntOgStep();if(!G.nt.tour)ntSumNext();}
 function ntAnnounce(w,i){const J=G.nt.job,C=G.nt.cyc,k=C.id+':'+i,sq=ntUserSquad(J.c,false,k),fed=`${ntName(J.c)} Basketball Federation`;G.nt.sel={key:k,ids:sq.map(p=>p.id)};if(typeof UI!=='undefined')UI.ntv=undefined;
   msg(fed,`Squad announced: ${ntName(J.c)}`,`The twelve for the ${w.lbl}: ${sq.map(p=>pname(p)).join(', ')}. Call-ups are now closed; set the starting five and rotation on the Squad tab.`,'nt');
   msg(fed,`Summer window: ${ntName(J.c)} play now`,`The ${w.lbl} is played before the club pre-season, everyone is available. Your games are on the home page: play them live or simulate them.`,'nt');}
 // summer: the summer windows (the coach plays his own), then the tournament
-function ntSumNext(){const N=G.nt,J=N.job;for(let k=0;k<6;k++){const C=N.cyc;if(!C||N.tour)return;
+function ntSumNext(){const N=G.nt,J=N.job;for(let k=0;k<6;k++){const C=N.cyc;if(!C||N.tour||N.camp)return;
     const i=C.wins.findIndex(w=>!w.done&&w.day<0&&w.s===G.season);
     if(i>=0){const w=C.wins[i];if(J&&Object.values(C.groups).flat().includes(J.c)){if(N.pend!==i){N.pend=i;ntAnnounce(w,i);}return;}ntWindow(w,true);continue;}
     const O=N.og;if(O&&O.y===G.season&&O.stage!=='done'){ntOgStep();if(N.tour)return;continue;}
@@ -4064,12 +4104,12 @@ function ntTempClear(){if(!G)return;while(G.teams.length&&G.teams[G.teams.length
 function ntTempTeam(c,sq,me){const [c1,c2]=NT_COL[c]||['#2b3038','#8d949d'];const t={id:G.teams.length,short:c,name:ntName(c),city:ntName(c),c1,c2,rep:Math.round(ntStr(c,sq)),arena:`${ntName(c)} national team`,cap:10000,nat:c,order:sq.map(p=>p.id),w:0,l:0,pf:0,pa:0,form:[],staff:[],dom:'NT',nt:c,ntTemp:1,ntU:!!me};G.teams.push(t);t.tac=me?G.tactics:aiStyle(t);return t;}
 function ntUserPair(w,i){const c=G.nt.job.c;return (w.days[i]||[]).find(x=>x[0]===c||x[1]===c)||null;}
 function ntLiveStart(){const w=ntPend();if(!w)return null;const i=w.dd||0,g=ntUserPair(w,i);if(!g)return null;ntTempClear();
-  const C=G.nt.cyc,c=G.nt.job.c,key=ntKey(w),opp=g[0]===c?g[1]:g[0],sq={[c]:ntUserSquad(c,ntWinF(w),key),[opp]:w.tour?ntTourSq(opp):ntPool(opp,ntWinF(w))};if(!ntWinF(w))for(const p of sq[c])p.energy=Math.max(p.energy==null?100:p.energy,92);
+  const C=G.nt.cyc,c=G.nt.job.c,key=ntKey(w),opp=g[0]===c?g[1]:g[0],sq={[c]:w.camp?ntCampTop():ntUserSquad(c,ntWinF(w),key),[opp]:w.tour?ntTourSq(opp):ntPool(opp,ntWinF(w))};if(!ntWinF(w))for(const p of sq[c])p.energy=Math.max(p.energy==null?100:p.energy,92);
   if(G.nt.job.camp==='rec')for(const p of sq[c])p.energy=Math.min(100,(p.energy==null?100:p.energy)+12);const H=ntTempTeam(g[0],sq[g[0]],g[0]===c),A=ntTempTeam(g[1],sq[g[1]],g[1]===c),U=g[0]===c?H:A;
-  const m=new Match(H.id,A.id,{kind:'pre',log:true,ntU:U.id,neutral:!!w.tour});m.ntInfo={day:i,h:g[0],a:g[1],lbl:w.tour?`${w.name} · ${ntRl(w,i,c)}`:`${C.name} · European Qualifiers · ${w.lbl} · game ${i+1}`};return m;}
+  const m=new Match(H.id,A.id,{kind:'pre',log:true,ntU:U.id,neutral:!!w.tour});m.ntInfo={day:i,h:g[0],a:g[1],lbl:w.camp?`${w.name} · ${w.rl[i]}`:w.tour?`${w.name} · ${ntRl(w,i,c)}`:`${C.name} · European Qualifiers · ${w.lbl} · game ${i+1}`};return m;}
 function ntLiveDone(m){const w=ntPend(),I=m.ntInfo;ntTempClear();if(!w||!I)return;w.ovr=w.ovr||{};w.ovr[I.day]=[I.h,I.a,m.s[0].pts,m.s[1].pts];
   const c=G.nt.job.c,me=m.s[I.h===c?0:1],top=me.ord.filter(p=>me.box[p.id]&&me.box[p.id].sec>0).sort((x,y)=>me.box[y.id].pts-me.box[x.id].pts).slice(0,3).map(p=>`${pname(p)} ${me.box[p.id].pts} pts`);
-  w.box=w.box||{};w.box[I.day]=top;if(w.tour){ntTourPlay(1);if(!G.nt.tour)ntAfterTour();}else{ntWindow(w,false,1);if(w.done&&w.day<0)ntSumNext();}save();return top;}
+  w.box=w.box||{};w.box[I.day]=top;if(w.camp){const X=G.nt.camp;X.live=X.live||{};const L=X.live[I.day]={};for(const p of me.ord){const B=me.box[p.id];if(B&&B.sec>0)L[p.id]=Math.round(clamp(5+pir(B)/4,3,10)*10)/10;}ntCampPlay(1);save();return top;}if(w.tour){ntTourPlay(1);if(!G.nt.tour)ntAfterTour();}else{ntWindow(w,false,1);if(w.done&&w.day<0)ntSumNext();}save();return top;}
 
 
 /* ===================== National team mode: tactics, camp, staff, trust ===================== */
