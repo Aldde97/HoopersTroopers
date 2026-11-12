@@ -3806,10 +3806,10 @@ const ntCands=c=>Object.values(G.players).filter(p=>ntNatOf(p)===c&&p.age>=18&&!
 function ntUserSquad(c,win,key,show){const auto=ntCap(Object.values(G.players).filter(p=>ntNatOf(p)===c&&p.age>=18&&!p.prospect&&p.tid!=null&&ntAvail(p,win)).sort((a,b)=>b.o-a.o)),s=G.nt.sel;
   if(!s||s.key!==key)return auto;const ok=ntCap(s.ids.map(i=>G.players[i]).filter(p=>p&&ntNatOf(p)===c&&p.age>=18&&ntAvail(p,win)));
   return ok.length>=8||show?ok:ntCap(ok.concat(auto.filter(p=>!ok.includes(p))));}
-function ntPick(pid){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;const p=G.players[pid];if(!p||ntNatOf(p)!==J.c)return;
+function ntPick(pid){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;if(typeof ntPend==='function'&&ntPend())return 'Call-ups are closed: the twelve for this window are already with the team.';const p=G.players[pid];if(!p||ntNatOf(p)!==J.c)return;
   if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};
   const L=G.nt.sel.ids,i=L.indexOf(pid);if(i>=0)L.splice(i,1);else{if(!ntAvail(p,E.win))return 'He is not available for this window.';if(L.length>=12)return 'The squad is full (12). Remove a player first.';const nz=L.map(i=>G.players[i]).find(q=>q&&ntIsNat(q));if(ntIsNat(p)&&nz)return `Only one naturalised player is allowed (FIBA). ${pname(nz)} is already in the squad.`;L.push(pid);}save();return null;}
-function ntAuto(){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};save();}
+function ntAuto(){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E||(typeof ntPend==='function'&&ntPend()))return;G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};save();}
 
 // reminders and the federation's view of the results
 function ntJobTick(){const J=G.nt&&G.nt.job;if(!J)return;const E=ntNextEvent();if(!E)return;G.nt.rem=G.nt.rem||{};if(G.nt.rem[E.key])return;
@@ -3827,6 +3827,12 @@ function ntJobAfterTournament(T){const J=G.nt.job;if(!J)return;const c=J.c;if(!T
   else ntSack(`At the ${T.name} ${ntName(c)} reached ${res}; the target was to ${tg}.`);}
 
 // demo (link ending in #nt-demo): Igokea, head coach of Bosnia and Herzegovina, just before the November window
+// order of the twelve during the window (swap two, make starter, bench, auto by rating)
+function ntOrder(fn){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,E.key).map(p=>p.id)};fn(G.nt.sel.ids);save();}
+const ntSwapIds=(a,b)=>ntOrder(L=>{const i=L.indexOf(a),j=L.indexOf(b);if(i>=0&&j>=0)[L[i],L[j]]=[L[j],L[i]];});
+const ntToStart=id=>ntOrder(L=>{const i=L.indexOf(id);if(i>=5){const ps=L.slice(0,5).map(x=>G.players[x]),w=ps.reduce((m,p,k)=>p.o<ps[m].o?k:m,0);[L[i],L[w]]=[L[w],L[i]];}});
+const ntToBench=id=>ntOrder(L=>{const i=L.indexOf(id);if(i>=0&&i<5)[L[i],L[5]]=[L[5],L[i]];});
+const ntAutoRot=()=>ntOrder(L=>{L.sort((a,b)=>G.players[b].o-G.players[a].o);});
 function ntDemo(mode){NT_DEMO=true;startCareerAt('IGO','Demo Coach');G.demo=1;let k=0;while(preOn()&&k++<40)simStep();k=0;while(G.day<44&&k++<200&&!seasonOver())simStep();
   if(mode==='win'){ntInit();G.nt.offers={s:G.season,list:['BIH']};G.nt.offSent=1;ntTakeJob('BIH');ntJobTick();k=0;while(!ntPend()&&k++<60&&!seasonOver())simStep();return;}
   ntInit();G.nt.offers={s:G.season,list:['BIH']};G.nt.offSent=1;ntTakeJob('BIH');ntJobTick();}
@@ -3856,7 +3862,7 @@ function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inS
   try{ntJobAfterWindow(w);}catch(e){}}
 // in-season windows are played when the calendar reaches them
 function ntTick(){if(!G||preOn())return;if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}const C=G.nt.cyc;if(!C)return;for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
-    if(J&&G.day<w.day+7){if(G.nt.pend!==i){G.nt.pend=i;if(typeof UI!=='undefined')UI.ntv=undefined;msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
+    if(J&&G.day<w.day+7){if(G.nt.pend!==i){G.nt.pend=i;if(typeof UI!=='undefined')UI.ntv=undefined;{const k=C.id+':'+i,sq=ntUserSquad(J.c,true,k);G.nt.sel={key:k,ids:sq.map(p=>p.id)};msg(`${ntName(J.c)} Basketball Federation`,`Squad announced: ${ntName(J.c)}`,`The twelve for the ${w.lbl}: ${sq.map(p=>pname(p)).join(', ')}. Call-ups are now closed; set the starting five and rotation on the Squad tab.`,'nt');}msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
     else ntWindow(w,false);}}
 // the coach's window that is waiting to be played
 const ntPend=()=>{const N=G&&G.nt;if(!N||!N.job||N.pend==null||!N.cyc)return null;const w=N.cyc.wins[N.pend];return w&&!w.done?w:null;};

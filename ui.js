@@ -70,7 +70,7 @@ function render(){
   if(UI.view==='prematch'&&userFx())body=prematchHTML();
   else if(UI.view==='match'&&UI.match)body=matchHTML();
   else if(UI.view==='season'&&seasonOver())body=seasonHTML();
-  else if(ntMode()){UI.view='main';if(!NT_TABS.some(x=>x[0]===UI.tab))UI.tab='home';if(UI.tab==='comp')UI.comp='nt';body=({home:ntModeHome,squad:ntMyHTML,tactics:ntTacHTML,training:ntCampHTML,staff:ntStaffHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
+  else if(ntMode()){UI.view='main';if(!NT_TABS.some(x=>x[0]===UI.tab))UI.tab='home';if(UI.tab==='comp')UI.comp='nt';body=({home:ntModeHome,squad:()=>ntPend()?ntRotHTML():ntMyHTML(),tactics:ntTacHTML,training:ntCampHTML,staff:ntStaffHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
   else{UI.view='main';body=({home:homeHTML,squad:squadHTML,medical:medicalHTML,tactics:tacticsHTML,training:trainingHTML,staff:staffHTML,transfers:transfersHTML,finances:financesHTML,club:clubTabHTML,business:businessHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
   app.innerHTML=headerHTML()+clubHTML()+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. Open the game without <code>#nt-demo</code> / <code>#nt-window</code> to return to your own career.</div>':''}${body}</div></main>`+modalHTML();try{ntTheme();}catch(e){}
   if(UI.view==='match')updMatch();
@@ -1256,7 +1256,12 @@ const ACT={
   ntsub(k){UI.ntSub=k;render();},
   ntpos(k){UI.ntPos=k;render();},
   ntav(){UI.ntAv=!UI.ntAv;render();},
-  ntclear(){const E=ntNextEvent();if(G.nt&&G.nt.job&&E){G.nt.sel={key:E.key,ids:[]};save();}render();},
+  ntsel(id){id=+id;if(UI.ntSwap!=null&&UI.ntSwap!==id){ntSwapIds(UI.ntSwap,id);UI.ntSwap=null;}UI.ntSel=id;render();},
+  ntswap(id){UI.ntSwap=id===''||id==null?null:+id;render();},
+  ntstart(id){ntToStart(+id);render();},
+  ntbench(id){ntToBench(+id);render();},
+  ntautorot(){ntAutoRot();toast('Rotation set by rating');render();},
+  ntclear(){if(ntPend()){toast('Call-ups are closed for this window');return;}const E=ntNextEvent();if(G.nt&&G.nt.job&&E){G.nt.sel={key:E.key,ids:[]};save();}render();},
   ntjob(c){const e=ntTakeJob(c);if(e)toast(e);else{UI.ntSub='m';toast(`You are head coach of ${ntName(c)}`);}render();},
   ntquit(){ntResign();UI.ntSub='m';toast('You resigned as national team coach');render();},
   ntpick(id){const e=ntPick(+id);if(e)toast(e);render();},
@@ -1461,7 +1466,7 @@ function ntHomeCard(){const N=G.nt,J=N&&N.job;if(!J||!N.cyc)return '';const C=N.
     return `<section class="ntw" ${style}><div class="ntw-wm">${ntFlag(c,520)}</div><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,96)}</div><div><small>International window · the leagues pause</small><h2>${esc(ntName(c))}</h2><span>${esc(C.name)} · European Qualifiers · ${esc(pw.lbl)}</span></div></div>
       <div class="ntw-b"><div class="ntw-gs">${games(pw)}</div>${table()}</div>
       <div class="ntw-sq"><small>Your twelve</small><div>${sq.map(p=>`<span class="ntw-p" title="${esc(pname(p))} · ${p.pos} · OVR ${ovrEst(p)}">${avatarIn(p,p.no)}<i>${esc(p.l||pname(p))}</i></span>`).join('')}</div></div>
-      <div class="ntw-a">${dd<pw.days.length?`<button class="ntw-go" data-act="ntlive:1">\u25b6 Play game ${dd+1} live</button><button class="ntw-go2" data-act="ntlive:0">Simulate game ${dd+1}</button>${dd===0?'<button class="ntw-go3" data-act="ntdayall">Quick-sim both</button>':''}<button class="ntw-go3" data-act="ntopen">Edit squad</button>`:''}<span>Your club season continues after the window.</span></div></section>`;}
+      <div class="ntw-a">${dd<pw.days.length?`<button class="ntw-go" data-act="ntlive:1">\u25b6 Play game ${dd+1} live</button><button class="ntw-go2" data-act="ntlive:0">Simulate game ${dd+1}</button>${dd===0?'<button class="ntw-go3" data-act="ntdayall">Quick-sim both</button>':''}<button class="ntw-go3" data-act="tab:squad">Line-up</button>`:''}<span>Your club season continues after the window.</span></div></section>`;}
   // just played: the results for a few days
   const last=C.wins.filter(w=>w.done&&w.s===G.season&&w.day>=0&&G.day-w.day<=10).pop();
   if(last)return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window · complete</small><h2>${esc(ntName(c))}</h2><span>${esc(last.lbl)}</span></div></div><div class="ntw-b"><div class="ntw-gs">${games(last)}</div>${table()}</div></section>`;
@@ -1488,7 +1493,7 @@ function ntClubHTML(){const J=G.nt.job,c=J.c,unread=G.inbox.filter(m=>!m.read).l
   return `<div class="club gut"><span class="ntc-fl">${ntFlag(c,72)}</span><div><h2>${esc(ntName(c))}</h2><div class="who"><span>${esc(G.mgr)} · National team head coach</span></div></div>
   <div class="meters">${[['Federation trust',J.trust==null?60:J.trust],['Fans',J.fans==null?60:J.fans],['Chemistry',ntChem()]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
   <div class="icons"><button class="ic ntsw" data-act="ntmode"><span class="ntsw-i">${crest(club)}</span><span>Back to club</span></button><button class="ic" data-act="tab:inbox">${IC.inbox}<span>Inbox</span>${unread?`<em>${unread}</em>`:''}</button><button class="ic" data-act="savegame">${IC.save}<span>Save</span></button></div></div>`;}
-function ntNavHTML(){const unread=G.inbox.filter(m=>!m.read).length;return `<nav class="navw" aria-label="National team"><div class="nav">${NT_TABS.map(([k,l])=>`<button class="${UI.view==='main'&&UI.tab===k?'on':''}" data-act="tab:${k}">${l}${k==='inbox'&&unread?`<em>${unread}</em>`:''}</button>`).join('')}</div></nav>`;}
+function ntNavHTML(){const unread=G.inbox.filter(m=>!m.read).length;return `<nav class="navw" aria-label="National team"><div class="nav">${NT_TABS.map(([k,l])=>`<button class="${UI.view==='main'&&UI.tab===k?'on':''}" data-act="tab:${k}">${k==='squad'?(ntPend()?'Squad':'Call-ups'):l}${k==='inbox'&&unread?`<em>${unread}</em>`:''}</button>`).join('')}</div></nav>`;}
 function ntModeHome(){const card0=ntHomeCard(),J=G.nt.job;
   return `${card0||`<section class="ntc"><div class="ntc-h"><div><small>National team</small><b>No window right now</b><span>${(()=>{const E=ntNextEvent();return E?`Next: ${esc(E.lbl)}. Pick your twelve and plan the camp in time.`:'The next cycle starts soon.';})()}</span></div></div><div class="ntc-a"><button data-act="tab:squad">Squad</button><button data-act="ntmode">Back to club</button></div></section>`}
   <div class="g-2e">${inboxCard()}${card('Training camp & staff',`<div class="cb"><div class="kv"><span>Camp focus</span><b>${NT_CAMP[J.camp||'chem'].n}</b></div><div class="kv"><span>Assistant coach</span><b>${J.staff&&J.staff.ac?esc(J.staff.ac.f+' '+J.staff.ac.l)+' · '+J.staff.ac.o:'none'}</b></div><div class="kv"><span>Team doctor</span><b>${J.staff&&J.staff.doc?esc(J.staff.doc.f+' '+J.staff.doc.l)+' · '+J.staff.doc.o:'none'}</b></div><div class="kv"><span>Chemistry</span><b>${ntChem()}%</b></div></div>`,lnk('tab:training','Camp'))}</div>`;}
@@ -1505,6 +1510,35 @@ function ntStaffHTML(){const J=G.nt.job,C=ntStaffCands(),S=J.staff||{};const row
 headerHTML=(o=>()=>ntMode()?ntHeaderHTML():o())(headerHTML);
 navHTML=(o=>()=>ntMode()?ntNavHTML():o())(navHTML);
 clubHTML=(o=>()=>{if(ntMode())return ntClubHTML();const h=o(),J=G&&G.nt&&G.nt.job;return J?h.replace('<div class="icons">',`<div class="icons"><button class="ic ntsw" data-act="ntmode"><span class="ntsw-i">${ntFlag(J.c,30)}</span><span>National team</span></button>`):h;})(clubHTML);
+
+
+/* ===================== National team squad during the window (like the club squad page) ===================== */
+// Call-ups close when the window starts; then the twelve are set and the coach orders them: five starters, seven off the bench.
+const NT_MIN=[30,28,28,26,26,16,14,12,10,6,4,0];
+function ntRotHTML(){const J=G.nt.job,c=J.c,w=ntPend(),C=G.nt.cyc,key=C.id+':'+C.wins.indexOf(w),ps=ntUserSquad(c,true,key),[hc]=NT_COL[c]||['#1f4fd1'];
+  if(UI.ntSel==null||!ps.find(p=>p.id===UI.ntSel))UI.ntSel=ps[0]&&ps[0].id;const sel=G.players[UI.ntSel],plan={};ps.forEach((p,i)=>plan[p.id]=NT_MIN[i]||0);
+  const tm=p=>p.tid!=null?G.teams[p.tid]:null;
+  const tag=p=>p.inj>0?`<i class="sq-t r">Inj ${p.inj}</i>`:ntIsNat(p)?'<i class="sq-t y">NAT</i>':'';
+  const en=p=>`<span class="sq-en"><i style="width:${Math.round(p.energy)}%;background:${p.energy>=70?'#3ecb7c':p.energy>=45?'#e0a400':'#ff5a52'}"></i></span>`;
+  const on=p=>`${UI.ntSel===p.id?' on':''}${UI.ntSwap===p.id?' sw':''}`;
+  const row=p=>`<button class="sq-r${on(p)}" data-act="ntsel:${p.id}"><span class="sq-no">${p.no}</span><span class="avatar ph sq-ph">${avatarIn(p,p.no)}</span><span class="sq-nm"><b>${esc(pname(p))}</b>${tag(p)}</span><span class="sq-pos">${p.pos}</span>${ovb(ovrEst(p))}${en(p)}</button>`;
+  const grp=(l,x)=>`<div class="sq-g">${l}</div>${x.map(row).join('')}`;
+  const SPOT=[['PG',50,80],['SG',17,50],['SF',83,50],['PF',32,21],['C',68,21]];
+  const spot=(p,i)=>{if(!p)return '';const [k,x,y]=SPOT[i];return `<button class="sq-s${on(p)}${p.inj>0?' inj':''}" style="left:${x}%;top:${y}%" data-act="ntsel:${p.id}"><span class="avatar ph sq-sph">${avatarIn(p,p.no)}</span><span class="sq-sc"><span class="sq-sh"><em class="${p.pos===k?'':'off'}">${p.pos}</em>${ovb(ovrEst(p))}</span><b>${esc(sname(p))}</b><small>${plan[p.id]} min</small></span></button>`;};
+  const bc=p=>`<button class="sq-b${on(p)}${p.inj>0?' inj':''}" data-act="ntsel:${p.id}"><span class="avatar ph sq-bph">${avatarIn(p,p.no)}</span><span class="sq-sh"><em>${p.pos}</em>${ovb(ovrEst(p))}</span><b>${esc(sname(p))}</b><small>${plan[p.id]} min</small></button>`;
+  const ch=ntChem(),t=sel?tm(sel):null,i=sel?ps.indexOf(sel):-1;
+  const panel=sel?`<div class="ntd"><div class="ntd-ph">${avatarIn(sel,sel.no)}</div><b>${esc(pname(sel))}</b><small>${sel.pos} · ${sel.age} · ${ht(sel.ht)}</small><small>${t?`${mini(t)} ${esc(t.name)}`:'Free agent'}</small>
+    <div class="ntd-k"><div><small>OVR</small><b>${ovrEst(sel)}</b></div><div><small>Energy</small><b>${Math.round(sel.energy)}%</b></div><div><small>Caps</small><b>${sel.ntc||0}</b></div><div><small>Role</small><b>${i<5?'Starter':i<9?'Rotation':'Bench'}</b></div></div>
+    ${ntIsNat(sel)?'<p class="mut" style="font-size:12.5px">Naturalised player: the one allowed in this squad.</p>':''}
+    <div class="btns">${i>=5?`<button class="btn sm p" data-act="ntstart:${sel.id}">Make starter</button>`:`<button class="btn sm" data-act="ntbench:${sel.id}">To the bench</button>`}<button class="btn sm" data-act="ntswap:${sel.id}">Swap with\u2026</button><button class="btn sm" data-act="prof:${sel.id}">Profile</button></div></div>`:'';
+  return `<div class="ntlock"><span>${ntFlag(c,28)}</span><div><b>Call-ups closed</b><small>The twelve for the ${esc(w.lbl)} are with the team. Set your starting five and rotation.</small></div></div>
+  <div class="sq" style="--sq1:${hc}"><section class="sq-c sq-l"><header class="sq-h"><div><b>${esc(ntName(c))}</b><em>${ps.length}/12</em></div></header><div class="sq-th"><span>#</span><span></span><span>Player</span><span>Pos</span><span>Ovr</span><span>Energy</span></div><div class="sq-list">${grp('Starters',ps.slice(0,5))}${grp('Bench',ps.slice(5))}</div></section>
+  <section class="sq-c sq-m"><header class="sq-h"><div><b>Rotation builder</b></div><span class="sq-ch"><span>Chemistry</span><i class="sq-cb"><u style="width:${ch}%;background:${chemCol(ch)}"></u></i><b>${ch}</b></span></header>
+  ${UI.ntSwap!=null&&G.players[UI.ntSwap]?`<div class="sq-swap">Pick who swaps places with ${esc(sname(G.players[UI.ntSwap]))} <button data-act="ntswap:">Cancel</button></div>`:''}
+  <div class="sq-court"><svg viewBox="0 0 800 560" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="var(--or)" stroke-opacity=".38" stroke-width="3"><rect x="30" y="16" width="740" height="528" rx="4"/><rect x="290" y="16" width="220" height="210"/><circle cx="400" cy="226" r="74"/><path d="M90 16v110c0 190 130 280 310 280s310-90 310-280V16"/><path d="M300 544a100 100 0 0 1 200 0"/></g></svg><span class="sq-wm">${esc(ntName(c))}</span>${ps.slice(0,5).map(spot).join('')}</div>
+  <div class="sq-bh"><b>Bench</b><span>Planned 200 min · a FIBA game has 200</span></div><div class="sq-bg">${ps.slice(5).map(bc).join('')}</div>
+  <div class="sq-act"><button class="sq-btn" data-act="ntautorot">Auto-pick rotation</button><p>Click a player, then another to swap them. Changes save by themselves.</p></div></section>
+  <section class="sq-c sq-d">${panel}</section></div>`;}
 
 /* ===================== Boot ===================== */
 function boot(data){if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();}
