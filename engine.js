@@ -3852,6 +3852,8 @@ const ntToStart=id=>ntOrder(L=>{const i=L.indexOf(id);if(i>=5){const ps=L.slice(
 const ntToBench=id=>ntOrder(L=>{const i=L.indexOf(id);if(i>=0&&i<5)[L[i],L[5]]=[L[5],L[i]];});
 const ntAutoRot=()=>ntOrder(L=>{L.sort((a,b)=>G.players[b].o-G.players[a].o);});
 function ntDemo(mode){NT_DEMO=true;startCareerAt('IGO','Demo Coach');G.demo=1;let k=0;while(preOn()&&k++<40)simStep();k=0;while(G.day<44&&k++<200&&!seasonOver())simStep();
+  if(mode==='eb'){ntInit();G.nt.offers={s:G.season,list:['BIH']};G.nt.offSent=1;ntTakeJob('BIH');const J=G.nt.job;G.nt.job=null;G.nt.cyc=ntCycle(2029);const C=G.nt.cyc;for(const w of C.wins)ntWindow(w,true);G.nt.job=J;J.cyc=C.id;
+    if(!C.qual.includes('BIH'))C.qual[C.qual.length-1]='BIH';J.q=1;J.tgt=ntTarget();G.nt.og=null;G.nt.offers=null;G.nt.tourSum=null;ntTourStart(C);return;}
   if(mode==='og'){ntInit();G.nt.offers={s:G.season,list:['BIH']};G.nt.offSent=1;ntTakeJob('BIH');const J=G.nt.job,C=G.nt.cyc;G.nt.job=null;for(const w of C.wins)if(!w.done)ntWindow(w,true);if(C.stage!=='done'){C.qual=ntQualified(C);C.stage='done';}ntTourStart(C);G.nt.job=J;J.cyc=G.nt.cyc.id;J.tgt='';G.nt.offers=null;
     const O=G.nt.og;if(!O.direct.includes('BIH')&&!O.oq.some(g=>g.includes('BIH')))O.oq[3][O.oq[3].length-1]='BIH';G.nt.tourSum=null;ntOgStep();return;}
   if(mode==='tour'){ntInit();G.nt.offers={s:G.season,list:['BIH']};G.nt.offSent=1;ntTakeJob('BIH');const J=G.nt.job,C=G.nt.cyc;G.nt.job=null;for(const w of C.wins)if(!w.done)ntWindow(w,true);G.nt.job=J;if(C.stage!=='done'){C.qual=ntQualified(C);C.stage='done';}if(!C.qual.includes('BIH'))C.qual[C.qual.length-1]='BIH';J.tgt=ntTarget();ntTourStart(C);return;}
