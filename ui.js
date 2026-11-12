@@ -43,7 +43,7 @@ const MI={res:['var(--g)','\u2713'],med:['var(--r)','+'],offer:['var(--or)','\u2
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>{el.hidden=true;},2800);}
 
 /* ===================== Frame ===================== */
-function contLabel(){if(nbaFAOpen())return `Free agency \u00b7 day ${G.nfa.day+1}`;if(UI.view==='match'&&UI.match&&!UI.match.m.done)return 'Live';if(seasonOver())return 'Review';if(UI.view==='prematch'&&userFx())return 'Play live';return userFx()?'Play match':'Continue';}
+function contLabel(){if(typeof ntPend==='function'&&ntPend())return 'Int. window';if(nbaFAOpen())return `Free agency \u00b7 day ${G.nfa.day+1}`;if(UI.view==='match'&&UI.match&&!UI.match.m.done)return 'Live';if(seasonOver())return 'Review';if(UI.view==='prematch'&&userFx())return 'Play live';return userFx()?'Play match':'Continue';}
 function headerHTML(){const t=G.teams[G.user],room=G.fin.wageBudget-wageBill(G.user),live=UI.view==='match'&&UI.match&&!UI.match.m.done;
   return `<header class="hdr"><div class="brand"><div class="t1">BASKETBALL MANAGER</div><div class="t2">EUROLEAGUE <small>${G.season+1}</small></div></div><div class="stripe"></div>
   <div class="hmid"><div class="date"><b>${dateStr()}</b><span>${stepLabel()} \u00b7 ${seasonStr()}</span></div>
@@ -71,7 +71,7 @@ function render(){
   else if(UI.view==='match'&&UI.match)body=matchHTML();
   else if(UI.view==='season'&&seasonOver())body=seasonHTML();
   else{UI.view='main';body=({home:homeHTML,squad:squadHTML,medical:medicalHTML,tactics:tacticsHTML,training:trainingHTML,staff:staffHTML,transfers:transfersHTML,finances:financesHTML,club:clubTabHTML,business:businessHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
-  app.innerHTML=headerHTML()+clubHTML()+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. Open the game without <code>#nt-demo</code> to return to your own career.</div>':''}${body}</div></main>`+modalHTML();try{ntTheme();}catch(e){}
+  app.innerHTML=headerHTML()+clubHTML()+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. Open the game without <code>#nt-demo</code> / <code>#nt-window</code> to return to your own career.</div>':''}${body}</div></main>`+modalHTML();try{ntTheme();}catch(e){}
   if(UI.view==='match')updMatch();
   if(UI.view==='main'&&UI.tab==='club'&&window.arena3dMount)arena3dMount();
 }
@@ -1216,7 +1216,7 @@ const ACT={
   sendback(id){const err=sendBack(+id);if(err)toast(err);UI.modal=null;render();},
   dcomp(k){UI.dcomp=k;render();},
   drnd(d){UI.dfixR=clamp((UI.dfixR||0)+(+d),0,G.dom.sched.length-1);render();},
-  continue(){if(UI.match&&!UI.match.m.done)return;if(UI.match&&UI.match.m.done)return ACT.matchdone();if(squadShort()){UI.modal={kind:'short'};render();return;}
+  continue(){if(UI.match&&!UI.match.m.done)return;if(typeof ntPend==='function'&&ntPend()){UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast('International window: play the national team games first');return;}if(UI.match&&UI.match.m.done)return ACT.matchdone();if(squadShort()){UI.modal={kind:'short'};render();return;}
     if(nbaFAOpen()){const d=G.nfa.day+1;nbaFADay();save();UI.view='main';UI.tab=UI.tab==='home'?'transfers':UI.tab;UI.tr='fa';render();toast(G.nfa?`Free agency \u00b7 day ${d} done`:'Free agency is over \u2013 the season starts');return;}
     if(seasonOver()){UI.view='season';render();return;}
     const f=userFx();if(f&&UI.view==='prematch'){beginMatch(true);return;}if(f){UI.view='prematch';render();window.scrollTo(0,0);return;}
@@ -1255,6 +1255,8 @@ const ACT={
   ntquit(){ntResign();UI.ntSub='m';toast('You resigned as national team coach');render();},
   ntpick(id){const e=ntPick(+id);if(e)toast(e);render();},
   ntauto(){ntAuto();render();},
+  ntday(){ntPlayDay(false);toast(ntPend()?'Game 1 played':'Window complete');render();},
+  ntdayall(){ntPlayDay(true);toast('Window complete');render();},
   ntall(){UI.ntAll=!UI.ntAll;render();},
   ntopen(){UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub=G.nt&&G.nt.job?'m':'m';UI.modal=null;render();window.scrollTo(0,0);},
   decline(id){const m=G.inbox.find(x=>x.id===+id);if(m){m.done='Declined';if(m.type==='exjob'&&m.act)exElsewhere(m.act.sid);save();}render();},
@@ -1440,8 +1442,30 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.modal){UI.modal=null;render();}});
 
 function scrollChat(){const c=document.getElementById('negchat');if(c)c.scrollTop=c.scrollHeight;}
+
+/* ===================== Home: the national team window ===================== */
+function ntHomeCard(){const N=G.nt,J=N&&N.job;if(!J||!N.cyc)return '';const C=N.cyc,c=J.c,[ca,cb]=NT_COL[c]||['#1f2937','#374151'],pw=ntPend();
+  const grp=Object.keys(C.groups).find(k=>C.groups[k].includes(c)),gd=(i,w)=>{const d=new Date(G.season,9,1+w.day+(i?3:0));return d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();};
+  const table=()=>grp?`<div class="ntw-t"><small>Group ${grp}</small>${ntSort(C.groups[grp],C.tab).map((x,i)=>{const r=ntRec(C.tab,x);return `<div class="${x===c?'me':''}${i<3?' q':''}"><span>${i+1}</span>${ntFlag(x,20)}<b>${esc(ntName(x))}</b><em>${r.w}–${r.l}</em></div>`;}).join('')}<p>Top 3 qualify for the ${esc(C.name)}</p></div>`:'';
+  const games=w=>w.days.map((d,i)=>{const g=d.find(x=>x[0]===c||x[1]===c);if(!g)return '';const home=g[0]===c,o=home?g[1]:g[0],r=w.res.find(x=>x[0]===g[0]&&x[1]===g[1]),me=r?(home?r[2]:r[3]):null,op=r?(home?r[3]:r[2]):null,won=r&&me>op;
+    return `<div class="ntw-g${r?(won?' w':' l'):''}"><div class="ntw-d"><small>Game ${i+1}</small><b>${gd(i,w)}</b><span>${home?'Home':'Away'}</span></div><div class="ntw-m">${ntFlag(c,44)}<b>${esc(ntName(c))}</b><strong>${r?`${me}<i>–</i>${op}`:'vs'}</strong><b>${esc(ntName(o))}</b>${ntFlag(o,44)}</div>${r?`<div class="ntw-r">${won?'WIN':'LOSS'}</div>`:'<div class="ntw-r up">UPCOMING</div>'}</div>`;}).join('');
+  const style=`style="--na:${ca};--nb:${cb}"`;
+  if(pw){const key=C.id+':'+C.wins.indexOf(pw),sq=ntUserSquad(c,true,key),dd=pw.dd||0;
+    return `<section class="ntw" ${style}><div class="ntw-wm">${ntFlag(c,520)}</div><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,96)}</div><div><small>International window · the leagues pause</small><h2>${esc(ntName(c))}</h2><span>${esc(C.name)} · European Qualifiers · ${esc(pw.lbl)}</span></div></div>
+      <div class="ntw-b"><div class="ntw-gs">${games(pw)}</div>${table()}</div>
+      <div class="ntw-sq"><small>Your twelve</small><div>${sq.map(p=>`<span class="ntw-p" title="${esc(pname(p))} · ${p.pos} · OVR ${ovrEst(p)}">${avatarIn(p,p.no)}<i>${esc(p.l||pname(p))}</i></span>`).join('')}</div></div>
+      <div class="ntw-a">${dd<pw.days.length?`<button class="ntw-go" data-act="ntday">Play game ${dd+1}</button>${dd===0?'<button class="ntw-go2" data-act="ntdayall">Play both games</button>':''}<button class="ntw-go3" data-act="ntopen">Edit squad</button>`:''}<span>Your club season continues after the window.</span></div></section>`;}
+  // just played: the results for a few days
+  const last=C.wins.filter(w=>w.done&&w.s===G.season&&w.day>=0&&G.day-w.day<=10).pop();
+  if(last)return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window · complete</small><h2>${esc(ntName(c))}</h2><span>${esc(last.lbl)}</span></div></div><div class="ntw-b"><div class="ntw-gs">${games(last)}</div>${table()}</div></section>`;
+  // coming up: pick the squad
+  const E=ntNextEvent();if(E&&E.w&&E.w.day>=0&&E.w.s===G.season&&E.w.day-G.day<=21&&E.w.day>G.day){const n=E.w.day-G.day;
+    return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window in ${n} day${n===1?'':'s'}</small><h2>${esc(ntName(c))}</h2><span>${esc(E.lbl)} · ${N.sel&&N.sel.key===E.key?'squad picked':'pick your twelve'}</span></div><button class="ntw-go" data-act="ntopen">Pick squad</button></div></section>`;}
+  return '';}
+homeHTML=(o=>()=>ntHomeCard()+o())(homeHTML);
+
 /* ===================== Boot ===================== */
-function boot(data){if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();}
+function boot(data){if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
 window.claude?.hot?.ready?window.claude.hot.ready(boot):boot(window.claude?.hot?.data??{});
 try{SAVE_READY.then(()=>{if(SAVE_TXT&&(!G||UI.view==='start'))render();});}catch(e){}
