@@ -4083,8 +4083,25 @@ function ntStaffCands(){const J=G.nt.job;if(J.cands&&!J.cands.v)delete J.cands;i
 function ntHireStaff(role,i){const J=G.nt&&G.nt.job;if(!J)return;const x=ntStaffCands()[role][+i];if(!x)return;J.staff=J.staff||{};J.staff[role]=x;save();}
 // chemistry: how many of the twelve were together in the last window (a camp on chemistry adds to it)
 function ntChem(){const J=G.nt&&G.nt.job;if(!J)return 50;const E=ntNextEvent(),sq=E?ntUserSquad(J.c,E.win,E.key):[],prev=J.prevSq||[],share=sq.length?sq.filter(p=>prev.includes(p.id)).length/sq.length:0;return clamp(Math.round(45+45*share+(J.camp==='chem'?12:0)),0,100);}
+/* national team staff: hired from the whole staff market, any nationality. Free agents (assistant coaches, head coaches without a
+   club, doctors) and staff working at clubs, who keep their club job, as national team assistants usually do. Up to two assistant
+   coaches (the best counts fully, the second half) and one team doctor. The federation pays. Whether someone wants the job depends
+   on how strong the nation is against his level; his own federation's call always appeals. */
+function ntStaffGet(){const J=G.nt&&G.nt.job;if(!J)return {ac:[],doc:null};const S=J.staff=J.staff||{};if(S.ac&&!Array.isArray(S.ac))S.ac=[S.ac];S.ac=S.ac||[];if(Array.isArray(S.doc))S.doc=S.doc[0]||null;S.doc=S.doc||null;return S;}
+const ntSRole=st=>st.role==='DOC'?'doc':st.role==='AC'||st.role==='HC'?'ac':null;
+const ntSRate=st=>st.role==='DOC'?(st.r.med||st.o):st.role==='HC'?(st.r.tac||st.o):(st.r.coach||st.o);
+function ntStaffPool(){const out=[];for(const st of G.staffFA||[])if(ntSRole(st))out.push({st,tid:null});
+  for(const t of G.teams)if(t.dom!=='GONE'&&!t.ntTemp)for(const st of t.staff||[])if(st.role==='AC'||st.role==='DOC')out.push({st,tid:t.id});return out;}
+function ntStaffInt(st){const J=G.nt.job,i=Math.max(0,ntRankEur().indexOf(J.c)),pr=90-i*1.2,r=ntSRate(st);return clamp(Math.round(62+(pr-r)*2.2+(st.nat===J.c?22:0)-(st.role==='HC'?18:0)),5,95);}// a head coach without a club takes an assistant job only with a strong nation
+function ntStaffHire(sid){const J=G.nt&&G.nt.job;if(!J)return 'You do not coach a national team.';const S=ntStaffGet(),x=ntStaffPool().find(x=>x.st.id===+sid);if(!x)return 'No longer available.';const st=x.st,k=ntSRole(st);
+  if(S.ac.concat([S.doc]).some(y=>y&&y.sid===st.id))return `${st.f} ${st.l} is already on your staff.`;
+  if(k==='ac'&&S.ac.length>=2)return 'You have two assistant coaches. Release one first.';if(k==='doc'&&S.doc)return 'You already have a team doctor. Release him first.';
+  if(ntStaffInt(st)<35)return `${st.f} ${st.l} is not interested: he aims higher than ${ntName(J.c)}.`;
+  const e={sid:st.id,f:st.f,l:st.l,nat:st.nat,age:st.age,role:st.role,o:ntSRate(st),tid:x.tid};if(k==='ac')S.ac.push(e);else S.doc=e;
+  msg(`${ntName(J.c)} Basketball Federation`,`${st.f} ${st.l} joins the national team staff`,`${st.f} ${st.l}${x.tid!=null&&G.teams[x.tid]?` keeps his job at ${G.teams[x.tid].name} and`:''} joins ${ntName(J.c)} as ${k==='ac'?'assistant coach':'team doctor'}. The federation pays him.`,'nt');save();return null;}
+function ntStaffFire(k,i){const S=ntStaffGet();if(k==='ac')S.ac.splice(+i,1);else S.doc=null;save();}
 const ntCoachBonus=()=>{const J=G.nt&&G.nt.job;let b=.3*((typeof sk==='function'?sk('tac'):0)||0)+.2*((typeof sk==='function'?sk('coach'):0)||0);if(!J)return b;
-  const cp=J.camp||'chem',ac=J.staff&&J.staff.ac;b+=cp==='off'||cp==='def'?.5:cp==='chem'?(100-ntChem())*.012:0;if(ac)b+=(ac.o-60)*.03;b+=(ntChem()-60)*.015;return b;};
+  const cp=J.camp||'chem',A=ntStaffGet().ac.map(x=>x.o).sort((a,b)=>b-a);b+=cp==='off'||cp==='def'?.5:cp==='chem'?(100-ntChem())*.012:0;if(A[0])b+=(A[0]-60)*.03;if(A[1])b+=(A[1]-60)*.015;b+=(ntChem()-60)*.015;return b;};
 function ntAfterGame(r){const J=G.nt&&G.nt.job;if(!J||(r[0]!==J.c&&r[1]!==J.c))return;const won=(r[0]===J.c)===(r[2]>r[3]);J.trust=clamp((J.trust==null?60:J.trust)+(won?5:-6),0,100);J.fans=clamp((J.fans==null?60:J.fans)+(won?4:-4),0,100);}
 
 function nlProject(L){if(!L||L.po||L.phase==='done'||L.code==='GL'||L.code==='NCAA')return null;
