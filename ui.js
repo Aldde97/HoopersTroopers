@@ -486,18 +486,34 @@ function ntTheme(){const J=G&&G.nt&&G.nt.job,on=!!(J&&UI.view==='main'&&UI.tab==
   else if(b.classList.contains('ntt')){for(const k of ['--or','--or2','--orS','--orL'])r.removeProperty(k);b.classList.remove('ntt');}}
 // the coach's tab: offers, or the job with the squad picker for the next event
 function ntMyHTML(){const N=G.nt,J=N.job;
-  if(!J){const L=(N.offers&&N.offers.list)||[];return `<div class="cb"><p style="margin:0 0 6px"><b>Coach a national team</b></p><p class="mut" style="font-size:13px;margin:0">You can coach a national team alongside your club. You pick the squad for every window and tournament from all players of that nationality. The federation judges you on qualifying and on the tournament. New offers come every summer, depending on your reputation.</p></div>
-    ${L.length?L.map(c=>`<div class="cb" style="display:flex;align-items:center;gap:12px">${ntFlag(c,48)}<div style="flex:1"><b>${esc(ntName(c))}</b><small class="mut" style="display:block">Strength rank in Europe: ${ntRankEur().indexOf(c)+1} of ${NT_EUR.length} · ${eur(ntSal(c))} per year</small></div><button class="btn p" data-act="ntjob:${c}">Accept</button></div>`).join(''):'<div class="empty"><p class="mut">No federation has approached you right now. Offers come every summer.</p></div>'}`;}
-  const c=J.c,E=ntNextEvent(),C=N.cyc;let pick='';
-  if(E){const sq=ntUserSquad(c,E.win,E.key),ids=sq.map(p=>p.id),own=N.sel&&N.sel.key===E.key,all=ntCands(c),show=UI.ntAll?all:all.slice(0,40);
-    const row=p=>{const on=ids.includes(p.id),av=ntAvail(p,E.win),t=p.tid!=null?G.teams[p.tid]:null,why=!av?(E.win&&(p.inj||0)>2?'Injured':'Not released'):'';
-      return `<div class="kv" style="gap:10px;align-items:center${on?';background:var(--orS)':''}"><span style="display:flex;align-items:center;gap:10px;min-width:0"><button class="btn sm${on?' p':''}" data-act="ntpick:${p.id}" ${!av&&!on?'disabled':''}>${on?'✓ In':'+ Call up'}</button><span style="min-width:0"><b class="click" data-act="prof:${p.id}">${esc(pname(p))}</b><small class="mut" style="display:block">${p.pos} · ${p.age} · ${t?esc(t.name):'Free agent'}${why?` · <span style="color:var(--r)">${why}</span>`:''}</small></span></span><b>${ovb(ovrEst(p))}</b></div>`;};
-    pick=`<div class="cb"><h4 style="margin:0 0 4px">Next: ${esc(E.lbl)}</h4><p class="mut" style="font-size:13px;margin:0 0 8px">${E.win?'Season window: players at NBA, EuroLeague and NCAA clubs are not released, injured players cannot travel.':'Everyone is available.'} Squad: <b>${ids.length}/12</b>${own?' (your pick)':' (federation proposal: the best available twelve)'} · ${all.length} players with ${esc(ntName(c))} nationality in the game.</p>
-      <div class="btns" style="margin-bottom:8px"><button class="btn sm" data-act="ntauto">Best twelve</button><button class="btn sm" data-act="ntall">${UI.ntAll?'Show top 40':'Show all players'}</button></div>
-      <p style="margin:0 0 4px"><b>Squad</b></p>${sq.map(row).join('')}<p style="margin:12px 0 4px"><b>All ${esc(ntName(c))} players</b></p>${show.filter(p=>!ids.includes(p.id)).map(row).join('')}</div>`;}
+  if(!J){const L=(N.offers&&N.offers.list)||[];return `<section class="nto"><div class="nto-h"><small>FIBA</small><h2>Coach a national team</h2><p>Lead a country alongside your club. You pick twelve players for every window and tournament, the federation judges you on qualifying and on the tournament. New offers come every summer, depending on your reputation.</p></div>
+    <div class="nto-l">${L.length?L.map(c=>{const [a,b]=NT_COL[c]||['#333','#555'];return `<div class="nto-c" style="--a:${a};--b:${b}"><div class="nto-f">${ntFlag(c,96)}</div><div class="nto-t"><b>${esc(ntName(c))}</b><small>Strength rank in Europe: ${ntRankEur().indexOf(c)+1} of ${NT_EUR.length}</small><small>${eur(ntSal(c))} per year</small></div><button class="nto-b" data-act="ntjob:${c}">Accept offer</button></div>`;}).join(''):'<div class="empty"><p class="mut">No federation has approached you right now. Offers come every summer.</p></div>'}</div></section>`;}
+  const c=J.c,E=ntNextEvent(),C=N.cyc,grp=Object.keys(C.groups).find(k=>C.groups[k].includes(c)),rk=grp?ntSort(C.groups[grp],C.tab).indexOf(c)+1:0,rec=ntRec(C.tab,c);
+  const hero=`<section class="nth"><div class="nth-wm">${ntFlag(c,420)}</div><div class="nth-fl">${ntFlag(c,132)}</div><div class="nth-tx"><small>Head coach · since ${J.since}</small><h2>${esc(ntName(c))}</h2>
+    <div class="nth-ch">${grp?`<span><b>${ordn(rk)}</b> in group ${grp} · ${rec.w}–${rec.l}</span>`:''}<span>Target: <b>${esc(J.tgt||ntTarget())}</b></span><span>${eur(J.sal)} per year</span></div></div><button class="nth-q" data-act="ntquit">Resign</button></section>`;
+  if(!E)return hero;
+  const sq=ntUserSquad(c,E.win,E.key,true),ids=sq.map(p=>p.id),own=N.sel&&N.sel.key===E.key,S=ntStr(c,sq),age=sq.length?(sq.reduce((a,p)=>a+p.age,0)/sq.length).toFixed(1):'–';
+  const pg=k=>sq.filter(p=>({G:['PG','SG'],F:['SF','PF'],C:['C']})[k].includes(p.pos)).length,nz=sq.filter(ntIsNat);
+  const rc=o=>o>=85?'r1':o>=78?'r2':o>=70?'r3':o>=62?'r4':'r5',tm=p=>p.tid!=null?G.teams[p.tid]:null;
+  const tags=p=>[ntIsNat(p)?'<i class="tg n">NAT</i>':'',(p.inj||0)>0?`<i class="tg i">INJ ${p.inj}</i>`:'',E.win&&!ntAvail(p,true)&&(p.inj||0)<=2?'<i class="tg x">NOT RELEASED</i>':''].join('');
+  const card=p=>{const t=tm(p),o=ovrEst(p);return `<div class="ntp"><button class="ntp-x" data-act="ntpick:${p.id}" title="Remove">×</button><div class="ntp-ph">${avatarIn(p,p.no)}</div><span class="ntr ${rc(o)}">${o}</span><b class="click" data-act="prof:${p.id}">${esc(p.l||pname(p))}</b><small>${esc(p.f||'')}</small><small class="ntp-m">${p.pos} · ${p.age}</small><small class="ntp-c">${t?`${mini(t)}${esc(t.short)}`:'Free agent'}</small><div class="ntp-t">${tags(p)}</div></div>`;};
+  const slots=sq.map(card).concat(Array.from({length:Math.max(0,12-sq.length)},()=>`<div class="ntp empty"><span>+</span><small>Open spot</small></div>`)).join('');
+  const meter=(l,v,x,pct)=>`<div class="ntm"><small>${l}</small><b>${v}</b>${pct!=null?`<i><u style="width:${clamp(pct,0,100)}%"></u></i>`:''}${x?`<em>${x}</em>`:''}</div>`;
+  const pos=UI.ntPos||'all',q=(UI.ntQ||'').trim().toLowerCase(),av=!!UI.ntAv;
+  let all=ntCands(c).filter(p=>!ids.includes(p.id)&&(pos==='all'||({G:['PG','SG'],F:['SF','PF'],C:['C']})[pos].includes(p.pos))&&(!q||pname(p).toLowerCase().includes(q))&&(!av||ntAvail(p,E.win)));
+  const total=all.length;if(!UI.ntAll)all=all.slice(0,60);
+  const row=p=>{const t=tm(p),o=ovrEst(p),ok=ntAvail(p,E.win);return `<tr class="${ok?'':'off'}"><td class="ntl-ph">${avatarIn(p,p.no)}</td><td><b class="click" data-act="prof:${p.id}">${esc(pname(p))}</b><small>${t?`${mini(t)}${esc(t.name)}`:'Free agent'}</small></td><td class="n">${p.pos}</td><td class="n">${p.age}</td><td>${tags(p)}</td><td class="n"><span class="ntr ${rc(o)}">${o}</span></td><td class="r"><button class="ntl-b" data-act="ntpick:${p.id}" ${ok?'':'disabled'}>${ok?'Call up':'–'}</button></td></tr>`;};
   const res=C.wins.filter(w=>w.done).flatMap(w=>w.res).filter(r=>r[0]===c||r[1]===c);
-  return `<div class="cb" style="display:flex;align-items:center;gap:14px;background:linear-gradient(90deg,var(--or),var(--or2));color:#fff;border-radius:10px">${ntFlag(c,64)}<div style="flex:1"><small style="opacity:.85;text-transform:uppercase;letter-spacing:.08em">Head coach</small><h3 style="margin:2px 0;color:#fff">${esc(ntName(c))}</h3><small style="opacity:.9">Target: ${esc(J.tgt||ntTarget())} · ${eur(J.sal)} per year · since ${J.since}</small></div><button class="btn" style="background:#fff;color:var(--tx)" data-act="ntquit">Resign</button></div>
-    ${pick}${res.length?`<div class="cb"><h4 style="margin:0 0 6px">Results this cycle</h4><div class="rg">${res.map(ntRes).join('')}</div></div>`:''}`;}
+  return `${hero}
+  <section class="ntc"><div class="ntc-h"><div><small>Next call-up</small><b>${esc(E.lbl)}</b><span>${E.win?'Season window: players at NBA, EuroLeague and NCAA clubs are not released, injured players cannot travel.':'Everyone is available.'} ${own?(ids.length<8?'Your selection: pick at least 8, the federation fills open spots with the best available when the window starts.':'Your selection.'):'Federation proposal until you change it.'}</span></div><div class="ntc-n"><b>${ids.length}</b><small>/ 12</small></div></div>
+    <div class="ntms">${meter('Team strength',S.toFixed(1),'',(S-55)*3)}${meter('Average age',age)}${meter('Guards · Forwards · Centres',`${pg('G')} · ${pg('F')} · ${pg('C')}`)}${meter('Naturalised player',`${nz.length} / 1`,nz.length?esc(pname(nz[0])):'none')}</div>
+    <div class="ntg">${slots}</div>
+    <div class="ntc-a"><button data-act="ntauto">Best twelve</button><button data-act="ntclear">Clear squad</button><span>FIBA rule: one naturalised player per squad.</span></div></section>
+  <section class="ntc"><div class="ntc-h"><div><small>Player pool</small><b>All ${esc(ntName(c))} players</b><span>${total} players${q||pos!=='all'||av?' match the filter':''}. Federation per player from the real squads (FIBA window 4, EuroBasket 2025), otherwise his passport.</span></div></div>
+    <div class="ntf"><div class="seg">${[['all','All'],['G','Guards'],['F','Forwards'],['C','Centres']].map(([k,l])=>`<button class="${pos===k?'on':''}" data-act="ntpos:${k}">${l}</button>`).join('')}</div><input id="ntQ" placeholder="Search a player" value="${esc(UI.ntQ||'')}"><button class="ntf-t${av?' on':''}" data-act="ntav">Available only</button></div>
+    <div class="tw"><table class="ntl"><thead><tr><th></th><th>Player</th><th class="n">Pos</th><th class="n">Age</th><th>Status</th><th class="n">OVR</th><th></th></tr></thead><tbody>${all.map(row).join('')}</tbody></table></div>
+    ${total>60?`<div class="ntc-a"><button data-act="ntall">${UI.ntAll?'Show top 60':`Show all ${total}`}</button></div>`:''}</section>
+  ${res.length?`<section class="ntc"><div class="ntc-h"><div><small>This cycle</small><b>Results</b></div></div><div class="rg">${res.map(ntRes).join('')}</div></section>`:''}`;}
 
 const ntRes=r=>`<div><span class="tm">${ntFlag(r[0],18)} ${esc(ntName(r[0]))}</span><span class="sc">${r[2]!=null?`${r[2]}–${r[3]}`:'–'}</span><span class="tm r">${esc(ntName(r[1]))} ${ntFlag(r[1],18)}</span></div>`;
 function ntHTML(){const N=G.nt;if(!N||!N.cyc)return card('National teams','<div class="empty"><p class="mut">National team competitions start with the next season.</p></div>');
@@ -505,7 +521,7 @@ function ntHTML(){const N=G.nt;if(!N||!N.cyc)return card('National teams','<div 
   let body='';
   if(sub==='m')body=ntMyHTML();
   else if(sub==='q'){const cut=3,stg=C.stage==='r1'?'First round: the top three of each group reach the second round, where all their results carry over.':C.stage==='r2'?'Second round: the top three of each group qualify for the World Cup.':C.stage==='q'?'The top three of each group qualify for EuroBasket.':`Qualified from Europe: ${(C.qual||[]).map(ntName).join(', ')}.`;
-    const mine=roster(G.user).filter(p=>Object.values(C.groups).flat().includes(p.nat)&&ntPool(p.nat,true).includes(p)).map(p=>`${esc(pname(p))} (${esc(ntName(p.nat))})`);
+    const mine=roster(G.user).filter(p=>Object.values(C.groups).flat().includes(ntNatOf(p))&&ntPool(ntNatOf(p),true).includes(p)).map(p=>`${esc(pname(p))} (${esc(ntName(ntNatOf(p)))})`);
     body=`<div class="cb"><p style="margin:0 0 6px"><b>${esc(C.name)}</b> · European Qualifiers</p><p class="mut" style="font-size:13px;margin:0">${stg} ${C.note?esc(C.note):''} In the windows the leagues pause; NBA, EuroLeague and NCAA clubs do not release their players.</p>${mine.length?`<p style="font-size:13px;margin:8px 0 0"><b>Likely call-ups from your club:</b> ${mine.join(', ')}</p>`:''}</div>
       <div class="cb"><div class="g-2e">${Object.entries(C.groups).map(([k,g])=>ntTable(g,C.tab,cut,`Group ${k}`)).join('')}</div></div>
       ${C.wins.map(w=>`<div class="cb"><h4 style="margin:0 0 6px">${esc(w.lbl)}${w.done?'':' · upcoming'}</h4><div class="rg">${(w.done?w.res:w.days.flat().map(([h,a])=>[h,a,null,null])).map(ntRes).join('')}</div></div>`).join('')}`;}
@@ -1232,6 +1248,9 @@ const ACT={
   retstay(id,k){const e=retTalk(+id,+k===1);if(e)toast(e);render();},
   retok(id){const m=G.inbox.find(x=>x.id===+id);if(m){m.done='Decision accepted';save();}render();},
   ntsub(k){UI.ntSub=k;render();},
+  ntpos(k){UI.ntPos=k;render();},
+  ntav(){UI.ntAv=!UI.ntAv;render();},
+  ntclear(){const E=ntNextEvent();if(G.nt&&G.nt.job&&E){G.nt.sel={key:E.key,ids:[]};save();}render();},
   ntjob(c){const e=ntTakeJob(c);if(e)toast(e);else{UI.ntSub='m';toast(`You are head coach of ${ntName(c)}`);}render();},
   ntquit(){ntResign();UI.ntSub='m';toast('You resigned as national team coach');render();},
   ntpick(id){const e=ntPick(+id);if(e)toast(e);render();},
@@ -1413,6 +1432,7 @@ document.addEventListener('dragstart',e=>{const el=e.target.closest&&e.target.cl
 document.addEventListener('dragover',e=>{if(UI.sqDrag!=null&&e.target.closest&&e.target.closest('[data-pid]'))e.preventDefault();});
 document.addEventListener('drop',e=>{const el=e.target.closest&&e.target.closest('[data-pid]');if(el&&UI.sqDrag!=null){e.preventDefault();const b=+el.dataset.pid;sqSwapIds(UI.sqDrag,b);UI.sqDrag=null;UI.sel=b;save();render();}});
 document.addEventListener('dragend',()=>{UI.sqDrag=null;});
+let ntQT=null;document.addEventListener('input',e=>{if(e.target.id!=='ntQ')return;UI.ntQ=e.target.value;clearTimeout(ntQT);ntQT=setTimeout(()=>{const pos=e.target.selectionStart;render();const f=document.getElementById('ntQ');if(f){f.focus();try{f.setSelectionRange(pos,pos);}catch(x){}}},250);});
 let trQT=null;document.addEventListener('input',e=>{if(e.target.id!=='trQ')return;UI.trQ=e.target.value;clearTimeout(trQT);trQT=setTimeout(()=>{const pos=e.target.selectionStart;render();const f=document.getElementById('trQ');if(f){f.focus();try{f.setSelectionRange(pos,pos);}catch(x){}}},220);});
 document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el)return;
   if(el.dataset.act==='ovl'){if(e.target===el)ACT.close();return;}
