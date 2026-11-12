@@ -1485,7 +1485,7 @@ const NT_TABS=[['home','Home'],['squad','Squad'],['tactics','Tactics'],['trainin
 function ntHeaderHTML(){const J=G.nt.job,c=J.c,C=G.nt.cyc,E=ntNextEvent(),grp=Object.keys(C.groups).find(k=>C.groups[k].includes(c)),rk=grp?ntSort(C.groups[grp],C.tab).indexOf(c)+1:0,rec=ntRec(C.tab,c),live=UI.view==='match'&&UI.match&&!UI.match.m.done;
   const w=ntPend(),g=w?ntUserPair(w,w.dd||0):null,opp=g?(g[0]===c?g[1]:g[0]):null;
   return `<header class="hdr"><div class="brand"><div class="t1">BASKETBALL MANAGER</div><div class="t2">NATIONAL TEAM <small>${c}</small></div></div><div class="stripe"></div>
-  <div class="hmid"><div class="date"><b>${dateStr()}</b><span>${E?esc(E.lbl):'National team'}${opp?` · game ${(w.dd||0)+1} vs ${esc(ntName(opp))}`:` · ${C.kind==='EB'?'EuroBasket':'World Cup'} Qualifiers`}</span></div>
+  <div class="hmid"><div class="date"><b>${dateStr(w?new Date(G.season,9,1+w.day+((w.dd||0)?3:0)):undefined)}</b><span>${E?esc(E.lbl):'National team'}${opp?` · game ${(w.dd||0)+1} vs ${esc(ntName(opp))}`:` · ${C.kind==='EB'?'EuroBasket':'World Cup'} Qualifiers`}</span></div>
   <div class="hstat"><small>Group ${grp||'–'}</small><b>${rk?ordn(rk):'–'} · ${rec.w}–${rec.l}</b></div>
 </div>
   <button class="cont" data-act="continue" ${live?'disabled':''}>${contLabel()}${IC.arrow}</button></header>`;}
