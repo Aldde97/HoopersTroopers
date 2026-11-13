@@ -143,6 +143,39 @@ function nbaAllStarTick(){try{nbaRegSnap();}catch(e){}const L=G.nl&&G.nl.NBA;if(
   if(L.ids.includes(U))msg('League Office',`NBA All-Star Game ${S}`,mine.length?`Our All-Stars: ${mine.join(', ')}. The All-Star selection raises their profile and counts towards awards history and future supermax eligibility.`:`None of our players made the All-Star Game this season. East starters: ${out.conf.East.starters.map(nm).join(', ')}. West starters: ${out.conf.West.starters.map(nm).join(', ')}.`,'board');
   if(mine.length){G.fans=clamp(G.fans+mine.length,0,100);}}
 
+/* ===================== NBA contract tiers, rookie-scale and supermax extensions (2023 CBA) ===================== */
+// Maximum first-year salary by years of service: 0-6 years 25% of the cap, 7-9 years 30%, 10+ years 35%.
+// Rookie-scale extension: first-round picks after their third season (until their fourth starts), up to five years. Up to 25% of the
+// cap, or 30% (the "Rose rule") after All-NBA, Defensive Player of the Year or MVP honours.
+// Designated veteran (supermax): 7-8 years of service, still with the team that drafted him (or traded for him on his rookie deal),
+// All-NBA or Defensive Player in the last season or in two of the last three, or MVP in one of the last three: 35% of the cap, five years.
+// Veteran extension: two years or less left; the first new year is at most 140% of his current salary; up to four years.
+// years of service: the imported rosters count one season more for players who were not rookies in 2026 (p.expOff marks them)
+const nbaSvc=p=>Math.max(0,(p.exp||0)-(p.expOff||0));
+const nbaMaxPct=p=>nbaSvc(p)>=10?.35:nbaSvc(p)>=7?.30:.25;
+const nbaMaxOf=p=>r5k(capv().cap*nbaMaxPct(p));
+const nbaRS=p=>p.draft?p.draft.slot<=30:!!p.rs;
+function nbaHonours(p){const last=G.awards&&G.awards[seasonStr()]?G.season:G.season-1,A=(p.aw||[]).filter(a=>a[1]==='NBA').map(([S,k,kind])=>({y:+String(S).slice(0,4),kind})),good=y=>A.some(a=>a.y===y&&['first','first2','first3','dpoy'].includes(a.kind));
+  return good(last)||[last,last-1,last-2].filter(good).length>=2||A.some(a=>a.kind==='mvp'&&a.y>=last-2);}
+// who is the "own team" (drafting team, or the team that traded for him while on his rookie deal); first set for the players in the game
+function nbaHomeTick(){if(!G.nl||!G.nl.NBA)return;const first=G.homeV!==1;G.homeV=1;for(const p of Object.values(G.players)){if(p.tid==null||!isNBA(G.teams[p.tid]))continue;
+  if(first){if(p.expOff==null)p.expOff=!p.draft&&(p.exp||0)>=2?1:0;if(p.rs==null)p.rs=nbaSvc(p)<=3&&p.sal<=rookieSal(1)*1.25?1:0;}if(p.homeT==null||(nbaSvc(p)<=3&&nbaRS(p)&&p.homeT!==p.tid))p.homeT=p.tid;}}
+function nbaExtTerms(p){if(!p||p.tid==null||!isNBA(G.teams[p.tid])||p.tw||p.retAt===G.season)return null;const C=capv(),ex=nbaSvc(p),base=nbaSal(p),hon=nbaHonours(p);
+  if(nbaRS(p)&&((ex===2&&seasonOver())||(ex===3&&preOn()))){const pct=hon?.30:.25;return {type:'rs',label:hon?'Rookie-scale extension (Rose rule)':'Rookie-scale extension',sal:Math.min(r5k(Math.max(base,p.sal)*1.05),r5k(C.cap*pct)),maxY:5,pct};}
+  if(ex>=7&&ex<=8&&p.yrs<=2&&p.homeT===p.tid&&hon)return {type:'sm',label:'Designated veteran extension (supermax)',sal:r5k(C.cap*.35),maxY:5,pct:.35};
+  if(p.yrs<=2&&ex>=3)return {type:'vet',label:'Veteran extension',sal:Math.max(C.min,Math.min(r5k(base*1.05),nbaMaxOf(p),r5k(p.sal*1.4))),maxY:4,pct:nbaMaxPct(p)};
+  return null;}
+function nbaExtend(pid,y,ai){const p=G.players[pid],T=nbaExtTerms(p);if(!T)return 'He is not eligible for an extension right now.';y=clamp(+y||T.maxY,1,T.maxY);
+  if(!ai&&moodOf(p)<25&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal. Speak to him first.`;
+  const t=G.teams[p.tid];p.sal=T.sal;p.yrs+=y;p.extS=G.season;p.ext={s:G.season,type:T.type,y};if(T.type==='sm')p.sm=(p.sm||0)+1;if(T.type==='rs'){delete p.opts;}
+  const txt=`${pname(p)} signs a ${y}-year ${T.type==='sm'?'supermax ':T.type==='rs'?'rookie-scale ':''}extension with ${t.name}, starting at ${eur(T.sal)} (${Math.round(T.sal/capv().cap*100)}% of the cap).`;
+  if(p.tid===G.user)msg('General Manager',`${pname(p)} extended`,txt,'fin');else if(T.type==='sm'||T.sal>=capv().cap*.25)news(`${pname(p)} signs ${T.type==='sm'?'supermax ':''}extension`,txt);
+  if(!ai)save();return null;}
+// AI teams extend their young stars and their supermax-eligible players before the season, and keep some veterans
+function nbaAIExtTick(){const L=G.nl&&G.nl.NBA;if(!L||G.aiExtS===G.season||!preOn())return;G.aiExtS=G.season;
+  for(const t of nbaTeams()){if(t.id===G.user)continue;for(const p of roster(t.id)){const T=nbaExtTerms(p);if(!T)continue;
+    const want=T.type==='sm'?.85:T.type==='rs'?clamp((p.o-72)/12,0,.9):p.yrs===1&&p.o>=79&&p.age<=31?.35:0;if(Math.random()<want)nbaExtend(p.id,T.type==='vet'?rnd(2,3):T.maxY,1);}}}
+
 const AWN={mvp:'MVP',first:'All-League First Team',young:'Young Player of the Year',coach:'Coach of the Year'};
 function awRun(){const S=seasonStr(),R={};G.awards=G.awards||{};const mineL=[];
   for(const A of awLeagues()){const rec={};for(const i of A.ids){const r=A.rec(i);rec[i]=(r[0]+r[1])?r[0]/(r[0]+r[1]):.5;}
@@ -181,7 +214,7 @@ const capF=()=>Math.pow(1.07,Math.max(0,((G&&G.season)||2026)-2026));
 function capv(){const f=capF(),m=x=>Math.round(x*f);return {cap:m(164961000),tax:m(200428000),ap1:m(209015000),ap2:m(221686000),floor:m(148465000),ntmle:m(15044000),tmle:m(6064000),rmle:m(9366000),min:m(1300000)};}
 const nbaPayroll=tid=>roster(tid).filter(p=>!p.tw&&!(p.loan&&p.loan.from!==tid)).reduce((a,p)=>a+p.sal,0)+Object.values(G.players).filter(p=>p.loan&&p.loan.gl&&p.loan.from===tid&&!p.tw).reduce((a,p)=>a+p.sal,0);
 // fitted to the real 2026-27 contracts: OVR 80 about 5M, 84 about 14M, 88 about 30M, 92 about 50M; the max contract is 35% of the cap
-function nbaSal(p){const x=p.o<76?1300000+(p.o-70)*120000:2000000+53000000*((p.o-76)/17)**1.9;return r5k(Math.max(1300000,Math.min(x,57700000))*(p.age>=34?.75:1)*capF());}
+function nbaSal(p){const x=p.o<76?1300000+(p.o-70)*120000:2000000+53000000*((p.o-76)/17)**1.9;return Math.min(r5k(Math.max(1300000,Math.min(x,57700000))*(p.age>=34?.75:1)*capF()),typeof nbaMaxOf==='function'&&G&&G.season?nbaMaxOf(p):Infinity);}
 // luxury tax: per 5M above the tax level 1.5, 1.75, 2.5, 3.25, then +0.5 for every further 5M; repeat offenders (3 of the last 4 seasons) pay 1.0 more
 function luxTax(over,rep){if(over<=0)return 0;let t=0,i=0,x=over;const st=5e6*capF();while(x>0){const r=(i<4?[1.5,1.75,2.5,3.25][i]:3.25+.5*(i-3))+(rep?1:0);t+=Math.min(x,st)*r;x-=st;i++;}return r10k(t);}
 
@@ -446,7 +479,7 @@ function nbaDraftRun(){const L=G.nl&&G.nl.NBA,D=G.draft;if(!L||!D||!D.cls||D.y!=
     let p=null;if(own===U){const b=(D.board||[]).map(x=>G.players[x]).find(x=>x&&avail.has(x.id));p=b||[...avail].map(x=>G.players[x]).sort((a,b)=>prospectScore(b)-prospectScore(a))[0];
       if(roster(U).length>=20){out.push({slot,tid:own,pid:null});msg('General Manager',`Pick #${slot} forfeited`,`Our roster is full (20 players), so we could not use pick #${slot}.`,'staff');return;}}
     else p=[...avail].map(x=>G.players[x]).sort((a,b)=>prospectScore(b)+rf(-3,3)-prospectScore(a)-rf(-3,3))[0];
-    if(!p)return;avail.delete(p.id);delete p.prospect;if(p.ee&&!eeCome(p,slot,own)){eeStash(p,slot,own);out.push({slot,tid:own,pid:p.id,orig,stash:1});return;}if(p.ee){eeLeave(p,t,'drafted');delete p.ee;delete p.eeAuto;delete p.eeReal;}p.sal=rookieSal(slot);p.yrs=slot<=30?4:2;p.exp=0;if(slot<=30)p.opts=[[G.season+2,'TO'],[G.season+3,'TO']];p.draft={y:G.season,slot,tid:own};p.real=1;join(p,t);
+    if(!p)return;avail.delete(p.id);delete p.prospect;if(p.ee&&!eeCome(p,slot,own)){eeStash(p,slot,own);out.push({slot,tid:own,pid:p.id,orig,stash:1});return;}if(p.ee){eeLeave(p,t,'drafted');delete p.ee;delete p.eeAuto;delete p.eeReal;}p.sal=rookieSal(slot);p.yrs=slot<=30?4:2;p.exp=0;p.rs=slot<=30?1:0;p.homeT=own;if(slot<=30)p.opts=[[G.season+2,'TO'],[G.season+3,'TO']];p.draft={y:G.season,slot,tid:own};p.real=1;join(p,t);
     const used=new Set(roster(own).filter(q=>q!==p).map(q=>q.no));p.no=[0,1,2,3,4,5,7,8,9,10,11,12,13,14,15,20,21,22,23,24,25,30,31,32,33,35,41,44,55].find(n=>!used.has(n))||rnd(40,99);
     out.push({slot,tid:own,pid:p.id,orig});if(own===U)msg('General Manager',`We drafted ${pname(p)} at #${slot}`,`${pname(p)} (${p.pos}, ${p.age}, ${p.school}, OVR ${p.o}, POT ${p.pot}) joins us on a ${p.yrs}-year rookie contract worth ${eur(p.sal)} per season.`,'staff');}));
   for(const id of avail){const p=G.players[id];delete p.prospect;if(p.ee){if(p.tid!=null&&isCol(G.teams[p.tid]))p.ncOut=1;delete p.ee;delete p.eeAuto;delete p.eeReal;delete p.ncw;continue;}p.yrs=0;p.sal=salaryFor(p);G.fa.push(id);}
@@ -2340,7 +2373,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}return r;}
+function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -5631,7 +5664,7 @@ function acceptOffer(mid,so){
 }
 function releaseCost(p){return r5k(p.sal*.5*p.yrs);}
 function releasePlayer(pid){const p=G.players[pid],c=releaseCost(p);if(p.loan)return 'He is only here on loan. Send him back instead.';if(G.teams[G.user].order.length<=10)return 'You need at least 10 players.';G.fin.bal-=c;G.fin.season.rel+=c;noteExit(p,'Released');toFA(p);p.sal=salaryFor(p);msg('Sporting Director',`${pname(p)} released`,`${pname(p)} was released. The buyout cost ${eur(c)}.`,'fin');save();return null;}
-function extendPlayer(pid){const p=G.players[pid],d=demand(p);if(p.retAt===G.season)return `${pname(p)} has decided to retire at the end of the season.`;p.extS=G.season;if(moodOf(p)<25&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal. Speak to him first.`;if(!userNBA()&&wageBill(G.user)-p.sal+d>G.fin.wageBudget)return `His new wage of ${eur(d)} would exceed your wage budget.`;p.sal=d;p.yrs+=2;msg('Sporting Director',`${pname(p)} extended`,`${pname(p)} signed a two-year extension at ${eur(d)} per season.`,'fin');save();return null;}
+function extendPlayer(pid,y){if(userNBA()&&typeof nbaExtTerms==='function'&&nbaExtTerms(G.players[pid]))return nbaExtend(pid,y);const p=G.players[pid],d=demand(p);if(p.retAt===G.season)return `${pname(p)} has decided to retire at the end of the season.`;p.extS=G.season;if(moodOf(p)<25&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal. Speak to him first.`;if(!userNBA()&&wageBill(G.user)-p.sal+d>G.fin.wageBudget)return `His new wage of ${eur(d)} would exceed your wage budget.`;p.sal=d;p.yrs+=2;msg('Sporting Director',`${pname(p)} extended`,`${pname(p)} signed a two-year extension at ${eur(d)} per season.`,'fin');save();return null;}
 
 
 
