@@ -2407,7 +2407,7 @@ function applyResult(m,f){
   if(f.kind==='fec'){const r2=f.st==='r2',rh=fecRec(h.tid,r2),ra=fecRec(a.tid,r2);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
   if(f.kind==='bcl'){const r16=f.st==='r16',rh=bclRec(h.tid,r16),ra=bclRec(a.tid,r16);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
   if(f.kind==='ec'){const rh=ecRec(h.tid),ra=ecRec(a.tid);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
-  if(f.kind==='nl'){const L=G.nl[f.lg],rh=nlRec(L,h.tid),ra=nlRec(L,a.tid);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;
+  if(f.kind==='nl'&&f.cup!=='cupf'){const L=G.nl[f.lg],rh=nlRec(L,h.tid),ra=nlRec(L,a.tid);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;
     if(L.code==='NCAA'&&th.grp===ta.grp){const ch=ncRec(L,h.tid),ca=ncRec(L,a.tid);ch[0]+=hw?1:0;ch[1]+=hw?0:1;ca[0]+=hw?0:1;ca[1]+=hw?1:0;ch[2]+=h.pts;ch[3]+=a.pts;ca[2]+=a.pts;ca[3]+=h.pts;}}
   if(f.kind==='bih'){th.bw=(th.bw||0)+(hw?1:0);th.bl=(th.bl||0)+(hw?0:1);ta.bw=(ta.bw||0)+(hw?0:1);ta.bl=(ta.bl||0)+(hw?1:0);th.bpf=(th.bpf||0)+h.pts;th.bpa=(th.bpa||0)+a.pts;ta.bpf=(ta.bpf||0)+a.pts;ta.bpa=(ta.bpa||0)+h.pts;}
   if(f.kind==='kls'){th.kw+=hw?1:0;th.kl+=hw?0:1;ta.kw+=hw?0:1;ta.kl+=hw?1:0;th.kpf+=h.pts;th.kpa+=a.pts;ta.kpf+=a.pts;ta.kpa+=h.pts;}
@@ -3828,17 +3828,90 @@ function nlFinish(L,U){U=U==null?G.user:U;if(L.code==='NCAA')return ncFinish(L,U
   const r=nlRank(L,U);return `${ordn(r)} in the regular season`;}
 function nlObjMet(L){if(L.code==='NCAA')return ncObjMet(L);if(L.code==='AUT'&&(L.obj||'safe')==='safe'&&L.final&&L.final['Qualification round'])return L.final['Qualification round'].indexOf(G.user)<3;if(L.code==='SBN')return sbnObjMet(L);if(L.code==='RL')return rlObjMet(L);if(L.code==='A2')return a2ObjMet(L);if(L.code==='TBL')return tblObjMet(L);if(L.code==='GEL'||L.code==='PF'||L.code==='LL'||L.code==='EL2')return gelObjMet(L);if(L.code==='GL'&&(L.obj||'safe')==='safe')return nlSort(L,L.ids).findIndex(t=>t.id===G.user)<20;const f=nlFinish(L),lvl=(L.code==='NBA'||L.code==='GL'?['Champions','Runner-up','Conference Finals','Conference Semifinals','First Round']:['Champions','Runner-up','Semi-finals','Quarter-finals','Round of 16']).indexOf(f);
   return {title:lvl===0,fin:lvl>=0&&lvl<=1,sf:lvl>=0&&lvl<=2,po:lvl>=0,safe:!L.down.includes(G.user)&&(!!NLCFG[L.code].nDown||nlRank(L,G.user)<=(NLCFG[L.code].safeRank||12))}[L.obj||'safe'];}
+/* ===================== NBA Cup (in-season tournament) ===================== */
+// The real format: six groups of five, three per conference, drawn from five tiers of three by the previous season's record. Each team
+// plays four group games on the Cup nights in November (two at home, two away). The three group winners of each conference and the best
+// second-placed team (wild card) reach the quarter-finals in early December, hosted by the higher seed (1 v 4, 2 v 3). Semi-finals and
+// final are in Las Vegas on a neutral court. Every Cup game counts towards the 82-game regular season except the final. Tiebreakers in
+// a group: wins, head-to-head, point differential, points scored. Prize money is paid to the players (2024-25: $514,971 per player for
+// the winners, $205,988 runners-up, $102,994 semi-finalists, $51,497 quarter-finalists), scaled here with the salary cap.
+const CUP_R={g:[7,10,13,16,18],qf:24,sf:26,f:28},CUP_TAG={cupg:'NBA Cup \xb7 Group stage',cupq:'NBA Cup \xb7 Quarter-final',cups:'NBA Cup \xb7 Semi-final, Las Vegas',cupf:'NBA Cup \xb7 Final, Las Vegas'};
+function cupPrize(){const k=capF()*164961/140588,r=x=>Math.round(x*k/1000)*1000;return {w:r(514971),f:r(205988),sf:r(102994),qf:r(51497)};}
+// keep every team at 82 counted games after Cup games were put into the schedule (the final does not count)
+function cupBalance(L,from){const T=82,cnt={},inR=r=>{const s=new Set();for(const g of L.sched[r]||[])if(g[0]>=0&&g[1]>=0){s.add(g[0]);s.add(g[1]);}return s;};
+  for(const R of L.sched)for(const g of R){if(g[0]<0||g[1]<0||g[2]==='cupf')continue;cnt[g[0]]=(cnt[g[0]]||0)+1;cnt[g[1]]=(cnt[g[1]]||0)+1;}
+  for(let guard=0;guard<500;guard++){const over=L.ids.filter(i=>(cnt[i]||0)>T),under=L.ids.filter(i=>(cnt[i]||0)<T);if(!over.length&&!under.length)return true;let done=false;
+    for(let x=0;x<under.length&&!done;x++)for(let y=x+1;y<under.length&&!done;y++){const a=under[x],b=under[y],rs=[];for(let r=from;r<L.sched.length;r++){const s=inR(r);if(!s.has(a)&&!s.has(b))rs.push(r);}
+      if(rs.length){L.sched[pick(rs)].push(Math.random()<.5?[a,b]:[b,a]);cnt[a]++;cnt[b]++;done=true;}}
+    // no shared free night: a make-up game on an extra day at the end of the regular season
+    if(!done&&under.length>=2){const a=under[0],b=under[1],last=L.sched[L.sched.length-1];if(last.some(g=>g[0]===a||g[1]===a||g[0]===b||g[1]===b))L.sched.push([]);L.sched[L.sched.length-1].push([a,b]);cnt[a]++;cnt[b]++;done=true;}
+    if(done)continue;const ov=new Set(over),un=new Set(under);
+    for(const pass of [2,1,0]){if(done)break;for(let r=L.sched.length-1;r>=from&&!done;r--){const R=L.sched[r];for(let j=R.length-1;j>=0;j--){const g=R[j];if(g[2]||g[0]<0||g[1]<0||un.has(g[0])||un.has(g[1]))continue;
+      const n=(ov.has(g[0])?1:0)+(ov.has(g[1])?1:0);if(n>=pass&&(pass>0||under.length)){R.splice(j,1);cnt[g[0]]--;cnt[g[1]]--;done=true;break;}}}}
+    if(!done)return false;}return false;}
+// a Cup round: the Cup games, the teams whose opponent is busy are paired again, everybody else keeps his game
+// semi-finals and final get a night of their own (no other games), like the real ones
+function cupNight(L,r,games,tag){L.sched.splice(r,0,games.map(([h,a])=>[h,a,tag]));cupBalance(L,r+1);}
+function cupRound(L,r,games,tag){const busy=new Set(games.flat()),keep=[],free=[];
+  for(const g of L.sched[r]||[]){if(g[0]<0||g[1]<0)continue;if(busy.has(g[0])||busy.has(g[1])){for(const i of [g[0],g[1]])if(!busy.has(i))free.push(i);}else keep.push(g);}
+  const fr=shuffle(free),add=[];for(let i=0;i+1<fr.length;i+=2)add.push([fr[i],fr[i+1]]);
+  L.sched[r]=games.map(([h,a])=>[h,a,tag]).concat(keep,add);cupBalance(L,r+1);}
+function cupSetup(L){const S=G.season,prev=G.nbaLast&&G.nbaLast.y===S-1?G.nbaLast.rec:null,sr=L.ids.slice().sort((a,b)=>strength(b)-strength(a));
+  const rank=id=>prev&&prev[id]!=null?-prev[id]:sr.indexOf(id),C={y:S,st:'g',groups:{},res:[],seeds:{},place:{},prize:cupPrize()};
+  for(const conf of ['East','West']){const ts=L.ids.filter(i=>G.teams[i].grp===conf).sort((a,b)=>rank(a)-rank(b));if(ts.length!==15){G.cup={y:S,off:1};return;}
+    const gs=[[],[],[]];for(let t=0;t<5;t++)shuffle(ts.slice(t*3,t*3+3)).forEach((id,i)=>gs[i].push(id));gs.forEach((g,i)=>C.groups[`${conf} ${'ABC'[i]}`]=shuffle(g));}
+  G.cup=C;const keys=Object.keys(C.groups);
+  CUP_R.g.forEach((r,s)=>{const R=[],rest=[];for(const k of keys){const g=C.groups[k],t=j=>g[(s+j)%5];R.push([t(1),t(4),'cupg'],[t(3),t(2),'cupg']);rest.push(t(0));}
+    const rs=shuffle(rest);for(let i=0;i+1<rs.length;i+=2)R.push([rs[i],rs[i+1]]);L.sched[r]=R;});
+  cupBalance(L,L.round);const sh=k=>C.groups[k].map(i=>G.teams[i].short).join(', ');
+  news('NBA Cup draw',`The NBA Cup groups for ${seasonStr()}: ${keys.map(k=>`${k} (${sh(k)})`).join('; ')}. Group games are played on the Cup nights in November; the knockout rounds follow in December, with the semi-finals and the final in Las Vegas.`);
+  const mk=keys.find(k=>C.groups[k].includes(G.user));if(mk)msg('Assistant Coach',`NBA Cup: ${mk}`,`We were drawn into ${mk} with ${C.groups[mk].filter(i=>i!==G.user).map(i=>G.teams[i].name).join(', ')}. Four group games in November, two at home and two away, all of them part of the regular season. The group winners and the best runner-up of each conference reach the quarter-finals; the semi-finals and the final are in Las Vegas. Prize money for the players: ${eur(C.prize.w)} each for the winners, ${eur(C.prize.f)} for the runners-up.`,'staff');}
+function cupGT(ids){const C=G.cup,rec={};ids.forEach(i=>rec[i]={id:i,w:0,l:0,pf:0,pa:0});
+  for(const [h,a,hs,as,k] of C.res){if(k!=='cupg'||!rec[h]||!rec[a])continue;const hw=hs>as;rec[h].w+=hw;rec[h].l+=!hw;rec[a].w+=!hw;rec[a].l+=hw;rec[h].pf+=hs;rec[h].pa+=as;rec[a].pf+=as;rec[a].pa+=hs;}
+  // ties: record in the games among the tied teams, then point differential, then points scored
+  const all=Object.values(rec),mini=(id,blk)=>C.res.filter(r=>r[4]==='cupg'&&blk.has(r[0])&&blk.has(r[1])&&(r[0]===id||r[1]===id)).reduce((a,r)=>a+((r[0]===id)===(r[2]>r[3])?1:0),0);
+  const byW={};all.forEach(r=>(byW[r.w]=byW[r.w]||[]).push(r));
+  return Object.keys(byW).map(Number).sort((a,b)=>b-a).flatMap(w=>{const blk=byW[w],ids=new Set(blk.map(r=>r.id));return blk.sort((a,b)=>(mini(b.id,ids)-mini(a.id,ids))||((b.pf-b.pa)-(a.pf-a.pa))||(b.pf-a.pf)||(a.id-b.id));});}
+const cupWin=(a,b,tag)=>{const g=G.cup.res.find(r=>r[4]===tag&&((r[0]===a&&r[1]===b)||(r[0]===b&&r[1]===a)));return g?(g[2]>g[3]?g[0]:g[1]):null;};
+const cupBy=(x,y)=>(y.w-x.w)||((y.pf-y.pa)-(x.pf-x.pa))||(y.pf-x.pf);
+function cupGroupsEnd(L){const C=G.cup,games=[],nm=i=>G.teams[i].name;
+  for(const conf of ['East','West']){const tabs=Object.keys(C.groups).filter(k=>k.startsWith(conf)).map(k=>cupGT(C.groups[k]));
+    const win=tabs.map(t=>t[0]).sort(cupBy),wc=tabs.map(t=>t[1]).sort(cupBy)[0],s=win.map(x=>x.id).concat([wc.id]);C.seeds[conf]=s;games.push([s[0],s[3]],[s[1],s[2]]);}
+  C.st='qf';cupRound(L,CUP_R.qf,games,'cupq');const qf=Object.values(C.seeds).flat();
+  news('NBA Cup quarter-finals set',`${['East','West'].map(c=>`${c}: ${nm(C.seeds[c][0])} v ${nm(C.seeds[c][3])} (wild card), ${nm(C.seeds[c][1])} v ${nm(C.seeds[c][2])}`).join('. ')}. The higher seeds host the quarter-finals; the last four go to Las Vegas.`);
+  if(L.ids.includes(G.user))msg('Assistant Coach',qf.includes(G.user)?'We are in the NBA Cup quarter-finals':'Out of the NBA Cup',qf.includes(G.user)?`We reached the knockout rounds as the No. ${Object.values(C.seeds).find(s=>s.includes(G.user)).indexOf(G.user)+1} seed in the ${G.teams[G.user].grp}. One game, ${Object.values(C.seeds).find(s=>s.includes(G.user)).indexOf(G.user)<2?'at home':'on the road'}; the winners fly to Las Vegas. Every player earns ${eur(C.prize.qf)} already.`:`We did not get out of our group. The Cup nights still counted for the regular season.`,'staff');}
+function cupKO(L,from){const C=G.cup,nm=i=>G.teams[i].name;
+  if(from==='qf'){const games=[];for(const conf of ['East','West']){const s=C.seeds[conf],a=cupWin(s[0],s[3],'cupq'),b=cupWin(s[1],s[2],'cupq');[s[0],s[3],s[1],s[2]].forEach(i=>{if(i!==a&&i!==b)C.place[i]='qf';});games.push([a,b]);C.seeds[conf+'SF']=[a,b];}
+    C.st='sf';cupNight(L,CUP_R.sf,games,'cups');news('NBA Cup: on to Las Vegas',`The semi-finals in Las Vegas: ${games.map(([a,b])=>`${nm(a)} v ${nm(b)}`).join(' and ')}.`);
+    if(games.flat().includes(G.user))msg('Assistant Coach','Las Vegas, here we come','We won our quarter-final and play the NBA Cup semi-final in Las Vegas on a neutral court. Every player is guaranteed '+eur(C.prize.sf)+'.','staff');}
+  else{const fin=[];for(const conf of ['East','West']){const [a,b]=C.seeds[conf+'SF'],w=cupWin(a,b,'cups');C.place[w===a?b:a]='sf';fin.push(w);}
+    C.st='f';C.fin=fin;cupNight(L,Math.max(L.round,CUP_R.f),[fin],'cupf');news('NBA Cup final',`${nm(fin[0])} v ${nm(fin[1])} in the NBA Cup final in Las Vegas. The final does not count towards the regular season standings.`);
+    if(fin.includes(G.user))msg('Assistant Coach','We are in the NBA Cup final',`We play ${nm(fin.find(i=>i!==G.user))} for the NBA Cup in Las Vegas. The winners earn ${eur(C.prize.w)} per player, the runners-up ${eur(C.prize.f)}.`,'staff');}}
+function cupFinal(L){const C=G.cup,[a,b]=C.fin,w=cupWin(a,b,'cupf');if(w==null)return;const r=w===a?b:a,nm=i=>G.teams[i].name;C.place[w]='w';C.place[r]='f';C.st='done';C.champ=w;
+  const st=p=>p.kst||blank(),sc=p=>{const s=st(p);return s.gp?per(s,'pir'):0;},ko=Object.keys(C.place).map(Number),wt={w:1.15,f:1.08,sf:1.03,qf:1};
+  const mvp=roster(w).slice().sort((x,y)=>sc(y)-sc(x))[0],allT=ko.flatMap(i=>roster(i)).sort((x,y)=>sc(y)*wt[C.place[y.tid]]-sc(x)*wt[C.place[x.tid]]).filter(p=>p!==mvp).slice(0,4);if(mvp)allT.unshift(mvp);
+  C.mvp=mvp?{pid:mvp.id,n:pname(mvp),t:G.teams[w].short}:null;C.allT=allT.map(p=>({pid:p.id,n:pname(p),t:G.teams[p.tid].short}));
+  const g=C.res.find(x=>x[4]==='cupf'),sc2=g?`${Math.max(g[2],g[3])}-${Math.min(g[2],g[3])}`:'';
+  (G.cupHist=G.cupHist||[]).unshift({y:seasonStr(),w:nm(w),r:nm(r),sc:sc2,mvp:C.mvp&&C.mvp.n});
+  news(`${nm(w)} win the NBA Cup`,`${nm(w)} beat ${nm(r)} ${sc2} in Las Vegas and win the NBA Cup. ${C.mvp?`${C.mvp.n} is the tournament MVP. `:''}Every ${G.teams[w].short} player earns ${eur(C.prize.w)} in prize money, the ${nm(r)} players ${eur(C.prize.f)} each. All-Tournament team: ${C.allT.map(x=>`${x.n} (${x.t})`).join(', ')}.`);
+  const U=G.user,pl=C.place[U];if(pl){const amt=C.prize[pl];if(pl==='w'){G.fans=clamp(G.fans+4,0,100);G.board=clamp(G.board+5,0,100);}
+    msg('Club President',pl==='w'?'NBA Cup champions!':'NBA Cup over',pl==='w'?`We won the NBA Cup in Las Vegas. A trophy, a banner for the arena and ${eur(amt)} in prize money for every player. The fans and the owners are delighted.`:`Our NBA Cup run ended in the ${({f:'final',sf:'semi-finals',qf:'quarter-finals'})[pl]}. Every player takes home ${eur(amt)} in prize money.`,'board');}}
+function cupTick(L,out){if(!L.sched||L.sched.length<40)return;
+  if(!G.cup||G.cup.y!==G.season){if(L.round>=1&&L.round<CUP_R.g[0])cupSetup(L);return;}
+  const C=G.cup;if(C.off||C.st==='done')return;for(const o of out||[]){const f=o&&o.f;if(f&&f.cup&&o.r)C.res.push([f.h,f.a,o.r.hs,o.r.as,f.cup]);}
+  const just=L.round-1;if(C.st==='g'&&just>=CUP_R.g[4])cupGroupsEnd(L);else if(C.st==='qf'&&just>=CUP_R.qf)cupKO(L,'qf');else if(C.st==='sf'&&just>=CUP_R.sf)cupKO(L,'sf');else if(C.st==='f'&&just>=CUP_R.f)cupFinal(L);}
+
 function nlFixtures(L){if(!L)return [];
-  if(L.phase==='reg')return (L.sched[L.round]||[]).filter(([h,a])=>h>=0&&a>=0).map(([h,a])=>({h,a,kind:'nl',lg:L.code}));
+  if(L.phase==='reg')return (L.sched[L.round]||[]).filter(([h,a])=>h>=0&&a>=0).map(([h,a,c])=>c?{h,a,kind:'nl',lg:L.code,cup:c,neutral:c==='cups'||c==='cupf'}:{h,a,kind:'nl',lg:L.code});
   if(L.phase==='po')return L.po.ser.map((s,i)=>{if(s.win!=null||s.hi==null||s.lo==null)return null;const hh=s.agg?s.n===1:s.need===1||(s.need===4?[0,1,4,6].includes(s.n):s.need===3?[0,1,4].includes(s.n):s.n!==1);return {h:hh?s.hi:s.lo,a:hh?s.lo:s.hi,kind:'nlpo',lg:L.code,ref:i,neutral:L.code==='NCAA'};}).filter(Boolean);
   return [];}
-function nlLabel(L){if(!L)return '';const C=NLCFG[L.code];if(L.phase==='reg'&&L.code==='GL')return L.tip?`G League Tip-Off \xb7 Round ${L.round+1}`:`G League \xb7 Round ${L.round+1-glTipLen(L)}`;if(L.phase==='reg')return `${C.short} \xb7 Round ${L.round+1}`;
+function nlLabel(L){if(!L)return '';const C=NLCFG[L.code];if(L.phase==='reg'&&L.code==='GL')return L.tip?`G League Tip-Off \xb7 Round ${L.round+1}`:`G League \xb7 Round ${L.round+1-glTipLen(L)}`;if(L.phase==='reg'&&L.code==='NBA'){const g=(L.sched[L.round]||[]).find(x=>x[2]&&(x[0]===G.user||x[1]===G.user));if(g)return CUP_TAG[g[2]];}if(L.phase==='reg')return `${C.short} \xb7 Round ${L.round+1}`;
   if(L.phase==='po'){const st=nlStName(L,L.po.stage);if(L.po.ser[0].need===1)return `${C.short} ${st}`;const n=Math.min(...L.po.ser.filter(s=>s.win==null).map(s=>s.n).concat([9]))+1;return `${C.short} ${st} \xb7 ${L.po.ser[0].agg?'Leg':'Game'} ${n}`;}
   return `${C.short} complete`;}
 function nlSilentStep(L){const fx=nlFixtures(L),out=[];for(const f of fx){const m=new Match(f.h,f.a,{kind:f.kind,neutral:f.neutral}).run();out.push({f,r:applyResult(m,f)});}nlAdvance(L,out);}
 const nlQualifies=(L,id)=>L.code==='KOS'?L.final.indexOf(id)<6:L.code==='MKD'?(L.final['Top 6']||[]).indexOf(id)>=0&&(L.final['Top 6']||[]).indexOf(id)<4:L.code==='NZL'?L.final.indexOf(id)<6:L.code==='JPN'?jpSeeds(L).includes(id):L.code==='NCAA'?Object.values(L.final).some(g=>g.indexOf(id)>=0&&g.indexOf(id)<8):L.code==='ROU'?L.final.indexOf(id)<10:L.code==='PBA'?Object.values(L.final).some(g=>g.indexOf(id)>=0&&g.indexOf(id)<4):L.code==='SKL'?L.final.indexOf(id)<7:L.code==='QBL'||L.code==='AUS'?L.final.indexOf(id)<6:L.code==='CGL'?L.final.filter(i=>G.teams[i].short!=='SCD').indexOf(id)<4:L.code==='PML'?L.final.indexOf(id)<4:L.code==='SBN'?Object.values(L.final).some(g=>g.indexOf(id)>=0&&g.indexOf(id)<12):L.code==='PRD'?(L.final['Champions group']||[]).indexOf(id)>=0&&(L.final['Champions group']||[]).indexOf(id)<4:L.code==='AUT'?((L.final['Placement round']||[]).includes(id)||(L.final['Qualification round']||[]).indexOf(id)>=0&&(L.final['Qualification round']||[]).indexOf(id)<2):L.code==='NBA'?Object.values(L.final).some(g=>g.indexOf(id)>=0&&g.indexOf(id)<10):L.code==='GL'?Object.values(L.final).some(g=>g.indexOf(id)>=0&&g.indexOf(id)<8):L.code==='GEL'||L.code==='PF'||L.code==='LL'||L.code==='EL2'?L.final.indexOf(id)<9:L.code==='A2'?L.final.indexOf(id)<13:L.code==='TBL'?L.final.indexOf(id)<11:L.code==='RL'?rlQual(L,id):L.code==='BNX'?(L.bnb?L.bnb.includes(id)||L.seeds.includes(id):L.final.filter(i=>G.teams[i].nat===G.teams[id].nat).indexOf(id)<(G.teams[id].nat==='NED'?4:8)):L.code==='CBA'?L.final.indexOf(id)<12:L.code==='BBL'||L.code==='PLK'||L.code==='ISL'||L.code==='LNB'?L.final.indexOf(id)<10:(L.code==='PROA'||L.code==='BSL'||L.code==='ACB'||L.code==='GBL'||L.code==='LBA'||L.code==='LKL'||L.code==='LBL'||L.code==='CRL'||L.code==='GEO'||L.code==='GBR')?L.final.indexOf(id)<8:Object.values(L.final).some(g=>g.indexOf(id)>=0&&g.indexOf(id)<8);
 function nlAdvance(L,out){const U=G.user,C=NLCFG[L.code];
-  if(L.phase==='reg'){L.round++;if(L.round<L.sched.length)return;
+  if(L.phase==='reg'){L.round++;if(L.code==='NBA'){try{cupTick(L,out);}catch(e){console.error(e);}}if(L.round<L.sched.length)return;
     if(L.code==='GL'&&L.tip){glShowcase(L);return;}
     if(L.code==='PRD'&&!L.p2){const top=[],bot=[];for(const k of Object.keys(L.groups)){const s=nlSort(L,L.groups[k]).map(t=>t.id);top.push(...s.slice(0,3));bot.push(...s.slice(3));}L.p2=1;L.groups={'Champions group':top,'Placement group':bot};L.sched=L.sched.concat(mergeRounds(genSchedule(top),genSchedule(bot)));if(L.ids.includes(U))msg('Assistant Coach','Promotiedivisie: second phase',top.includes(U)?'We finished in the top three of our poule and play the champions group. The top four reach the Final Four.':'We play the placement group for the rest of the season.','staff');return;}
     if(L.code==='MKD'&&!L.p2){const s=nlSort(L,L.ids).map(t=>t.id),top=s.slice(0,6),bot=s.slice(6);L.p2=1;L.groups={'Top 6':top,'Play-out':bot};
@@ -4456,7 +4529,7 @@ function nlNext(L,P,W){if(L.code==='KOS')return ksNext(L,P,W);if(L.code==='MKD')
   news(`${G.teams[L.champ].name}: ${C.title}`,`${G.teams[L.champ].name} won the ${seasonStr()} ${C.name}.${L.down.length?` Relegated: ${L.down.map(i=>G.teams[i].name).join(', ')}.`:''}`);
   if(L.down.includes(U))msg('Club President','Relegated',`We finished in the relegation places of the ${C.name} and go down to the ${NLCFG[C.down].name}.`,'board');
 }
-function nbaTaxDay(){const C=capv(),U=G.user,rows=nbaTeams().map(t=>{const P=nbaPayroll(t.id),rep=(t.taxY||[]).filter(y=>y>=G.season-3&&y<G.season).length>=3;return {t,P,tax:luxTax(P-C.tax,rep),rep};});
+function nbaTaxDay(){try{const NL=G.nl.NBA;G.nbaLast={y:G.season,rec:Object.fromEntries(NL.ids.map(i=>{const r=nlRec(NL,i);return [i,(r[0]+r[1])?r[0]/(r[0]+r[1]):.5];}))};}catch(e){}const C=capv(),U=G.user,rows=nbaTeams().map(t=>{const P=nbaPayroll(t.id),rep=(t.taxY||[]).filter(y=>y>=G.season-3&&y<G.season).length>=3;return {t,P,tax:luxTax(P-C.tax,rep),rep};});
   const payers=rows.filter(r=>r.tax>0),pot=payers.filter(r=>r.t.id!==U).reduce((a,r)=>a+r.tax,0)*.5,free=rows.filter(r=>r.tax===0);
   for(const r of payers)r.t.taxY=(r.t.taxY||[]).concat([G.season]);
   const me=rows.find(r=>r.t.id===U);G.taxLog={y:G.season,payers:payers.map(r=>[r.t.short,r.tax]).sort((a,b)=>b[1]-a[1]),share:0,paid:0};

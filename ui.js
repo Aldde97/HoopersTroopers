@@ -622,10 +622,24 @@ function ncTableHTML(L,T,short){const U=G.user;return `<div class="tw"><table><t
 const ncBanner=p=>{if(!p||p.tid==null&&!p.portal)return '';const t=p.tid!=null?G.teams[p.tid]:null;
   if(p.portal&&p.tid==null)return `<p class="cb" style="margin-bottom:10px"><span class="pill k">Transfer portal</span> Left ${esc(p.last||'his school')} · ${p.yrs} season${p.yrs===1?'':'s'} of eligibility left · signs only with a college program</p>`;
   if(!t||t.dom!=='NCAA')return '';return `<p class="cb" style="margin-bottom:10px"><span class="pill k">College</span> ${ncClass(p)} at ${esc(t.name)} (${esc(t.grp)}) · ${p.yrs} season${p.yrs===1?'':'s'} of eligibility left · NIL deal ${eur(p.sal)} a season</p>`;};
+function cupHTML(){const C=G.cup;if(!C||C.off)return `<div class="cb mut">The NBA Cup draw takes place in the first days of the season.</div>`;const nm=i=>esc(G.teams[i].name),U=G.user;
+  const res=(a,b,tag)=>{const g=C.res.find(r=>r[4]===tag&&((r[0]===a&&r[1]===b)||(r[0]===b&&r[1]===a)));return g?`${g[0]===a?g[2]:g[3]}-${g[0]===a?g[3]:g[2]}`:'';};
+  const grp=k=>{const t=cupGT(C.groups[k]),conf=k.split(' ')[0],sd=C.seeds[conf]||[];return `<div class="tw"><table><thead><tr><th>${esc(k)}</th><th class="n">W</th><th class="n">L</th><th class="n">+/-</th></tr></thead><tbody>${t.map((r,i)=>`<tr class="${sd.includes(r.id)?'z1':''}" style="${r.id===U?'font-weight:700':''}"><td>${nm(r.id)}${sd.includes(r.id)&&i===1?' <span class="pill g">WC</span>':''}</td><td class="n">${r.w}</td><td class="n">${r.l}</td><td class="n">${r.w+r.l?(r.pf-r.pa>0?'+':'')+(r.pf-r.pa):'–'}</td></tr>`).join('')}</tbody></table></div>`;};
+  const line=(a,b,tag,where)=>`<div class="kv"><span>${a==null?'TBD':nm(a)} v ${b==null?'TBD':nm(b)} <small class="mut">${where}</small></span><b>${a!=null&&b!=null?res(a,b,tag)||'–':'–'}</b></div>`;
+  const ko=['East','West'].map(c=>{const s=C.seeds[c];if(!s)return '';const sf=C.seeds[c+'SF'];return `<div><span class="lbl">${c} quarter-finals</span>${line(s[0],s[3],'cupq',`at ${esc(G.teams[s[0]].short)}`)}${line(s[1],s[2],'cupq',`at ${esc(G.teams[s[1]].short)}`)}${sf?`<span class="lbl" style="margin-top:8px;display:block">${c} semi-final</span>${line(sf[0],sf[1],'cups','Las Vegas')}`:''}</div>`;}).join('');
+  const P=C.prize,kv=(l,v)=>`<div class="kv"><span>${l}</span><b>${v}</b></div>`;
+  return `<div class="cb"><div class="stack">${C.champ!=null?`<div class="res-ok">${nm(C.champ)} won the NBA Cup ${esc(seasonStr())}${C.mvp?` · MVP ${esc(C.mvp.n)}`:''}${C.allT?` · All-Tournament: ${C.allT.map(x=>esc(x.n)).join(', ')}`:''}</div>`:''}
+  <div class="mut" style="font-size:13.5px">Group games on the Cup nights in November, quarter-finals in early December at the higher seed, semi-finals and the final in Las Vegas. All Cup games count for the regular season except the final. Group winners and the best runner-up of each conference (WC) advance.</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">${Object.keys(C.groups).map(grp).join('')}</div>
+  ${ko?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">${ko}</div>`:''}${C.fin?`<div><span class="lbl">Final · Las Vegas</span>${line(C.fin[0],C.fin[1],'cupf','neutral court, does not count for the standings')}</div>`:''}
+  <div><span class="lbl">Prize money per player</span>${kv('Winners',eur(P.w))}${kv('Runners-up',eur(P.f))}${kv('Semi-finalists',eur(P.sf))}${kv('Quarter-finalists',eur(P.qf))}</div>
+  ${(G.cupHist||[]).length?`<div><span class="lbl">NBA Cup winners</span>${G.cupHist.map(h=>kv(`${esc(h.y)} · ${esc(h.w)}`,`beat ${esc(h.r)} ${esc(h.sc)}${h.mvp?` · MVP ${esc(h.mvp)}`:''}`)).join('')}</div>`:''}</div></div>`;}
+
 function nlHTML(L){const C=NLCFG[L.code],sub=UI.gcomp||'table';if(UI.nlLast!==L.code){UI.nlLast=L.code;UI.gfixR=null;}
-  const tabs=`<div class="seg">${[['table','Table'],['sched','Schedule'],['po',L.code==='GL'?'Showcase & playoffs':'Playoffs']].concat(L.code==='NBA'||L.code==='PBA'||L.code==='NCAA'?[['draft','Draft']]:[]).map(([k,l])=>`<button class="${sub===k?'on':''}" data-act="gcomp:${k}">${l}</button>`).join('')}</div>`;
+  const tabs=`<div class="seg">${[['table','Table'],['sched','Schedule'],['po',L.code==='GL'?'Showcase & playoffs':'Playoffs']].concat(L.code==='NBA'?[['cup','NBA Cup']]:[]).concat(L.code==='NBA'||L.code==='PBA'||L.code==='NCAA'?[['draft','Draft']]:[]).map(([k,l])=>`<button class="${sub===k?'on':''}" data-act="gcomp:${k}">${l}</button>`).join('')}</div>`;
   let body='';
   if(sub==='table')body=`${nlTables(L).map(T=>nlTableHTML(L,T,false)).join('')}<div class="cb mut" style="font-size:13px">${nlLegend(L)}</div>`;
+  else if(sub==='cup'&&L.code==='NBA')body=cupHTML();
   else if(sub==='draft'&&L.code==='NBA')body=nbaDraftHTML(L);
   else if(sub==='draft'&&L.code==='PBA')body=pbaDraftHTML(L);
   else if(sub==='draft'&&L.code==='NCAA')body=G.nl.NBA?nbaDraftHTML(G.nl.NBA):'';
