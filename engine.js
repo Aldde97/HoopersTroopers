@@ -4065,6 +4065,13 @@ function ntCycle0(year){const TT=ntTier(),S=ntStrAll(TT,false),seed=TT.slice().s
 // release players for the season windows). Without a pick the best available twelve are called up.
 const ntRankEur=()=>{const S=ntStrAll(NT_EUR,false);return NT_EUR.slice().sort((a,b)=>S[b]-S[a]);};
 function ntCycle(year){const C=ntCycle0(year);try{ntPQMake(C);}catch(e){}return C;}
+// national team offers are hard to miss: the agent writes when new offers come in and again two weeks before every international
+// window while they are still open (they also stay on the home page until you take one or wave them off)
+function ntOfferNote(){const N=G.nt,L=N&&!N.job&&N.offers&&N.offers.list||[];if(!L.length)return;N.offHide=null;
+  msg('Agent','New national team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. The federation job pays ${L.map(c=>`${ntName(c)} ${eur(ntSal(c))}`).join(', ')} a year. See Competitions \u203a National teams.`,'nt');}
+function ntOfferRemind(C){const N=G.nt,L=N&&!N.job&&N.offers&&N.offers.list||[];if(!L.length||!C)return;
+  for(const w of C.wins){if(w.done||w.s!==G.season||w.day<0||G.day<w.day-14||G.day>=w.day)continue;const k=C.id+':'+C.wins.indexOf(w);if((N.offRem||[]).includes(k))continue;
+    N.offRem=(N.offRem||[]).concat([k]).slice(-12);msg('Agent','National teams are still waiting',`The ${w.lbl} starts in ${w.day-G.day} days. ${L.map(ntName).join(', ')} still want you as head coach; take a job now and you pick the squad for that window. See Competitions \u203a National teams.`,'nt');return;}}
 function ntOffers(){if(!G.nt)return;const act=G.nt.cyc?Object.values(G.nt.cyc.groups).flat().concat(ntPQNats(G.nt.cyc)):NT_EUR,R=ntRankEur().filter(c=>act.includes(c)),n=R.length,s=coachScore(),[a,b]=(s>=88?[0,.25]:s>=80?[.12,.5]:s>=72?[.3,.75]:[.55,1]).map(x=>Math.round(x*n)),J=G.nt.job;
   G.nt.offers={s:G.season,list:shuffle(R.slice(a,b).filter(c=>!J||c!==J.c)).slice(0,3)};}
 const ntSal=c=>{const i=ntRankEur().indexOf(c);return r10k(30000+Math.max(0,32-i)*5000);};
@@ -4150,7 +4157,7 @@ function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inS
   try{ntPQThird(C);}catch(e){}
   try{ntJobAfterWindow(w);}catch(e){}}
 // in-season windows are played when the calendar reaches them
-function ntTick(){if(!G||preOn())return;try{ntFill();ntFill2();}catch(e){}if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();try{ntCycFix();}catch(e){}try{ntPQFix();}catch(e){}if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}const C=G.nt.cyc;if(!C)return;for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
+function ntTick(){if(!G||preOn())return;try{ntFill();ntFill2();}catch(e){}if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();try{ntCycFix();}catch(e){}try{ntPQFix();}catch(e){}if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}const C=G.nt.cyc;if(!C)return;try{ntOfferRemind(C);}catch(e){}for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
     if(J&&ntWPlays(w,J.c)){if(G.nt.pend!==i){G.nt.pend=i;if(typeof UI!=='undefined')UI.ntv=undefined;{const k=C.id+':'+i,sq=ntUserSquad(J.c,true,k);G.nt.sel={key:k,ids:sq.map(p=>p.id)};msg(`${ntName(J.c)} Basketball Federation`,`Squad announced: ${ntName(J.c)}`,`The twelve for the ${w.lbl}: ${sq.map(p=>pname(p)).join(', ')}. Call-ups are now closed; set the starting five and rotation on the Squad tab.`,'nt');}msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
     else ntWindow(w,false);}}
 // the coach's window that is waiting to be played
@@ -4267,7 +4274,7 @@ function ntTourEnd(){const N=G.nt,X=N.tour,T=X.T,J=N.job,U=G.user,mine=[],medal=
   else{const O=N.og;if(oq){O.oqW.push(T.podium[0]);O.oqRes.push(Tl);}else{O.stage='done';O.T=Tl;N.hist.unshift({y:T.year,name:T.name,podium:T.podium});}
     if(J&&cc){if(T.sqi[J.c])J.prevSq=T.sqi[J.c].slice();try{ntOgVerdict(Tl,cc);}catch(e){}}}
   if(cc)N.tourSum={c:cc,T:Tl,games:w0.res.filter(r=>r[0]===cc||r[1]===cc),res:ntTourRes(Tl,cc),verdict:G.inbox.filter(m=>m.id>=mid0&&m.type==='nt').map(m=>({s:m.subj,b:m.body})).reverse()};
-  if(big){if(N.job){N.job.cyc=N.cyc.id;N.job.tgt='';}else if(!N.offers||N.offers.s!==G.season)ntOffers();}
+  if(big){if(N.job){N.job.cyc=N.cyc.id;N.job.tgt='';}else if(!N.offers||N.offers.s!==G.season){ntOffers();ntOfferNote();}}
   N.tour=null;N.pend=null;}
 /* ===================== Olympic Games ===================== */
 // LA 2028 system (FIBA): the host plus seven teams through the World Cup the summer before, the winners of four Olympic qualifying
@@ -4407,7 +4414,7 @@ function ntSumNext(){const N=G.nt,J=N.job;try{ntPQFix();ntPQThird(N.cyc);}catch(
     if(i>=0){const w=C.wins[i];if(J&&ntWPlays(w,J.c)){if(N.pend!==i){N.pend=i;ntAnnounce(w,i);}return;}ntWindow(w,true);continue;}
     const O=N.og;if(O&&O.y===G.season&&O.stage!=='done'){ntOgStep();if(N.tour)return;continue;}
     if(C.year===G.season){if(C.stage!=='done'){for(const w of C.wins)if(!w.done)ntWindow(w,true);if(C.stage!=='done'){C.qual=ntQualified(C);C.stage='done';}}ntTourStart(C);return;}
-    if(!N.job&&(!N.offers||N.offers.s!==G.season))ntOffers();return;}}
+    if(!N.job&&(!N.offers||N.offers.s!==G.season)){ntOffers();ntOfferNote();}return;}}
 function ntSummer(){ntInit();const C=G.nt.cyc;if(!C)return;if(G.nt.job)G.coach.bal=(G.coach.bal||0)+G.nt.job.sal;G.nt.tour=null;ntSumNext();}
 
 
