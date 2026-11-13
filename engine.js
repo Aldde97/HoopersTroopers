@@ -375,7 +375,7 @@ function nbaPlanTick(){if(!G.nl||!G.nl.NBA||!userNBA())return;const L=G.nl.NBA,T
 
 function proposeTrade(tid,give,get,gpk,tpk){const ev=tradeEval(tid,give,get,gpk,tpk);if(!ev.ok)return ev;doTrade(tid,give,get,gpk,tpk);ev.done=true;return ev;}
 // AI teams call the user with trade ideas during the season
-function aiTradeIdea(){if(!userNBA()||!nbaTradeOpen().ok||Math.random()>.12)return;
+function aiTradeIdea(){if(!userNBA()||!nbaTradeOpen().ok||Math.random()>.08)return;
   const mine=roster(G.user).filter(p=>!p.loan&&!justJoined(p)&&!(p.newAt===G.season&&p.newTid===p.tid));const want=pick(mine.filter(p=>G.listed.includes(p.id)).concat(mine.sort((a,b)=>b.o-a.o).slice(1,8)));if(!want)return;
   const teams=shuffle(G.teams.filter(t=>isNBA(t)&&t.id!==G.user));
   for(const t of teams.slice(0,12)){const pool=roster(t.id).filter(p=>!(p.newAt===G.season&&p.newTid===p.tid)).sort((a,b)=>b.o-a.o).slice(1);
@@ -2487,7 +2487,7 @@ function simStep0(um){
   G.lastResults={label:lbl,list:out.map(x=>x.r),dom:G.leg==='dom'};
   if(G.leg==='kls'&&userIsKls()){domBetween();klsAdvance(out);klsUserCatchUp();}
   else if(G.leg==='kls'){domBetween();klsAdvance(out);if(G.kls.phase==='done'||!klsUserIn()){klsFinishSilent();G.leg=userIs2()?'dom2':userIsDom()?'dom':'el';endOrKls();}}
-  else if(G.leg==='nl'){domBetween();const L=nlUser();nlAdvance(L,out);if(userIsNL())nlUserCatchUp(L);
+  else if(G.leg==='nl'){domBetween();const L=nlUser();nlAdvance(L,out);if(userIsNL())nlUserCatchUp(L);if(userNBA()){try{nbaStepAI();}catch(e){console.error(e);}}
     // an ABA League 2 club that also plays its national league (MZT, TFT): back to the ABA League 2 next, or on in the national league once that is over
     else if(userIs2()){if(G.dom2&&G.dom2.phase!=='done')G.leg='dom2';else{if(L.phase==='wait')nlStartPO(L);if(!(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L)))){nlFinishSilent(L);G.leg='dom2';endOrKls();}}}
     else if(G.phase!=='done'){G.leg='el';}else if(L.phase==='done'||!nlUserIn(L)){nlFinishSilent(L);G.leg='el';endOrKls();}}
@@ -2524,8 +2524,7 @@ function betweenRounds(){
   if(reg&&G.bih&&G.bih.phase==='reg'&&!userIsBih())bihSilentStep();
   nlTickAll();
   G.fin.hist.push({l:stepLabel(),bal:G.fin.bal});if(G.fin.hist.length>80)G.fin.hist.shift();
-  for(const t of G.teams)if(t.id!==G.user){t.order=autoOrder(t.order);aiFix(t);}try{nbaPlanTick();}catch(e){console.error(e);}
-  aiTradeIdea();
+  for(const t of G.teams)if(t.id!==G.user&&!(userNBA()&&isNBA(t))){t.order=autoOrder(t.order);aiFix(t);}if(!userNBA()){try{nbaPlanTick();}catch(e){}aiTradeIdea();}
   if(reg){
     if(!userNBA())for(const pid of G.listed)if(Math.random()<.3){const p=G.players[pid];const b=pick(ELT().filter(t=>t.id!==G.user&&teamFinState(t.id)==='ok'));if(!b)continue;const fee=r10k(value(p)*rf(.75,1.15));
       msg(b.name,`Offer for ${pname(p)}`,`${b.name} would like to sign ${pname(p)} (${p.pos}, ${p.age}, OVR ${p.o}) and offer a transfer fee of ${eur(fee)}.`,'offer',{pid,tid:b.id,fee});}
@@ -4483,13 +4482,23 @@ function nlUserIn(L){const U=G.user;if(!L||L.phase!=='po')return false;let inAny
 function nlFinishSilent(L){if(!L)return;let k=0;while(L.phase!=='done'&&k++<300){if(L.phase==='wait'){nlStartPO(L);continue;}nlSilentStep(L);}}
 // background: one game day per EuroLeague step for every league the user does not play in
 function nlTickAll(){if(!G.nl)return;const UL=nlUser();
-  for(const L of Object.values(G.nl)){if(!L||L.phase==='done'||L===UL)continue;
+  for(const L of Object.values(G.nl)){if(!L||L.phase==='done'||L===UL||(L.code==='GL'&&userNBA()))continue;
     if(L.phase==='wait'){if(NLCFG[L.code].elWait&&G.phase!=='done')continue;nlStartPO(L);}
     nlSilentStep(L);}}
 // the user coaches a club of a German league: own games, the rest of Europe in the background
+// NBA careers: Europe in the background keeps its own calendar. The EuroLeague (and with each of its rounds every other league
+// in the background) plays one round about every 5.2 days from 1 October, so its regular season ends in mid April and the Final
+// Four is in late May, while the NBA plays a game day every two days. Up to two EuroLeague rounds may be caught up per NBA step.
+function elDueN(){if(!userNBA())return 1;if(!G.elNx||G.elNx.y!==G.season)G.elNx={y:G.season,d:0};let n=0;while(G.day>=G.elNx.d&&n<2){G.elNx.d+=5.2;n++;}return n;}
+// the AI NBA teams run every NBA game day: line-ups and roster gaps, front-office plans, trade calls to the user
+function nbaStepAI(){for(const t of nbaTeams())if(t.id!==G.user){t.order=autoOrder(t.order);aiFix(t);}try{nbaPlanTick();}catch(e){console.error(e);}aiTradeIdea();
+  // the G League follows its own calendar: about 63 game days (Tip-Off tournament, regular season, playoffs) from 7 November to
+  // mid April; up to two per NBA step, and every NBA step once the NBA regular season is over
+  const GL=G.nl.GL;if(GL&&GL.phase!=='done'){if(!G.glN||G.glN.y!==G.season)G.glN={y:G.season,n:0};const tgt=G.day>=192?999:Math.floor((G.day-37)*63/155);let k=0;
+    while(GL.phase!=='done'&&G.glN.n<tgt&&k++<2){if(GL.phase==='wait')nlStartPO(GL);else{nlSilentStep(GL);G.glN.n++;}}}}
 function nlUserCatchUp(L){
   if(L.code==='GL'&&L.po&&L.po.ws&&!nlUserIn(L)){let k=0;while(L.po&&L.po.ws&&k++<10)nlSilentStep(L);if(G.phase!=='done')elSilentStep();return;}
-  if(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L))){if(G.phase!=='done')elSilentStep();return;}
+  if(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L))){let n=elDueN();while(n-->0&&G.phase!=='done')elSilentStep();return;}
   if(L.phase==='wait'){if(NLCFG[L.code].elWait){let k=0;while(G.phase!=='done'&&k++<200)elSilentStep();}nlStartPO(L);if(nlUserIn(L))return;}
   nlFinishSilent(L);
   let k=0;while(G.phase!=='done'&&k++<200)elSilentStep();
