@@ -4554,8 +4554,17 @@ function nlUserIn(L){const U=G.user;if(!L||L.phase!=='po')return false;let inAny
   return inAny===true;}
 function nlFinishSilent(L){if(!L)return;let k=0;while(L.phase!=='done'&&k++<300){if(L.phase==='wait'){nlStartPO(L);continue;}nlSilentStep(L);}}
 // background: one game day per EuroLeague step for every league the user does not play in
+// careers outside the NBA: the NBA and the G League in the background follow their own calendar (dates from 1 October), not one
+// game day per step of the user's league. NBA regular season 21 October to 12 April, play-in from 14 April, then a playoff game day
+// every two days; G League about 63 game days from 7 November to mid April. At most six game days per step.
+function bgUS(L){const d=G.day;let k=0;
+  if(L.code==='NBA'){while(k++<6&&L.phase!=='done'){if(L.phase==='reg'){if(L.round>=Math.floor((d-20)*L.sched.length/173))break;nlSilentStep(L);}
+      else if(L.phase==='wait'){if(d<194)break;nlStartPO(L);}else{if(!G.bgPo||G.bgPo.y!==G.season)G.bgPo={y:G.season,d:195};if(d<G.bgPo.d)break;nlSilentStep(L);G.bgPo.d+=2;}}return;}
+  if(!G.glN||G.glN.y!==G.season)G.glN={y:G.season,n:0};const tgt=d>=192?999:Math.floor((d-37)*63/155);
+  while(L.phase!=='done'&&G.glN.n<tgt&&k++<6){if(L.phase==='wait')nlStartPO(L);else{nlSilentStep(L);G.glN.n++;}}}
 function nlTickAll(){if(!G.nl)return;const UL=nlUser();
   for(const L of Object.values(G.nl)){if(!L||L.phase==='done'||L===UL||(L.code==='GL'&&userNBA()))continue;
+    if((L.code==='NBA'||L.code==='GL')&&!userNBA()){bgUS(L);continue;}
     if(L.phase==='wait'){if(NLCFG[L.code].elWait&&G.phase!=='done')continue;nlStartPO(L);}
     nlSilentStep(L);}}
 // the user coaches a club of a German league: own games, the rest of Europe in the background
