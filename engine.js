@@ -102,9 +102,54 @@ function awLeagues(){const out=[],ok=i=>G.teams[i]&&G.teams[i].order&&G.teams[i]
   for(const [k,X,nm,rc] of [['EC',G.ec,'EuroCup',typeof ecRec==='function'?ecRec:null],['BCL',G.bcl,'Champions League',typeof bclRec==='function'?bclRec:null],['FEC',G.fec,'Europe Cup',typeof fecRec==='function'?fecRec:null]])
     if(X&&X.ids&&rc)out.push({key:k,name:nm,ids:X.ids.filter(ok),st:'est',rec:i=>{try{return rc(i).slice(0,2);}catch(e){return [0,0];}},cup:1});
   return out;}
+/* ===================== NBA awards and the All-Star Game ===================== */
+// The NBA hands out its own awards: MVP, All-NBA First, Second and Third Team (positionless, five each), Defensive Player of the Year,
+// Rookie of the Year, Sixth Man of the Year, Most Improved Player and Coach of the Year. Since 2023-24 a player needs 65 games for MVP,
+// All-NBA, Defensive Player and Most Improved (scaled when a season is shorter). The All-Stars are named in early February: twelve per
+// conference, the five starters (two guards, three frontcourt) by the fans, the seven reserves by the coaches.
+const AW_NBA={mvp:'MVP',first:'All-NBA First Team',first2:'All-NBA Second Team',first3:'All-NBA Third Team',dpoy:'Defensive Player of the Year',roy:'Rookie of the Year',smoy:'Sixth Man of the Year',mip:'Most Improved Player',as:'All-Star'};
+function awNBA(A,rec){const st=p=>p.kreg||p.kst||blank(),g=p=>st(p).gp,mpg=p=>g(p)?st(p).sec/60/g(p):0,pg=(p,k)=>per(st(p),k);
+  const pool=A.ids.flatMap(i=>roster(i)).filter(p=>g(p)>0);if(pool.length<20)return null;const mx=Math.max(...pool.map(g)),min65=Math.max(5,Math.round(65*mx/82));
+  const sc=p=>pg(p,'pir')*(.75+.5*(rec[p.tid]||.5))+mpg(p)*.05;
+  const E_=p=>({pid:p.id,n:pname(p),t:G.teams[p.tid].short,v:+pg(p,'pts').toFixed(1),r:+pg(p,'reb').toFixed(1),a:+pg(p,'ast').toFixed(1),pir:+pg(p,'pir').toFixed(1),gp:g(p)});
+  const el=pool.filter(p=>g(p)>=min65).sort((a,b)=>sc(b)-sc(a));if(el.length<15)return null;
+  const O={name:A.name,nba:1,min:min65,mvp:E_(el[0]),first:el.slice(0,5).map(E_),second:el.slice(5,10).map(E_),third:el.slice(10,15).map(E_)};
+  // defense: steals, blocks, defensive rebounding, the defender's rating and his team's defense
+  const pa={};for(const i of A.ids){const t=G.teams[i],gp=(t.nw||0)+(t.nl||0)||1;pa[i]=(t.npa!=null?t.npa:0)/gp;}
+  const dsc=p=>pg(p,'stl')*1.6+pg(p,'blk')*1.4+pg(p,'reb')*.25+(p.a.def-70)*.12+(mpg(p)-24)*.04;
+  const d=el.filter(p=>mpg(p)>=24).sort((a,b)=>dsc(b)-dsc(a))[0];if(d)O.dpoy=E_(d);
+  const rk=pool.filter(p=>p.exp===0&&g(p)>=Math.round(mx/2)).sort((a,b)=>sc(b)-sc(a))[0];if(rk)O.roy=E_(rk);
+  // sixth man: not among his team's five starters, at least 15 minutes a game
+  const starters=new Set(A.ids.flatMap(i=>G.teams[i].order.slice(0,5)));const six=pool.filter(p=>!starters.has(p.id)&&mpg(p)>=15&&g(p)>=Math.round(mx/2)).sort((a,b)=>sc(b)-sc(a))[0];if(six)O.smoy=E_(six);
+  // most improved: the biggest jump in efficiency against last season (or in rating over this season)
+  const imp=p=>p.kprev&&p.kprev.gp>=20?pg(p,'pir')-p.kprev.pir:(p.oS!=null&&p.oSs===G.season?(p.o-p.oS)*.9:-99);const mi=el.filter(p=>p.id!==O.mvp.pid).sort((a,b)=>imp(b)-imp(a))[0];if(mi&&imp(mi)>0)O.mip=Object.assign(E_(mi),{d:+imp(mi).toFixed(1)});
+  return O;}
+// the regular season's numbers are kept apart when it ends (the 65-game rule counts regular-season games only); ratings at the start of
+// a season are noted for Most Improved
+function nbaRegSnap(){const L=G.nl&&G.nl.NBA;if(!L)return;if(G.oSv!==G.season){G.oSv=G.season;for(const p of Object.values(G.players))if(p.oS==null||p.oSs!==G.season){p.oS=p.o;p.oSs=G.season;}}
+  if(L.phase!=='reg'&&G.kregS!==G.season){G.kregS=G.season;for(const i of L.ids)for(const p of roster(i))if(p.kst)p.kreg=Object.assign({},p.kst);}
+  if(L.phase==='reg'&&G.kregS!==G.season)for(const p of Object.values(G.players))if(p.kreg&&p.kregY!==G.season){delete p.kreg;}}
+// All-Star selection, early February (55% of the regular season)
+function nbaAllStarTick(){try{nbaRegSnap();}catch(e){}const L=G.nl&&G.nl.NBA;if(!L||L.phase!=='reg'||!L.sched||L.round<Math.floor(L.sched.length*.55))return;if(G.asg&&G.asg.s===G.season)return;
+  const S=seasonStr(),rec={};for(const i of L.ids){const r=nlRec(L,i);rec[i]=(r[0]+r[1])?r[0]/(r[0]+r[1]):.5;}const st=p=>p.kst||blank(),gp=p=>st(p).gp;
+  const pool=L.ids.flatMap(i=>roster(i)).filter(p=>gp(p)>=Math.max(5,Math.round(L.round*.45)));const vote=p=>per(st(p),'pts')*1.2+per(st(p),'pir')*.6+(p.o-75)*.35+(rec[p.tid]||.5)*4,coach=p=>per(st(p),'pir')*(.7+.6*(rec[p.tid]||.5));
+  const out={s:G.season,conf:{}},U=G.user,mine=[];
+  for(const cf of ['East','West']){const P=pool.filter(p=>G.teams[p.tid].grp===cf),gd=p=>p.pos==='PG'||p.pos==='SG';const byV=P.slice().sort((a,b)=>vote(b)-vote(a));
+    const st5=byV.filter(gd).slice(0,2).concat(byV.filter(p=>!gd(p)).slice(0,3)),res=P.filter(p=>!st5.includes(p)).sort((a,b)=>coach(b)-coach(a)).slice(0,7);
+    out.conf[cf]={starters:st5.map(p=>p.id),reserves:res.map(p=>p.id)};
+    for(const p of st5.concat(res)){(p.aw=p.aw||[]).push([S,'NBA','as']);p.asN=(p.asN||0)+1;moodAdd(p,4);if(p.tid===U)mine.push(pname(p)+(st5.includes(p)?' (starter)':''));}}
+  G.asg=out;const nm=id=>pname(G.players[id]);
+  news(`NBA All-Stars ${S}`,`East starters: ${out.conf.East.starters.map(nm).join(', ')}. West starters: ${out.conf.West.starters.map(nm).join(', ')}.`);
+  if(L.ids.includes(U))msg('League Office',`NBA All-Star Game ${S}`,mine.length?`Our All-Stars: ${mine.join(', ')}. The All-Star selection raises their profile and counts towards awards history and future supermax eligibility.`:`None of our players made the All-Star Game this season. East starters: ${out.conf.East.starters.map(nm).join(', ')}. West starters: ${out.conf.West.starters.map(nm).join(', ')}.`,'board');
+  if(mine.length){G.fans=clamp(G.fans+mine.length,0,100);}}
+
 const AWN={mvp:'MVP',first:'All-League First Team',young:'Young Player of the Year',coach:'Coach of the Year'};
 function awRun(){const S=seasonStr(),R={};G.awards=G.awards||{};const mineL=[];
   for(const A of awLeagues()){const rec={};for(const i of A.ids){const r=A.rec(i);rec[i]=(r[0]+r[1])?r[0]/(r[0]+r[1]):.5;}
+    if(A.key==='NBA'){const O=awNBA(A,rec);if(O){R.NBA=O;const tg=(e,k)=>{const p=e&&G.players[e.pid];if(!p)return;(p.aw=p.aw||[]).push([S,'NBA',k]);if(k==='first'||k==='first2'||k==='first3')p.anba=(p.anba||[]).concat([G.season]);if(k==='roy'&&p.pot<97)p.pot++;if(p.tid===G.user){G.board=clamp(G.board+(k==='mvp'?3:1),0,100);G.fans=clamp(G.fans+(k==='mvp'?3:1),0,100);}};
+      tg(O.mvp,'mvp');O.first.forEach(e=>tg(e,'first'));O.second.forEach(e=>tg(e,'first2'));O.third.forEach(e=>tg(e,'first3'));for(const k of ['dpoy','roy','smoy','mip'])if(O[k])tg(O[k],k);
+      const ex=G.aexp&&G.aexp.r||{},rkk=A.ids.slice().sort((a,b)=>rec[b]-rec[a]),best=A.ids.map(i=>({i,d:(ex[A.key+'|'+i]||rkk.indexOf(i)+1)-(rkk.indexOf(i)+1)})).sort((a,b)=>b.d-a.d||rec[b.i]-rec[a.i])[0];if(best){const t=G.teams[best.i];O.coach={tid:best.i,n:(best.i===G.user?G.mgr:hcName(t))||'',t:t.short,d:best.d};if(best.i===G.user){(G.coachAw=G.coachAw||[]).push([S,A.key]);G.board=clamp(G.board+8,0,100);G.fans=clamp(G.fans+3,0,100);}}
+      if(A.ids.includes(G.user))mineL.push(A.key);}continue;}
     const pool=A.ids.flatMap(i=>roster(i)).filter(p=>p[A.st]&&p[A.st].gp>0);if(pool.length<10)continue;const mx=Math.max(...pool.map(p=>p[A.st].gp));
     const el=pool.filter(p=>p[A.st].gp>=Math.max(3,mx*.5)).map(p=>({p,sc:per(p[A.st],'pir')*(.8+.4*(rec[p.tid]||.5))})).sort((a,b)=>b.sc-a.sc);if(!el.length)continue;
     const E_=x=>({pid:x.p.id,n:pname(x.p),t:G.teams[x.p.tid].short,v:+per(x.p[A.st],'pts').toFixed(1),r:+per(x.p[A.st],'reb').toFixed(1),a:+per(x.p[A.st],'ast').toFixed(1),pir:+per(x.p[A.st],'pir').toFixed(1)});
@@ -121,10 +166,11 @@ function awRun(){const S=seasonStr(),R={};G.awards=G.awards||{};const mineL=[];
     if(A.ids.includes(G.user))mineL.push(A.key);}
   G.awards[S]=R;const ks=Object.keys(G.awards);if(ks.length>15)delete G.awards[ks[0]];
   for(const k of mineL){const O=R[k];if(!O)continue;const me=x=>x&&G.teams.find(t=>t.short===x.t)&&G.teams.find(t=>t.short===x.t).id===G.user;
+    if(O.nba){const l=e=>`${e.n} (${e.t})`,ours=[O.mvp,...O.first,...O.second,...O.third,O.dpoy,O.roy,O.smoy,O.mip].filter(Boolean).filter(me);msg('League Office',`NBA awards ${S}`,`MVP: ${l(O.mvp)}, ${O.mvp.v} pts, ${O.mvp.r} reb, ${O.mvp.a} ast. All-NBA First Team: ${O.first.map(l).join(', ')}. Second Team: ${O.second.map(l).join(', ')}. Third Team: ${O.third.map(l).join(', ')}.${O.dpoy?` Defensive Player of the Year: ${l(O.dpoy)}.`:''}${O.roy?` Rookie of the Year: ${l(O.roy)}.`:''}${O.smoy?` Sixth Man of the Year: ${l(O.smoy)}.`:''}${O.mip?` Most Improved Player: ${l(O.mip)}.`:''}${O.coach?` Coach of the Year: ${O.coach.n} (${O.coach.t}).`:''} Players need ${O.min} games for MVP, All-NBA, Defensive Player and Most Improved.${ours.length?` Ours among them: ${[...new Set(ours.map(e=>e.n))].join(', ')}.`:''}`,'board');continue;}
     msg('League Office',`${O.name} awards ${S}`,`MVP: ${O.mvp.n} (${O.mvp.t}, ${O.mvp.v} pts, ${O.mvp.r} reb, ${O.mvp.a} ast).${O.first?` First Team: ${O.first.map(e=>`${e.n} (${e.t})`).join(', ')}.`:''}${O.young?` Young Player of the Year: ${O.young.n} (${O.young.t}).`:''}${O.coach?` Coach of the Year: ${O.coach.n} (${O.coach.t}).`:''}${[O.mvp].concat(O.first||[],O.young?[O.young]:[]).some(me)?' Our players are among the honoured.':''}${O.coach&&O.coach.tid===G.user?' You are Coach of the Year: the board and the fans are delighted, and other clubs have noticed.':''}`,'board');}
   if(R.EL)news(`EuroLeague awards ${S}`,`MVP: ${R.EL.mvp.n} (${R.EL.mvp.t}). Coach of the Year: ${R.EL.coach?R.EL.coach.n+' ('+R.EL.coach.t+')':'–'}.`);}
 // recent awards: worth more on the market for two seasons
-function awMult(p){if(!p.aw||!p.aw.length)return 1;const y=G.season;let m=1;for(const [S,k,kind] of p.aw){const s0=+String(S).slice(0,4);if(y-s0>2)continue;m=Math.max(m,kind==='mvp'?1.25:kind==='first'?1.12:1.1);}return m;}
+function awMult(p){if(!p.aw||!p.aw.length)return 1;const y=G.season;let m=1;for(const [S,k,kind] of p.aw){const s0=+String(S).slice(0,4);if(y-s0>2)continue;m=Math.max(m,kind==='mvp'?1.25:kind==='first'?1.12:kind==='dpoy'?1.12:kind==='as'?1.06:1.1);}return m;}
 const coachAwB=()=>(G.coachAw||[]).filter(([S])=>G.season-+String(S).slice(0,4)<=3).length*3;
 function value(p){let v=Math.max(0,p.o-55)**2*1500*(typeof awMult==='function'&&G?awMult(p):1);if(G&&G.salV&&p.tid!=null){const t=G.teams[p.tid];if(t&&t.dom&&!isNBA(t)&&t.dom!=='NCAA'&&t.dom!=='GL')v*=clamp(Math.sqrt(MKPAY[t.dom]!=null?MKPAY[t.dom]:.25),.35,1);}v*=p.age<=23?1.4:p.age<=27?1.15:p.age<=30?1:p.age<=32?.7:.45;v*=1+Math.max(0,p.pot-p.o)*.02;return Math.max(30000,r10k(v));}
 const isNBA=t=>!!(t&&t.dom==='NBA');
@@ -2294,7 +2340,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}return r;}
+function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -2618,6 +2664,7 @@ function newSeason(){
   lrefEnsure();if(G.gref==null)G.gref=+gAvg().toFixed(2);const gDrift=gAvg()-G.gref;G.gdr=+gDrift.toFixed(2);G.devRep=[];const left=[],retired=[],ncl=[],mkSnap={};for(const p of Object.values(G.players))if(p.tid!=null)mkSnap[p.id]=[p.tid,G.teams[p.tid].dom||'EL',G.teams[p.tid].name];
   for(const id of Object.keys(G.players)){const p=G.players[id];
     if(p.tid!=null&&isNBA(G.teams[p.tid])&&!p.tw)p.exp=(p.exp||0)+1;
+    if(p.kst&&p.kst.gp)p.kprev={gp:(p.kreg||p.kst).gp,pir:+per(p.kreg||p.kst,'pir').toFixed(2)};else delete p.kprev;delete p.kreg;
     p.age++;delete p.ld;p.st=blank();delete p.dst;delete p.est;delete p.kst;delete p.pst;p.energy=100;p.inj=0;delete p.fragile;delete p.rm;p.offR=-1;
     const g=(p.age<=22?rnd(1,5):p.age<=25?rnd(0,3):p.age<=29?rnd(-1,1):p.age<=32?rnd(-3,0):rnd(-5,-1))+(p.age>=30&&p.age<=34&&p.o>=80&&Math.random()<.3?1:0)+(p.age>=30&&p.age<=34&&p.o>=85&&Math.random()<.15?1:0)+lgDrift(p)+devSummer(p)-(gDrift>.15&&p.age>=23?(Math.random()<clamp(gDrift*1.5,0,.95)*clamp((84-p.o)/14,0,1)?1:0)+(gDrift>1&&p.o<80&&Math.random()<.5?1:0):0)+(gDrift<-.2&&p.age<=24&&Math.random()<clamp(-gDrift*1.2,0,.9)?1:0);
     for(let i=0;i<Math.abs(g)*2;i++){const k=pick(ATTR);if(g>0&&p.o<p.pot)p.a[k]=Math.min(99,p.a[k]+1);else if(g<0)p.a[k]=Math.max(25,p.a[k]-1);upd(p);}
