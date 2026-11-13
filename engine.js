@@ -1534,14 +1534,19 @@ function loanOffers(pid){
   const out=[],me=G.teams[G.user];
   if(isNBA(me)){const A=G.teams.find(t=>t.dom==='GL'&&t.parent===me.short),list=glOK(p)?[A?{tid:A.id,gl:true,role:'Starter',pct:0,fee:0,club:A.name}:{tid:-1,dev:true,gl:true,role:'Starter',pct:0,fee:0,club:GLEAGUE[me.short]||'G League'}]:[];G.loanOffers[pid]={day:G.day,list};return list;}
   for(const t of G.teams){if(t.id===G.user||t.order.length>=20||isNBA(t)||t.dom==='GL'||t.dom==='NCAA')continue;
-    const r=roster(t.id).sort((a,b)=>b.o-a.o),tenth=(r[9]||r[r.length-1]).o;
+    const r=roster(t.id).sort((a,b)=>b.o-a.o),tenth=(r[9]||r[r.length-1]).o,lvl=teamLevel(t);
     if(p.o<tenth-3||Math.random()<.35)continue;
+    // a good player only goes to a club near his level, and only to one that can pay its share of his wage: a club pays a loan
+    // player at most about what it pays its own best-paid player; clubs in financial trouble do not take loans
+    if(lvl<p.o-7)continue;if(t.dfin&&(t.dfin.st==='crisis'||t.dfin.st==='admin'))continue;
+    const top=r.reduce((a,q)=>Math.max(a,q.sal||0),0),aff=Math.floor(top*1.1/Math.max(1,p.sal)*10)*10;
+    const pct=Math.min(clamp(Math.round((40+(p.o-tenth)*6)/10)*10,30,100),aff);if(pct<30)continue;
     const role=loanRole(t,p);if(role==='Reserve')continue;
-    out.push({tid:t.id,role,pct:clamp(Math.round((40+(p.o-tenth)*6)/10)*10,30,100),fee:p.o>=74?r10k(value(p)*.08):0,buy:loanClause(p,'out'),score:(role==='Starter'?3:role==='Rotation'?2:1)+Math.random()});
+    out.push({tid:t.id,role,pct,fee:p.o>=74&&pct>=70?r10k(value(p)*.08*pct/100):0,buy:loanClause(p,'out'),score:(role==='Starter'?3:role==='Rotation'?2:1)+(lvl-p.o+7)/4+(t.dom?0:1)+Math.random()});
   }
   out.sort((a,b)=>b.score-a.score);
   const list=out.slice(0,4);
-  list.push({tid:-1,dev:true,role:'Starter',pct:30,fee:0,club:DEVCLUB[G.teams[G.user].nat]||'Mega Superbet'});
+  if(p.age<=23)list.push({tid:-1,dev:true,role:'Starter',pct:30,fee:0,club:DEVCLUB[G.teams[G.user].nat]||'Mega Superbet'});
   G.loanOffers[pid]={day:G.day,list};return list;
 }
 function loanOut(pid,i){
