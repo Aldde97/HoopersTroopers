@@ -1319,6 +1319,7 @@ const ACT={
   ntsrole(v){UI.ntsf=UI.ntsf||{role:'AC',src:'all',nat:'all'};UI.ntsf.role=v;render();},
   ntsall(){UI.ntsAll=!UI.ntsAll;render();},
   ntmode(){UI.ntv=!ntMode();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
+  nthideres(i){if(G.nt&&G.nt.cyc){G.nt.resHide=G.nt.cyc.id+':'+i;save();}render();},
   ntcall(){UI.ntv=true;UI.view='main';UI.tab='squad';render();window.scrollTo(0,0);},
   ntmv(id,d){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};const L=G.nt.sel.ids,i=L.indexOf(+id),j=i+(+d);if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];save();render();},
   tac(k,v){if(UI.match&&UI.match.m&&UI.match.m.ntU!=null){ntTacs()[k]=v;save();render();return;}G.tactics[k]=v;save();if(UI.view==='match')render();else render();},
@@ -1572,8 +1573,8 @@ function ntHomeCard(){const N=G.nt,J=N&&N.job;if(N&&N.tourSum&&(N.tourSum.T||N.l
       <div class="ntw-sq"><small>Your twelve</small><div>${sq.map(p=>`<span class="ntw-p" title="${esc(pname(p))} · ${p.pos} · OVR ${ovrEst(p)}">${avatarIn(p,p.no)}<i>${esc(p.l||pname(p))}</i></span>`).join('')}</div></div>
       <div class="ntw-a">${dd<pw.days.length?`<button class="ntw-go" data-act="ntlive:1">\u25b6 Play game ${dd+1} live</button><button class="ntw-go2" data-act="ntlive:0">Simulate game ${dd+1}</button>${pw.tour?'<button class="ntw-go3" data-act="ntdayall">Sim the rest</button>':dd===0?'<button class="ntw-go3" data-act="ntdayall">Quick-sim both</button>':''}<button class="ntw-go3" data-act="tab:squad">Line-up</button>`:''}<span>${pw.tour?'The club pre-season continues after the tournament.':pw.day<0?'The club pre-season starts after the window.':'Your club season continues after the window.'}</span></div></section>`;}
   // just played: the results for a few days
-  const last=C.wins.filter(w=>w.done&&w.s===G.season&&w.day>=0&&G.day-w.day<=10).pop();
-  if(last)return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window · complete</small><h2>${esc(ntName(c))}</h2><span>${esc(last.lbl)}</span></div></div><div class="ntw-b"><div class="ntw-gs">${games(last)}</div>${table()}</div></section>`;
+  const last=C.wins.filter(w=>w.done&&w.s===G.season&&w.day>=0&&(w.fin!=null?G.day<=w.fin:G.day-w.day<=3)&&N.resHide!==C.id+':'+C.wins.indexOf(w)).pop();
+  if(last)return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window · complete</small><h2>${esc(ntName(c))}</h2><span>${esc(last.lbl)}</span></div><button class="ntw-go3" style="margin-left:auto" data-act="nthideres:${C.wins.indexOf(last)}">Close ✕</button></div><div class="ntw-b"><div class="ntw-gs">${games(last)}</div>${table()}</div></section>`;
   // coming up: pick the squad
   const E=ntNextEvent();if(E&&E.w&&E.w.day>=0&&E.w.s===G.season&&E.w.day-G.day<=21&&E.w.day>G.day){const n=E.w.day-G.day,X=ntUpcoming(E,n);
     return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>${esc(X.s)}</small><h2>${esc(ntName(c))}</h2><span>${esc(X.t)}</span></div>${X.b?'<button class="ntw-go" data-act="ntcall">Open call-ups</button>':''}</div></section>`;}
