@@ -279,18 +279,43 @@ function tradeEval(tid,give,get,gpk,tpk){gpk=gpk||[];tpk=tpk||[];const me=G.user
   const nMe=t0=>roster(me).length-G1.length+G2.length,nT=roster(tid).length-G2.length+G1.length;
   if(nMe()<10){out.why='You would have fewer than 10 players.';return out;}if(nMe()>20){out.why='You would have more than 20 players.';return out;}
   if(nT<12){out.why=`${t.name} would have fewer than 12 players.`;return out;}if(nT>18){out.why=`${t.name} would have more than 18 players.`;return out;}
+  const X=TRX||{};for(const k of K1)if(X.prot&&X.prot[k.id]&&!k.prot)out.vGive+=pickValP(k,X.prot[k.id])-pickVal(k);for(const k of K2)if(X.prot&&X.prot[k.id]&&!k.prot)out.vGet+=pickValP(k,X.prot[k.id])-pickVal(k);
+  for(const sw of X.sw||[]){const hm=sw.h==='me',a=hm?me:tid,b=hm?tid:me,P=G.picks||[];const ok=P.some(k=>k.y===sw.y&&k.r===1&&k.orig===a&&k.own===a&&!K1.includes(k)&&!K2.includes(k))&&P.some(k=>k.y===sw.y&&k.r===1&&k.orig===b&&k.own===b&&!K1.includes(k)&&!K2.includes(k));
+    if(!ok||(G.swaps||[]).some(x=>x.y===sw.y&&(x.a===a||x.b===a||x.a===b||x.b===b))){out.why=`A ${sw.y} pick swap needs both teams to hold their own ${sw.y} first-round pick, with no other swap on it.`;return out;}if(hm)out.vGet+=swapVal(sw.y,a,b);else out.vGive+=swapVal(sw.y,a,b);}
+  const st=stepienCheck(me,gpk,tpk)||stepienCheck(tid,tpk,gpk);if(st){out.why=st;return out;}
   const best=roster(tid).slice().sort((a,b)=>b.o-a.o)[0],star=G2.includes(best),need=star?1.3:1.08;
   if(out.vGive<out.vGet*need){out.why=star?`${pname(best)} is their franchise player. They want a lot more for him.`:`${t.name} want more value in return.`;out.short=out.vGet*need-out.vGive;return out;}
   out.ok=true;return out;}
 // the cheapest player of the user that would make the deal work for the AI
 function tradeHint(tid,give,get,gpk,tpk){const ev=tradeEval(tid,give,get,gpk,tpk);if(ev.ok||!(get.length||(tpk||[]).length)||!/value|more for him|Salaries do not match: you/.test(ev.why))return null;
   for(const p of roster(G.user).filter(p=>!give.includes(p.id)&&!p.loan).sort((a,b)=>tradeVal(a)-tradeVal(b))){if(tradeEval(tid,give.concat([p.id]),get,gpk,tpk).ok)return p.id;}return null;}
-function doTrade(tid,give,get,gpk,tpk){const me=G.teams[G.user],t=G.teams[tid],K=i=>(G.picks||[]).find(k=>k.id===i);for(const i of gpk||[])K(i).own=tid;for(const i of tpk||[])K(i).own=G.user;
+function doTrade(tid,give,get,gpk,tpk){const me=G.teams[G.user],t=G.teams[tid],K=i=>(G.picks||[]).find(k=>k.id===i),X=TRX||{};for(const i of (gpk||[]).concat(tpk||[])){const k=K(i);if(X.prot&&X.prot[i]&&!k.prot&&k.r===1){k.prot=X.prot[i];k.rolls=0;}}for(const i of gpk||[])K(i).own=tid;for(const i of tpk||[])K(i).own=G.user;
+  const swt=[];for(const sw of X.sw||[]){const a=sw.h==='me'?G.user:tid,b=sw.h==='me'?tid:G.user;(G.swaps=G.swaps||[]).push({y:sw.y,a,b});swt.push(`${G.teams[a].short} may swap ${sw.y} first-round picks with ${G.teams[b].short}`);}
   for(const i of give){const p=G.players[i];leave(p);join(p,t);markNew(p,t);G.listed=G.listed.filter(x=>x!==i);noteExit(p,`Traded to ${t.name}`);}
   for(const i of get){const p=G.players[i];leave(p);join(p,me);markNew(p,me);}
   t.order=autoOrder(t.order);me.order=autoOrder(me.order);
   const nm=(a,k)=>a.map(i=>pname(G.players[i])).concat((k||[]).map(i=>pickName(K(i)))).join(', ');
-  news(`Trade: ${me.name} and ${t.name}`,`${me.name} acquire ${nm(get,tpk)} from ${t.name} for ${nm(give,gpk)}.`);save();}
+  news(`Trade: ${me.name} and ${t.name}`,`${me.name} acquire ${nm(get,tpk)} from ${t.name} for ${nm(give,gpk)}.${swt.length?' '+swt.join('; ')+'.':''}`);save();}
+/* ===================== Draft pick protections, pick swaps and the Stepien rule ===================== */
+// A traded first-round pick can be protected (top-5, top-10, top-14 = lottery protected): if it lands in the protected range the original
+// team keeps it and the obligation rolls over to its next first-round pick with the same protection; after two roll-overs it is
+// unprotected. If that next pick is already gone it turns into the team's next two second-round picks. A pick swap gives a team the right
+// to exchange its own first-round pick with the other team's in a given draft (it takes the better one). Stepien rule: no team may be
+// without a first-round pick in two consecutive future drafts. TRX holds the extras of the trade being built in the trade window.
+let TRX=null;
+function pickValP(k,N){const b=pickVal(k);if(!N||k.r!==1)return b;const s=pickSlot(k),p=clamp((s-N)/8+.5,.05,.97);return b*(p+(1-p)*.55);}
+function swapVal(y,h,o){const P=G.picks||[],a=P.find(k=>k.y===y&&k.r===1&&k.orig===h),b=P.find(k=>k.y===y&&k.r===1&&k.orig===o);if(!a||!b)return 0;return Math.max(0,pickVal(b)-pickVal(a))*.7+20;}
+function stepienCheck(tid,lose,gain){const P=G.picks||[],S=G.season;for(let y=S+1;y<S+3;y++){const has=yy=>P.some(k=>k.y===yy&&k.r===1&&((k.own===tid&&!lose.includes(k.id))||gain.includes(k.id)));if(!has(y)&&!has(y+1))return `${G.teams[tid].name} would have no first-round pick in both ${y} and ${y+1} (Stepien rule).`;}return null;}
+function nbaPickResolve(r1){const y=G.season,P=G.picks||[],U=G.user,slot=o=>r1.indexOf(o)+1,nm=i=>G.teams[i].name;
+  for(const k of P.filter(k=>k.y===y&&k.r===1&&k.prot&&k.own!==k.orig)){const s=slot(k.orig);if(s<1||s>k.prot)continue;const holder=k.own;k.own=k.orig;let txt='';
+    const nx=P.find(q=>q.y===y+1&&q.r===1&&q.orig===k.orig);
+    if(nx&&nx.own===k.orig){nx.own=holder;nx.rolls=(k.rolls||0)+1;nx.prot=nx.rolls>=2?0:k.prot;txt=`It rolls over to the ${y+1} draft${nx.prot?`, again top-${nx.prot} protected`:', now unprotected'}.`;}
+    else{const s2=P.filter(q=>q.r===2&&q.orig===k.orig&&q.own===k.orig&&q.y>y).sort((a,b)=>a.y-b.y).slice(0,2);s2.forEach(q=>q.own=holder);txt=`Their next first-round pick is already gone, so ${nm(holder)} get ${s2.length} second-round pick${s2.length===1?'':'s'} instead.`;}
+    const t=`The ${nm(k.orig)} pick lands at #${s} and was top-${k.prot} protected: the ${nm(k.orig)} keep it. ${txt}`;news(`${y} draft: protected pick stays`,t);if(holder===U||k.orig===U)msg('General Manager','Protected pick',t,'fin');}
+  for(const sw of (G.swaps||[]).filter(x=>x.y===y)){const pa=P.find(q=>q.y===y&&q.r===1&&q.orig===sw.a),pb=P.find(q=>q.y===y&&q.r===1&&q.orig===sw.b);
+    if(pa&&pb&&slot(sw.b)>0&&slot(sw.b)<slot(sw.a)){const o=pb.own;pb.own=pa.own;pa.own=o;const t=`${nm(sw.a)} exercise their swap right: they pick at #${slot(sw.b)} instead of #${slot(sw.a)}.`;news(`${y} draft: pick swap`,t);if(sw.a===U||sw.b===U)msg('General Manager','Pick swap',t,'fin');}}
+  G.swaps=(G.swaps||[]).filter(x=>x.y>y);}
+
 function proposeTrade(tid,give,get,gpk,tpk){const ev=tradeEval(tid,give,get,gpk,tpk);if(!ev.ok)return ev;doTrade(tid,give,get,gpk,tpk);ev.done=true;return ev;}
 // AI teams call the user with trade ideas during the season
 function aiTradeIdea(){if(!userNBA()||!nbaTradeOpen().ok||Math.random()>.12)return;
@@ -475,6 +500,7 @@ function nbaDraftRun(){const L=G.nl&&G.nl.NBA,D=G.draft;if(!L||!D||!D.cls||D.y!=
   const base=nbaOrder(),r1=nbaLottery(base),r2=base.slice(),U=G.user,out=[];
   const lw=r1.slice(0,4).filter((id,i)=>base.indexOf(id)>i);news(`${G.season} NBA Draft Lottery`,`${G.teams[r1[0]].name} win the first pick. Top four: ${r1.slice(0,4).map((i,k)=>`${k+1}. ${G.teams[i].short}`).join(', ')}.${lw.length?` Jumped up: ${lw.map(i=>G.teams[i].short).join(', ')}.`:''}`);
   const avail=new Set(prospects().map(p=>p.id));
+  try{nbaPickResolve(r1);}catch(e){}
   [[1,r1],[2,r2]].forEach(([rd,ord])=>ord.forEach((orig,i)=>{const slot=(rd-1)*30+i+1,pk=G.picks.find(k=>k.y===G.season&&k.r===rd&&k.orig===orig),own=pk?pk.own:orig,t=G.teams[own];
     let p=null;if(own===U){const b=(D.board||[]).map(x=>G.players[x]).find(x=>x&&avail.has(x.id));p=b||[...avail].map(x=>G.players[x]).sort((a,b)=>prospectScore(b)-prospectScore(a))[0];
       if(roster(U).length>=20){out.push({slot,tid:own,pid:null});msg('General Manager',`Pick #${slot} forfeited`,`Our roster is full (20 players), so we could not use pick #${slot}.`,'staff');return;}}
@@ -491,8 +517,8 @@ function nbaDraftRun(){const L=G.nl&&G.nl.NBA,D=G.draft;if(!L||!D||!D.cls||D.y!=
 function pickSlot(k){const L=G.nl.NBA,ord=nbaOrder(),cur=ord.indexOf(k.orig)+1;const g=L&&L.phase==='reg'?L.round/L.sched.length:1;
   const st=nbaTeams().map(t=>t.id).sort((a,b)=>strength(a)-strength(b)).indexOf(k.orig)+1;const y=k.y-G.season;
   const p=y<=1?cur*g+((st+15.5)/2)*(1-g):((st+15.5*(y-1))/y);return Math.round(p)+(k.r===2?30:0);}
-function pickVal(k){const s=pickSlot(k),y=Math.max(0,k.y-G.season-1);const v=k.r===1?1250*Math.exp(-(s-1)/8.5)+60:60*Math.exp(-(s-31)/12);return v*Math.pow(.85,y);}
-const pickName=k=>`${k.y} ${k.r===1?'1st':'2nd'}${k.orig!==k.own?` (${G.teams[k.orig].short})`:''}`;
+function pickVal(k){const s=pickSlot(k),y=Math.max(0,k.y-G.season-1);const v=k.r===1?1250*Math.exp(-(s-1)/8.5)+60:90*Math.exp(-(s-31)/15)+15;return v*Math.pow(.85,y);}
+const pickName=k=>`${k.y} ${k.r===1?'1st':'2nd'}${k.orig!==k.own?` (${G.teams[k.orig].short})`:''}${k.prot?` top-${k.prot} prot.`:''}`;
 /* ===================== NBA free agency ===================== */
 // Player options (PO) and team options (TO) are decided when the option season begins. Expiring NBA contracts start free agency: seven
 // days between the seasons (the real one opens on 30 June). Players with up to three years in the league become restricted free agents:
