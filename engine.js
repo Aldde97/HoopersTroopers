@@ -2637,7 +2637,7 @@ function budMove(dir,amt){if(userNBA())return 'NBA clubs work with the salary ca
 // Players decide at the start of a season whether it is their last (p.retAt = that season), so the user knows before contract talks.
 // Only they retire next summer; a player with years left on his deal is less likely to stop. Old saves without plans use the old roll once.
 function retPlan(){if(!G||G.retV===G.season)return;G.retV=G.season;const mine=[];// called once a season on 1 January (game day 92)
-  const last=[];for(const p of Object.values(G.players)){if(p.oneMore===G.season){p.retAt=G.season;delete p.oneMore;if(p.tid===G.user)last.push(pname(p));continue;}if(p.yth!=null||p.retAt===G.season||p.extS===G.season||(p.tid===G.user&&p.newAt===G.season))continue;if(p.retAt!=null&&p.retAt<G.season)delete p.retAt;
+  const last=[];for(const p of Object.values(G.players)){if(p.oneMore===G.season){p.retAt=G.season;p.retTry=G.season;delete p.oneMore;if(p.tid===G.user)last.push(pname(p));continue;}if(p.yth!=null||p.retAt===G.season||p.extS===G.season||(p.tid===G.user&&p.newAt===G.season))continue;if(p.retAt!=null&&p.retAt<G.season)delete p.retAt;
     const r=retireP({age:p.age+1,o:p.o,tid:p.tid})*(p.yrs>1?.4:1);if(Math.random()<r){p.retAt=G.season;if(p.tid===G.user)mine.push(p);}}
   for(const p of mine)msg(pname(p),'This is my last season',`Coach, I have thought about it for a long time: this season will be my last as a player. I will not sign a new contract.`,'retire',{pid:p.id});
   if(last.length)msg('Sporting Director','Farewell season',`As agreed a year ago, this is the last season of ${last.join(', ')}.`,'fin');}
@@ -6163,9 +6163,13 @@ function exElsewhere(sid){const st=G.staffFA.find(x=>x.id===sid);if(!st||!st.ex)
 
 // the coach can try once to talk a retiring player into one more season, optionally with the promise of an assistant coach job
 // afterwards. Key players, players in a good mood, younger ones and professionals are easier to convince.
-function retTalk(mid,promise){const m=G.inbox.find(x=>x.id===mid);if(!m||m.done||!m.act)return 'This is settled.';const p=G.players[m.act.pid];
+function retTalk(mid,promise){const m=G.inbox.find(x=>x.id===mid);if(!m||m.done||!m.act)return 'This is settled.';return retTalkP(m.act.pid,promise,m);}
+// players who announced their retirement and can still be talked to (one attempt per season)
+const retOpen=()=>roster(G.user).filter(p=>p.retAt===G.season&&p.retTry!==G.season&&p.retOk!==G.season);
+function retOkP(pid){const p=G.players[pid];if(p)p.retOk=G.season;for(const m of G.inbox)if(m.type==='retire'&&m.act&&m.act.pid===pid&&!m.done)m.done='Decision accepted';save();}
+function retTalkP(pid,promise,m){m=m||G.inbox.find(x=>x.type==='retire'&&x.act&&x.act.pid===pid&&!x.done)||{};const p=G.players[pid];if(p&&p.retTry===G.season)return 'You already talked to him about it this season.';
   if(!p||p.tid!==G.user||p.retAt!==G.season){m.done='Settled';return 'He is no longer with us.';}
-  const ps=roster(G.user).slice().sort((a,b)=>b.o-a.o),key=ps.indexOf(p)<8,md=moodOf(p),P=persOf(p),nm=pname(p);
+  p.retTry=G.season;const ps=roster(G.user).slice().sort((a,b)=>b.o-a.o),key=ps.indexOf(p)<8,md=moodOf(p),P=persOf(p),nm=pname(p);
   const c=clamp(.3+(promise?.25:0)+(p.age<=34?.1:p.age>=38?-.15:0)+(key?.1:-.05)+(md>=60?.1:md<35?-.15:0)+(P==='pro'?.05:P==='ego'?-.05:0)-(p.inj>20?.1:0)-(p.fragile?.05:0),.08,.85);
   if(Math.random()<c){delete p.retAt;p.oneMore=G.season+1;if(promise)p.acProm=1;let txt='';
     if(p.yrs<=1){const sal=r10k(Math.min(p.sal,demand(p)));p.yrs+=1;p.sal=sal;p.extS=G.season;txt=` I sign a one-year extension at ${eur(sal)} per season.`;}
