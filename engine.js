@@ -212,7 +212,7 @@ const isNBA=t=>!!(t&&t.dom==='NBA');
 // Two-way players do not count against the cap.
 const capF=()=>Math.pow(1.07,Math.max(0,((G&&G.season)||2026)-2026));
 function capv(){const f=capF(),m=x=>Math.round(x*f);return {cap:m(164961000),tax:m(200428000),ap1:m(209015000),ap2:m(221686000),floor:m(148465000),ntmle:m(15044000),tmle:m(6064000),rmle:m(9366000),min:m(1300000)};}
-const nbaPayroll=tid=>roster(tid).filter(p=>!p.tw&&!(p.loan&&p.loan.from!==tid)).reduce((a,p)=>a+p.sal,0)+Object.values(G.players).filter(p=>p.loan&&p.loan.gl&&p.loan.from===tid&&!p.tw).reduce((a,p)=>a+p.sal,0);
+const nbaPayroll=tid=>roster(tid).filter(p=>!p.tw&&!(p.loan&&p.loan.from!==tid)).reduce((a,p)=>a+p.sal,0)+Object.values(G.players).filter(p=>p.loan&&p.loan.gl&&p.loan.from===tid&&!p.tw).reduce((a,p)=>a+p.sal,0)+deadNow(tid);
 // fitted to the real 2026-27 contracts: OVR 80 about 5M, 84 about 14M, 88 about 30M, 92 about 50M; the max contract is 35% of the cap
 function nbaSal(p){const x=p.o<76?1300000+(p.o-70)*120000:2000000+53000000*((p.o-76)/17)**1.9;return Math.min(r5k(Math.max(1300000,Math.min(x,57700000))*(p.age>=34?.75:1)*capF()),typeof nbaMaxOf==='function'&&G&&G.season?nbaMaxOf(p):Infinity);}
 // luxury tax: per 5M above the tax level 1.5, 1.75, 2.5, 3.25, then +0.5 for every further 5M; repeat offenders (3 of the last 4 seasons) pay 1.0 more
@@ -571,7 +571,7 @@ function nbaSheet(p,o){const f=p.nfa.from,F=G.teams[f];
 function sheetDecide(pid,match){const S=G.nfa&&G.nfa.sheets||[],s=S.find(x=>x.pid===pid);if(!s)return 'This offer sheet is no longer open.';const p=G.players[pid];G.nfa.sheets=S.filter(x=>x!==s);
   for(const m of G.inbox)if(m.type==='sheet'&&m.act&&m.act.pid===pid&&!m.done)m.done=match?'Matched':'Not matched';
   if(match){if(roster(G.user).length>=20)return 'Your roster is full.';nbaSignFA(p,G.user,s.sal,'bird',s.yrs);}else nbaSignFA(p,s.tid,s.sal,s.route,s.yrs);save();return null;}
-function nbaFADay(){const F=G.nfa;if(!F)return;F.day++;
+function nbaFADay(){const F=G.nfa;if(!F)return;F.day++;try{waivTick();}catch(e){}
   const pool=G.fa.map(i=>G.players[i]).filter(p=>p&&p.nfa&&p.nfa.day<=F.day&&!F.sheets.some(s=>s.pid===p.id)).sort((a,b)=>b.o-a.o);
   for(const p of pool){const o=nbaBestOffer(p);if(!o)continue;if(p.nfa.rfa&&p.nfa.from!=null&&o.tid!==p.nfa.from)nbaSheet(p,o);else nbaSignFA(p,o.tid,o.sal,o.route);}
   if(F.day>=F.len)nbaFAEnd();}
@@ -603,7 +603,7 @@ function autoOrder(ids){
   return [...st,...ok.filter(p=>!st.includes(p)),...inj].map(p=>p.id);
 }
 const roster=tid=>G.teams[tid].order.map(i=>G.players[i]).filter(Boolean);
-const wageBill=tid=>roster(tid).reduce((s,p)=>s+(p.loan&&p.loan.from!==tid?p.sal*p.loan.pct/100:p.sal),0);
+const wageBill=tid=>roster(tid).reduce((s,p)=>s+(p.loan&&p.loan.from!==tid?p.sal*p.loan.pct/100:p.sal),0)+(G.teams[tid]&&G.teams[tid].dom==='NBA'?deadNow(tid):0);
 function strength(tid){const ps=roster(tid).filter(p=>p.inj<=0).slice(0,10).sort((a,b)=>b.o-a.o);const w=[1.25,1.2,1.15,1.1,1.05,.8,.7,.6,.4,.3];let s=0,ws=0;ps.forEach((p,i)=>{s+=p.o*w[i];ws+=w[i];});return ws?s/ws:50;}
 function winProb(h,a,neutral){const d=strength(h)-strength(a)+(neutral?0:1.5);return 1/(1+Math.exp(-d/4.2));}
 function ratings(tid){const ps=roster(tid).filter(p=>p.inj<=0);const top=ps.slice(0,5),b=ps.slice(5,10);
@@ -2399,7 +2399,7 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -5688,8 +5688,68 @@ function acceptOffer(mid,so){
   noteExit(p,`Sold \u00b7 ${eur(m.act.fee)}`);leave(p);join(p,G.teams[m.act.tid]);markNew(p,G.teams[m.act.tid]);aiFix(G.teams[m.act.tid]);if(G.teams[m.act.tid].fin)G.teams[m.act.tid].fin.bal-=m.act.fee;G.fin.bal+=m.act.fee;G.fin.season.tin+=m.act.fee;m.done=`Accepted \u00b7 ${eur(m.act.fee)}`;
   G.inbox.forEach(x=>{if(x.act&&x.act.pid===p.id&&!x.done)x.done='Player sold';});save();return null;
 }
+// ===================== Waivers and the stretch provision (NBA) =====================
+// A waived player sits on waivers for 48 hours (until the next game day). Teams claim in reverse order of their
+// record; a claiming team needs cap room for his salary unless it is a minimum contract. The claiming team takes
+// over the contract and the old team owes nothing. If nobody claims him, he becomes a free agent and his old team
+// keeps paying him: his salary stays on its cap as dead money. The stretch provision spreads it over twice the
+// remaining years plus one (waived in season: the current season is paid as normal, only the later years are
+// stretched). If he signs elsewhere, the set-off rule takes half of what his new salary is above the minimum off.
+const waivYL=y=>`${y}/${String(y+1).slice(2)}`;
+function waivPhase(){const L=G.nl&&G.nl.NBA,ph=L?L.phase:'reg';return {done:ph==='done',inS:ph==='reg'||ph==='po'||ph==='wait'};}
+function waivPlan(p,stretch,sal,yrs){sal=sal==null?p.sal:sal;yrs=yrs==null?p.yrs:yrs;const P=waivPhase(),S=G.season,start=P.done?S+1:S,n=Math.max(0,yrs-(P.done?1:0)),m={};
+  if(!stretch){for(let i=0;i<n;i++)m[start+i]=sal;return m;}
+  if(P.inS){if(n>0)m[S]=sal;const f=n-1;if(f>0){const k=2*f+1;for(let i=0;i<k;i++)m[S+1+i]=r10k(sal*f/k);}return m;}
+  const k=2*n+1;for(let i=0;i<k&&n>0;i++)m[start+i]=r10k(sal*n/k);return m;}
+function waivStretchOK(p){const P=waivPhase(),n=p.yrs-(P.done?1:0);return P.inS?n>1:n>0;}
+function deadNow(tid,y){y=y==null?G.season:y;let s=0;for(const d of (G.dead||[]))if(d.tid===tid)s+=d.m[y]||0;
+  for(const id of (G.waivers||[])){const p=G.players[id];if(p&&p.waiv&&p.waiv.from===tid)s+=p.waiv.plan0[y]||0;}return s;}
+const deadList=tid=>(G.dead||[]).filter(d=>d.tid===tid&&Object.keys(d.m).some(y=>+y>=G.season&&d.m[y]>0));
+function waivPrio(){const L=G.nl.NBA,rec=i=>{const r=nlRec(L,i);return (r[0]+r[1])?r[0]/(r[0]+r[1]):.5;};
+  return L.ids.slice().sort((a,b)=>rec(a)-rec(b)||(G.teams[a].rep||0)-(G.teams[b].rep||0));}
+function waivFits(p,tid){const C=capv(),sal=p.waiv?p.waiv.sal:p.sal;return sal<=Math.max(minFor(p),C.min)*1.02||nbaPayroll(tid)+sal<=C.cap;}
+function nbaWaive(p,stretch){const tid=p.tid,t=G.teams[tid];
+  p.waiv={from:tid,st:G.wsteps||0,sal:p.sal,yrs:p.yrs,stretch:!!stretch,plan0:waivPlan(p,false),plan:waivPlan(p,!!stretch),claims:[]};
+  delete p.opts;leave(p);t.order=autoOrder(t.order);G.waivers=(G.waivers||[]).filter(i=>i!==p.id);G.waivers.push(p.id);
+  if(tid===G.user){noteExit(p,'Waived');msg('General Manager',`${pname(p)} placed on waivers`,`We waived ${pname(p)}. For the next 48 hours any team can claim him: the team with the worst record goes first, and it needs cap room for his ${eur(p.sal)} unless that is a minimum contract. If he is claimed, his new team takes over the contract and we owe nothing. If nobody claims him, he becomes a free agent and we pay the rest of his contract as dead money${stretch?', stretched over several seasons':''}.`,'fin');}
+  else if(p.o>=74)news(`${t.name} waive ${pname(p)}`,`${t.name} placed ${pname(p)} (OVR ${p.o}, ${eur(p.sal)}, ${p.yrs} year${p.yrs>1?'s':''} left) on waivers. Teams have 48 hours to claim him.`);}
+function userWaive(pid,stretch){const p=G.players[pid];if(!p||p.tid!==G.user)return 'He is not on your roster.';if(p.loan)return 'He is only here on loan. Send him back instead.';
+  if(G.teams[G.user].order.length<=10)return 'You need at least 10 players.';if(stretch&&!waivStretchOK(p))return 'Only a contract that runs beyond this season can be stretched.';
+  nbaWaive(p,stretch);save();return null;}
+function waivClaim(pid){const p=G.players[pid];if(!p||!p.waiv)return 'He is no longer on waivers.';const W=p.waiv;
+  if(W.claims.includes(G.user)){W.claims=W.claims.filter(i=>i!==G.user);save();return null;}
+  if(W.from===G.user)return 'You waived him yourself.';if(roster(G.user).length>=20)return 'Your roster is full.';
+  if(!waivFits(p,G.user))return `You need ${eur(W.sal)} of cap room to claim him (only minimum contracts can be claimed over the cap).`;
+  W.claims.push(G.user);save();return null;}
+function waivResolve(p){const W=p.waiv,from=W.from,t0=G.teams[from];let by=null;
+  for(const tid of waivPrio()){if(tid===from||!waivFits(p,tid))continue;
+    if(tid===G.user){if(W.claims.includes(G.user)&&roster(G.user).length<20){by=tid;break;}continue;}
+    const ps=roster(tid).filter(x=>!x.tw),bar=ps.map(x=>x.o).sort((a,b)=>b-a)[9]||0;
+    if(ps.length<15&&p.o>=bar-1&&W.sal<=nbaSal(p)*1.35+1e6){by=tid;break;}}
+  G.waivers=G.waivers.filter(i=>i!==p.id);delete p.waiv;
+  if(by!=null){const b=G.teams[by];join(p,b);b.order=autoOrder(b.order);
+    if(by===G.user)msg('General Manager',`We claim ${pname(p)}`,`Our waiver claim was successful: ${pname(p)} joins us from ${t0.name} with his contract (${eur(p.sal)}, ${p.yrs} year${p.yrs>1?'s':''} left).`,'fin');
+    else if(from===G.user)msg('General Manager',`${pname(p)} claimed by ${b.name}`,`${b.name} claimed ${pname(p)} off waivers and take over his contract. We owe him nothing.`,'fin');
+    else if(p.o>=74)news(`${b.name} claim ${pname(p)}`,`${b.name} claimed ${pname(p)} off waivers from ${t0.name}.`);
+    if(W.claims.includes(G.user)&&by!==G.user)msg('General Manager',`Claim for ${pname(p)} failed`,`${b.name} were ahead of us in the waiver order and claimed ${pname(p)}.`,'fin');return;}
+  (G.dead=G.dead||[]).push({tid:from,pid:p.id,name:pname(p),m:W.plan,stretch:W.stretch,so:false});
+  toFA(p);p.sal=salaryFor(p);
+  if(from===G.user){const ys=Object.keys(W.plan).map(Number).sort();msg('General Manager',`${pname(p)} cleared waivers`,`Nobody claimed ${pname(p)}. He is a free agent now and we pay him ${ys.map(y=>`${eur(W.plan[y])} in ${waivYL(y)}`).join(', ')} as dead money on our cap${W.stretch?' (stretched)':''}.`,'fin');}
+  if(W.claims.includes(G.user))msg('General Manager',`Claim for ${pname(p)} failed`,`Our claim for ${pname(p)} did not go through.`,'fin');}
+// AI teams cut down to 15 standard contracts on the first day of the regular season (the cheapest, weakest go first)
+function waivCutDown(){const C=capv();for(const t of nbaTeams()){if(t.id===G.user)continue;let k=0;
+  while(roster(t.id).filter(p=>!p.tw).length>15&&k++<6){const ps=roster(t.id).filter(p=>!p.tw&&!p.loan);if(!ps.length)break;
+    const v=p=>p.o+(p.age<=23?2:0)+Math.min(6,(p.sal-C.min)/4e6);const p=ps.sort((a,b)=>v(a)-v(b))[0];
+    nbaWaive(p,p.sal>8e6&&p.yrs>=2&&Math.random()<.4);}}}
+function waivTick(){if(!G||!G.nl||!G.nl.NBA)return;G.wsteps=(G.wsteps||0)+1;const L=G.nl.NBA;
+  if(L.phase==='reg'&&G.waivCut!==G.season){G.waivCut=G.season;try{waivCutDown();}catch(e){}}
+  for(const id of (G.waivers||[]).slice()){const p=G.players[id];if(!p||!p.waiv){G.waivers=G.waivers.filter(i=>i!==id);continue;}if(G.wsteps>p.waiv.st)waivResolve(p);}
+  const C=capv();for(const d of (G.dead||[])){if(d.so)continue;const p=G.players[d.pid];if(!p||p.tid==null||p.tid===d.tid||!isNBA(G.teams[p.tid]))continue;
+    d.so=true;const cut=Math.min(d.m[G.season]||0,r10k(Math.max(0,p.sal-C.min)/2));if(cut>0){d.m[G.season]-=cut;if(d.tid===G.user)msg('General Manager',`Set-off: ${d.name}`,`${d.name} signed with ${G.teams[p.tid].name}. Under the set-off rule our dead money for him this season falls by ${eur(cut)}.`,'fin');}}
+  G.dead=(G.dead||[]).filter(d=>Object.keys(d.m).some(y=>+y>=G.season&&d.m[y]>0));}
+
 function releaseCost(p){return r5k(p.sal*.5*p.yrs);}
-function releasePlayer(pid){const p=G.players[pid],c=releaseCost(p);if(p.loan)return 'He is only here on loan. Send him back instead.';if(G.teams[G.user].order.length<=10)return 'You need at least 10 players.';G.fin.bal-=c;G.fin.season.rel+=c;noteExit(p,'Released');toFA(p);p.sal=salaryFor(p);msg('Sporting Director',`${pname(p)} released`,`${pname(p)} was released. The buyout cost ${eur(c)}.`,'fin');save();return null;}
+function releasePlayer(pid){if(userNBA())return userWaive(pid,false);const p=G.players[pid],c=releaseCost(p);if(p.loan)return 'He is only here on loan. Send him back instead.';if(G.teams[G.user].order.length<=10)return 'You need at least 10 players.';G.fin.bal-=c;G.fin.season.rel+=c;noteExit(p,'Released');toFA(p);p.sal=salaryFor(p);msg('Sporting Director',`${pname(p)} released`,`${pname(p)} was released. The buyout cost ${eur(c)}.`,'fin');save();return null;}
 function extendPlayer(pid,y){if(userNBA()&&typeof nbaExtTerms==='function'&&nbaExtTerms(G.players[pid]))return nbaExtend(pid,y);const p=G.players[pid],d=demand(p);if(p.retAt===G.season)return `${pname(p)} has decided to retire at the end of the season.`;p.extS=G.season;if(moodOf(p)<25&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal. Speak to him first.`;if(!userNBA()&&wageBill(G.user)-p.sal+d>G.fin.wageBudget)return `His new wage of ${eur(d)} would exceed your wage budget.`;p.sal=d;p.yrs+=2;msg('Sporting Director',`${pname(p)} extended`,`${pname(p)} signed a two-year extension at ${eur(d)} per season.`,'fin');save();return null;}
 
 
