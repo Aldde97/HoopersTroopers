@@ -275,6 +275,11 @@ function retCard(){return retOpen().slice(0,2).map(p=>`<section class="ct-c"><di
 function lgStand(c){try{if(c.dom==='CUP'){const k=cupOfTeam(c.id);return k==='fec'?`${ordn(fecRank(c.id))} in FIBA Europe Cup Group ${fecGroupOf(c.id)}`:k==='bcl'?`${ordn(bclRank(c.id))} in Champions League Group ${bclGroupOf(c.id)}`:G.ec?`${ordn(ecRank(c.id))} in EuroCup Group ${ecGroupOf(c.id)}`:'EuroCup';}
   if(NLCFG[c.dom]&&nlOf(c.id))return `${ordn(nlRank(nlOf(c.id),c.id))} in the ${NLCFG[c.dom].short}`;if(c.dom==='KLS')return `${ordn(G.kls?klsFLRank(c.id):0)} in the KLS`;if(c.dom==='BIH')return `${ordn(G.bih?bihRank(c.id):0)} in Liga 14`;
   if(c.dom==='ABA2')return `${ordn(dom2Rank(c.id))} in ABA League 2`;if(c.dom)return `${ordn(domRank(c.id))} in the ABA League`;return `${ordn(rankOf(c.id))} in the EuroLeague`;}catch(e){return '';}}
+// the "coming up" national team banner on the club home page carries the FIBA deadlines
+function ntUpcoming(E,n){const N=G.nt,st=ntStage(E),D=ntDl(E),sel=N.sel&&N.sel.key===E.key?N.sel.ids.length:0,win=`International window in ${n} day${n===1?'':'s'}`;
+  if(!D)return {s:win,t:`${E.lbl} · ${sel?'squad picked':'pick your twelve'}`,b:true};if(st==='lock')return {s:win,t:`${E.lbl} · twelve confirmed at the technical meeting`,b:false};
+  const due=st==='pre'?D.pre:D.fin,l=due-G.day,w=l<=0?'today':l===1?'tomorrow':`in ${l} days`;
+  return st==='pre'?{s:`Preliminary roster due ${w} · ${ntDayDate(D.pre)}`,t:`${E.lbl} in ${n} days · ${sel?`${sel} of up to 24 named`:'no list yet: the federation would send its own'}`,b:true}:{s:`Final twelve due ${w} · technical meeting ${ntDayDate(D.fin)}`,t:`${E.lbl} in ${n} days · the twelve come from your list of ${(ntPreOf(E)||[]).length}`,b:true};}
 function midJobCard(){const L=midJobs();if(!L.length)return '';return L.slice(0,2).map(m=>{const c=G.teams[m.act.tid],d=Math.max(0,m.act.until-G.day);return `<section class="ct-c mj"><span class="mj-cr">${crest(c)}</span><div><small>Job offer · ${d} day${d===1?'':'s'} left</small><b>${esc(c.name)} want you now</b></div><button data-act="midneg:${c.id}:${m.id}">Negotiate</button><button class="mj-n" data-act="decline:${m.id}">Decline</button></section>`;}).join('');}
 function ctCard(){if(!ctShow())return '';const L=expiring();return `<section class="ct-c"><div><small>Contracts end this summer</small><b>${L.slice(0,3).map(p=>esc(sname(p))).join(', ')}${L.length>3?` and ${L.length-3} more`:''}</b></div><button data-act="ctopen">Make offers</button></section>`;}
 function ctModal(M){const L=expiring(),left=G.teams[G.user].order.length-L.length,dB=userNBA()?null:G.fin.wageBudget-wageBill(G.user);
@@ -1302,6 +1307,7 @@ const ACT={
   ntsrole(v){UI.ntsf=UI.ntsf||{role:'AC',src:'all',nat:'all'};UI.ntsf.role=v;render();},
   ntsall(){UI.ntsAll=!UI.ntsAll;render();},
   ntmode(){UI.ntv=!ntMode();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
+  ntcall(){UI.ntv=true;UI.view='main';UI.tab='squad';render();window.scrollTo(0,0);},
   ntmv(id,d){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:ntUserSquad(J.c,E.win,'').map(x=>x.id)};const L=G.nt.sel.ids,i=L.indexOf(+id),j=i+(+d);if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];save();render();},
   tac(k,v){if(UI.match&&UI.match.m&&UI.match.m.ntU!=null){ntTacs()[k]=v;save();render();return;}G.tactics[k]=v;save();if(UI.view==='match')render();else render();},
   train(k,v){G.training[k]=v;save();render();},
@@ -1556,8 +1562,8 @@ function ntHomeCard(){const N=G.nt,J=N&&N.job;if(N&&N.tourSum&&(N.tourSum.T||N.l
   const last=C.wins.filter(w=>w.done&&w.s===G.season&&w.day>=0&&G.day-w.day<=10).pop();
   if(last)return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window · complete</small><h2>${esc(ntName(c))}</h2><span>${esc(last.lbl)}</span></div></div><div class="ntw-b"><div class="ntw-gs">${games(last)}</div>${table()}</div></section>`;
   // coming up: pick the squad
-  const E=ntNextEvent();if(E&&E.w&&E.w.day>=0&&E.w.s===G.season&&E.w.day-G.day<=21&&E.w.day>G.day){const n=E.w.day-G.day;
-    return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>International window in ${n} day${n===1?'':'s'}</small><h2>${esc(ntName(c))}</h2><span>${esc(E.lbl)} · ${N.sel&&N.sel.key===E.key?'squad picked':'pick your twelve'}</span></div><button class="ntw-go" data-act="ntopen">Pick squad</button></div></section>`;}
+  const E=ntNextEvent();if(E&&E.w&&E.w.day>=0&&E.w.s===G.season&&E.w.day-G.day<=21&&E.w.day>G.day){const n=E.w.day-G.day,X=ntUpcoming(E,n);
+    return `<section class="ntw sm" ${style}><div class="ntw-h"><div class="ntw-fl">${ntFlag(c,64)}</div><div><small>${esc(X.s)}</small><h2>${esc(ntName(c))}</h2><span>${esc(X.t)}</span></div>${X.b?'<button class="ntw-go" data-act="ntcall">Open call-ups</button>':''}</div></section>`;}
   return '';}
 homeHTML=(o=>()=>ntHomeCard()+o())(homeHTML);
 // the tournament is over for the coach: his games, where he finished, the podium, the federation's verdict
