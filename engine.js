@@ -258,7 +258,7 @@ function nbaTradeOpen(){const L=G.nl&&G.nl.NBA;if(!L||!userNBA())return {ok:fals
 function tradeVal(p,forTid){const age=p.age,o=p.o;let v=Math.max(0,o-68)**2.3;
   v*=age<=21?1.35:age<=24?1.2:age<=27?1.08:age<=29?1:age<=31?.8:age<=33?.55:.35;v*=1+Math.max(0,p.pot-o)*.03;
   const fair=nbaSal(p);v*=clamp(1+(fair-p.sal)/(fair+8e6)*.6,.55,1.35);v*=1+.1*Math.max(0,(p.yrs||1)-1)*(age<=28?1:-1);
-  if(p.inj>3)v*=.85;return v;}
+  if(p.inj>3)v*=.85;return v*planF(p,forTid);}
 const salSum=ps=>ps.reduce((a,p)=>a+p.sal,0);
 // incoming salary a team may take back for `out`: free while it stays under the cap; up to the first apron 200% + 250k (small salaries),
 // out + 7.5M (middle) or 125% + 250k (big salaries); above the first apron only 100%
@@ -266,10 +266,10 @@ function capAllow(tid,out){const C=capv(),P=nbaPayroll(tid),room=Math.max(0,C.ca
   const a=Math.max(room,base);return P-out+a>C.ap1?Math.max(room,out,Math.min(a,C.ap1-(P-out))):a;}
 const salLim=(x,tid)=>capAllow(tid==null?G.user:tid,x);
 function tradeEval(tid,give,get,gpk,tpk){gpk=gpk||[];tpk=tpk||[];const me=G.user,t=G.teams[tid],G1=give.map(i=>G.players[i]).filter(Boolean),G2=get.map(i=>G.players[i]).filter(Boolean),K1=gpk.map(i=>(G.picks||[]).find(k=>k.id===i)).filter(Boolean),K2=tpk.map(i=>(G.picks||[]).find(k=>k.id===i)).filter(Boolean);
-  const out={salOut:salSum(G1),salIn:salSum(G2),vGive:G1.reduce((a,p)=>a+tradeVal(p,tid),0)+K1.reduce((a,k)=>a+pickVal(k),0),vGet:G2.reduce((a,p)=>a+tradeVal(p,me),0)+K2.reduce((a,k)=>a+pickVal(k),0),ok:false,why:''};
+  const out={salOut:salSum(G1),salIn:salSum(G2),vGive:G1.reduce((a,p)=>a+tradeVal(p,tid),0)+K1.reduce((a,k)=>a+pickVal(k),0)*pickF(tid),vGet:G2.reduce((a,p)=>a+tradeVal(p,tid),0)+K2.reduce((a,k)=>a+pickVal(k),0)*pickF(tid),ok:false,why:''};
   const open=nbaTradeOpen();if(!open.ok){out.why=open.why;return out;}
   if(!G2.length&&!K2.length){out.why='Pick at least one player or draft pick from their side.';return out;}
-  if(!G1.length&&!K1.length){out.why='They will not give anything away for nothing. Add players or picks from your side.';return out;}
+  if(!G1.length&&!K1.length&&!(nbaPlanOf(tid)&&nbaPlanOf(tid).dump)){out.why='They will not give anything away for nothing. Add players or picks from your side.';return out;}
   if(G1.some(p=>p.tid!==me)||G2.some(p=>p.tid!==tid)){out.why='One of these players is no longer on that roster.';return out;}
   if(K1.some(k=>k.own!==me)||K2.some(k=>k.own!==tid)){out.why='One of these picks has changed hands.';return out;}
   const j=[...G1,...G2].find(p=>justJoined(p)||(p.newAt===G.season&&p.newTid===p.tid));if(j){out.why=`${pname(j)} only just joined his team and cannot be traded until next season.`;return out;}
@@ -283,6 +283,7 @@ function tradeEval(tid,give,get,gpk,tpk){gpk=gpk||[];tpk=tpk||[];const me=G.user
   for(const sw of X.sw||[]){const hm=sw.h==='me',a=hm?me:tid,b=hm?tid:me,P=G.picks||[];const ok=P.some(k=>k.y===sw.y&&k.r===1&&k.orig===a&&k.own===a&&!K1.includes(k)&&!K2.includes(k))&&P.some(k=>k.y===sw.y&&k.r===1&&k.orig===b&&k.own===b&&!K1.includes(k)&&!K2.includes(k));
     if(!ok||(G.swaps||[]).some(x=>x.y===sw.y&&(x.a===a||x.b===a||x.a===b||x.b===b))){out.why=`A ${sw.y} pick swap needs both teams to hold their own ${sw.y} first-round pick, with no other swap on it.`;return out;}if(hm)out.vGet+=swapVal(sw.y,a,b);else out.vGive+=swapVal(sw.y,a,b);}
   const st=stepienCheck(me,gpk,tpk)||stepienCheck(tid,tpk,gpk);if(st){out.why=st;return out;}
+  out.dumpB=dumpBonus(tid,out.salIn,out.salOut);out.vGive+=out.dumpB;
   const best=roster(tid).slice().sort((a,b)=>b.o-a.o)[0],star=G2.includes(best),need=star?1.3:1.08;
   if(out.vGive<out.vGet*need){out.why=star?`${pname(best)} is their franchise player. They want a lot more for him.`:`${t.name} want more value in return.`;out.short=out.vGet*need-out.vGive;return out;}
   out.ok=true;return out;}
@@ -315,6 +316,62 @@ function nbaPickResolve(r1){const y=G.season,P=G.picks||[],U=G.user,slot=o=>r1.i
   for(const sw of (G.swaps||[]).filter(x=>x.y===y)){const pa=P.find(q=>q.y===y&&q.r===1&&q.orig===sw.a),pb=P.find(q=>q.y===y&&q.r===1&&q.orig===sw.b);
     if(pa&&pb&&slot(sw.b)>0&&slot(sw.b)<slot(sw.a)){const o=pb.own;pb.own=pa.own;pa.own=o;const t=`${nm(sw.a)} exercise their swap right: they pick at #${slot(sw.b)} instead of #${slot(sw.a)}.`;news(`${y} draft: pick swap`,t);if(sw.a===U||sw.b===U)msg('General Manager','Pick swap',t,'fin');}}
   G.swaps=(G.swaps||[]).filter(x=>x.y>y);}
+
+/* ===================== AI front offices: contend, rebuild, dump salary ===================== */
+// Every AI NBA team has a plan, set before the season and reviewed at 30% and 50% of the regular season (by then the record counts
+// more than the roster): contenders (top nine) buy proven players at the deadline and care less about picks; rebuilding teams (bottom
+// ten, or old and mediocre) sell veterans for picks and young players and give the young players the minutes (tanking); teams over the
+// luxury tax that are not contending, and everyone above the second apron, dump salary and pay for it with picks.
+const PLAN_TXT={contend:['Contending','buy proven players for a title push; draft picks matter less to them'],rebuild:['Rebuilding','sell veterans for draft picks and young players, and give the young players the minutes'],middle:['In the middle','listen to offers either way']};
+function nbaPlansAll(){const L=G.nl.NBA,T=nbaTeams().filter(t=>t.id!==G.user),all=nbaTeams().map(t=>t.id),C=capv();
+  const sr=all.slice().sort((a,b)=>strength(b)-strength(a)),sc={};
+  for(const t of T){const r=nlRec(L,t.id),gp=r[0]+r[1],wp=gp?r[0]/gp:.5,g=L.phase==='reg'?clamp(gp/35,0,.85):0;sc[t.id]=(1-sr.indexOf(t.id)/(all.length-1))*(1-g)+wp*g;}
+  const ord=T.slice().sort((a,b)=>sc[b.id]-sc[a.id]);
+  ord.forEach((t,i)=>{const top=roster(t.id).slice().sort((a,b)=>b.o-a.o).slice(0,8),age=avg(top.map(p=>p.age)),yng=top.filter(p=>p.age<=24).length;
+    let k=i<8?'contend':i>=ord.length-9?'rebuild':'middle';if(k==='middle'&&i>=ord.length-14&&(age>=30.5||yng>=4))k='rebuild';
+    const P=nbaPayroll(t.id);t.plan={s:G.season,k,dump:P>C.ap2||(k==='rebuild'&&P>C.tax)||(k==='middle'&&P>C.ap1)};});}
+function nbaPlanOf(tid){const t=tid==null?null:G.teams[tid];if(!t||!isNBA(t)||tid===G.user||!G.nl||!G.nl.NBA)return null;if(!t.plan||t.plan.s!==G.season)nbaPlansAll();return t.plan;}
+function planF(p,tid){const P=nbaPlanOf(tid);if(!P)return 1;const a=p.age;let f=1;
+  if(P.k==='rebuild')f*=a<=23?1.3:a<=25?1.15:a>=31?.6:a>=28?.78:1;else if(P.k==='contend')f*=p.o>=78&&a>=25?1.2:p.o<74&&a<=23?.8:1;
+  if(P.dump&&p.sal>capv().min*3)f*=.8;return f;}
+const pickF=tid=>{const P=nbaPlanOf(tid);return !P?1:P.k==='rebuild'?1.35:P.k==='contend'?.75:1;};
+// what saving salary is worth to a team that is dumping it (tax money), and what taking on salary costs a team (cap room, tax)
+function dumpBonus(tid,out,inn){const P=nbaPlanOf(tid);if(!P||!P.dump)return 0;const C=capv(),P0=nbaPayroll(tid),P1=P0-out+inn;return (Math.max(0,P0-C.tax)-Math.max(0,P1-C.tax))/1e6*22+(P0>C.ap2&&P1<=C.ap2?120:0);}
+function absorbCost(tid,out,inn){const net=inn-out;if(net<=0)return 0;const P=nbaPlanOf(tid),C=capv(),P1=nbaPayroll(tid)+net;return net/1e6*(P&&P.k==='contend'?4:P1>C.tax?20:P1>C.cap?6:12);}
+const aiTradable=p=>!p.tw&&!p.loan&&!justJoined(p)&&!(p.newAt===G.season&&p.newTid===p.tid);
+function aiSideVal(tid,gives,gets,gk,tk){const v=ps=>ps.reduce((a,p)=>a+tradeVal(p,tid),0),pv=ks=>ks.reduce((a,k)=>a+pickVal(k),0)*pickF(tid);return v(gets)+pv(tk)-v(gives)-pv(gk);}
+function aiTradeOK(a,b,A,B,KA,KB){const sA=salSum(A),sB=salSum(B),C=capv();
+  if(sB>capAllow(a,sA)||sA>capAllow(b,sB))return false;if(nbaPayroll(a)-sA+sB>C.ap2&&sB>sA)return false;if(nbaPayroll(b)-sB+sA>C.ap2&&sA>sB)return false;
+  const na=roster(a).length-A.length+B.length,nb=roster(b).length-B.length+A.length;if(na<13||na>17||nb<13||nb>17)return false;
+  if(stepienCheck(a,KA.map(k=>k.id),KB.map(k=>k.id))||stepienCheck(b,KB.map(k=>k.id),KA.map(k=>k.id)))return false;
+  const va=aiSideVal(a,A,B,KA,KB)+dumpBonus(a,sA,sB)-absorbCost(a,sA,sB),vb=aiSideVal(b,B,A,KB,KA)+dumpBonus(b,sB,sA)-absorbCost(b,sB,sA);return va>=0&&vb>=0;}
+function aiDoTrade(a,b,A,B,KA,KB,why){const ta=G.teams[a],tb=G.teams[b];
+  for(const p of A){leave(p);join(p,tb);markNew(p,tb);}for(const p of B){leave(p);join(p,ta);markNew(p,ta);}for(const k of KA)k.own=b;for(const k of KB)k.own=a;
+  ta.order=autoOrder(ta.order);tb.order=autoOrder(tb.order);const nm=(ps,ks)=>ps.map(p=>`${pname(p)} (OVR ${p.o})`).concat(ks.map(k=>pickName(k).replace(/^(\d+) (1st|2nd)/,'a $1 $2-round pick'))).join(', ')||'nothing';
+  G.aiTr.n++;G.aiTr.log.unshift({d:dateStr(),a:ta.short,b:tb.short,why});news(`Trade: ${ta.name} and ${tb.name}`,`${ta.name} acquire ${nm(B,KB)} from ${tb.name} for ${nm(A,KA)}. ${why}`);}
+function aiDeadlineDeal(){const T=nbaTeams().filter(t=>t.id!==G.user),pl=t=>nbaPlanOf(t.id),P=G.picks||[];
+  const buyers=shuffle(T.filter(t=>pl(t).k==='contend')),sellers=shuffle(T.filter(t=>pl(t).k==='rebuild'||pl(t).dump));
+  for(const s of sellers.slice(0,5)){const vets=roster(s.id).filter(p=>aiTradable(p)&&p.age>=26&&p.o>=76).sort((a,b)=>b.o-a.o).slice(0,4);
+    for(const v of vets)for(const b of buyers.slice(0,6)){if(b.id===s.id)continue;const pool=roster(b.id).filter(p=>aiTradable(p)&&p.o<v.o).sort((x,y)=>tradeVal(x,b.id)-tradeVal(y,b.id)).slice(0,9),bp=P.filter(k=>k.own===b.id&&k.y>G.season);
+      for(let i=0;i<24;i++){const A=shuffle(pool.slice()).slice(0,rnd(1,3)),KA=i<6?[]:shuffle(bp.slice()).slice(0,rnd(1,2));
+        if(aiTradeOK(b.id,s.id,A,[v],KA,[])){aiDoTrade(b.id,s.id,A,[v],KA,[],`The contending ${b.name} add a proven player for the playoff run; the ${pl(s).k==='rebuild'?'rebuilding':'cost-cutting'} ${s.name} ${KA.length?'collect draft capital':'get younger and cheaper'}.`);return true;}}}}
+  const C=capv();for(const d of shuffle(T.filter(t=>pl(t).dump)).slice(0,3)){const x=roster(d.id).filter(p=>aiTradable(p)&&p.sal>=5e6&&p.o<84).sort((a,b)=>tradeVal(a,d.id)/a.sal-tradeVal(b,d.id)/b.sal)[0];if(!x)continue;
+    const dp=P.filter(k=>k.own===d.id&&k.y>G.season).sort((a,b)=>pickVal(a)-pickVal(b)),s2=dp.filter(k=>k.r===2),f1=dp.filter(k=>k.r===1);
+    for(const r of shuffle(T.filter(t=>t.id!==d.id&&nbaPayroll(t.id)+x.sal<=C.cap)).slice(0,5))for(const KA of [[],s2.slice(0,1),s2.slice(0,2),f1.slice(0,1),f1.slice(0,1).concat(s2.slice(0,1))])
+      if(KA.length||true)if(aiTradeOK(d.id,r.id,[x],[],KA,[])){aiDoTrade(d.id,r.id,[x],[],KA,[],`A salary dump: ${d.name} get under ${nbaPayroll(d.id)<=C.tax?'the luxury tax':'their tax bill'}, ${r.name} use their cap room${KA.length?' and are paid in draft picks':''}.`);return true;}}
+  return false;}
+// tanking: from 35% of the season the rebuilding teams move young players into the rotation ahead of veterans
+function nbaTank(t){const o=t.order.map(i=>G.players[i]).filter(Boolean),vets=o.slice(0,8).filter(p=>p.age>=29),kids=o.slice(5).filter(p=>p.age<=24&&p.inj<=0);
+  for(const v of vets){const k=kids.shift();if(!k)break;if(v.o-k.o>8)continue;const a=t.order.indexOf(v.id),b=t.order.indexOf(k.id);if(b>a){t.order[a]=k.id;t.order[b]=v.id;}}}
+function nbaPlanTick(){if(!G.nl||!G.nl.NBA||!userNBA())return;const L=G.nl.NBA,T=nbaTeams().filter(t=>t.id!==G.user);if(!G.aiTr||G.aiTr.s!==G.season)G.aiTr={s:G.season,n:0,log:[],st:-1};
+  const m=L.phase==='reg'&&L.sched?L.round/L.sched.length:0,st=L.phase==='reg'?(m>=.5?2:m>=.3?1:0):-1;
+  if(st>G.aiTr.st){const old=Object.fromEntries(T.map(t=>[t.id,t.plan&&t.plan.s===G.season?t.plan.k:null]));nbaPlansAll();G.aiTr.st=st;
+    if(st>=1){const ch=T.filter(t=>old[t.id]&&old[t.id]!==t.plan.k&&t.plan.k!=='middle');for(const t of ch)news(t.plan.k==='rebuild'?`${t.name} change course`:`${t.name} go for it`,t.plan.k==='rebuild'?`After a disappointing start the ${t.name} are open for business: veterans are available for draft picks and young players.`:`The ${t.name} are winning and want to add a proven player before the trade deadline.`);
+      const by=k=>T.filter(t=>t.plan.k===k).map(t=>t.short).join(', ')||'none',dm=T.filter(t=>t.plan.dump).map(t=>t.short).join(', ')||'none';
+      msg('General Manager',st===1?'Around the league: buyers and sellers':'Trade deadline approaching',`Contending (buyers, pay well for proven players): ${by('contend')}. Rebuilding (sellers, want picks and young players): ${by('rebuild')}. Looking to dump salary: ${dm}. The trade deadline is after 60% of the regular season.`,'trade');}}
+  if(L.phase==='reg'&&m>=.35)for(const t of T)if(t.plan&&t.plan.k==='rebuild')nbaTank(t);
+  if(!nbaTradeOpen().ok||G.nfa)return;const dd=L.phase==='reg'&&m>=.52;if(L.phase==='reg'&&m<.15)return;
+  if(G.aiTr.n>=18)return;let k=dd?rnd(1,3):Math.random()<(L.phase==='reg'?.3:.12)?1:0;while(k-->0&&G.aiTr.n<18)if(!aiDeadlineDeal())break;}
 
 function proposeTrade(tid,give,get,gpk,tpk){const ev=tradeEval(tid,give,get,gpk,tpk);if(!ev.ok)return ev;doTrade(tid,give,get,gpk,tpk);ev.done=true;return ev;}
 // AI teams call the user with trade ideas during the season
@@ -2455,7 +2512,7 @@ function betweenRounds(){
   if(reg&&G.bih&&G.bih.phase==='reg'&&!userIsBih())bihSilentStep();
   nlTickAll();
   G.fin.hist.push({l:stepLabel(),bal:G.fin.bal});if(G.fin.hist.length>80)G.fin.hist.shift();
-  for(const t of G.teams)if(t.id!==G.user){t.order=autoOrder(t.order);aiFix(t);}
+  for(const t of G.teams)if(t.id!==G.user){t.order=autoOrder(t.order);aiFix(t);}try{nbaPlanTick();}catch(e){console.error(e);}
   aiTradeIdea();
   if(reg){
     if(!userNBA())for(const pid of G.listed)if(Math.random()<.3){const p=G.players[pid];const b=pick(ELT().filter(t=>t.id!==G.user&&teamFinState(t.id)==='ok'));if(!b)continue;const fee=r10k(value(p)*rf(.75,1.15));
