@@ -6177,40 +6177,86 @@ function retTalkP(pid,promise,m){m=m||G.inbox.find(x=>x.type==='retire'&&x.act&&
     msg(nm,'One more season',`You convinced me, coach. I will play one more season${promise?', and after that I join your staff as an assistant coach':''}.${txt}`,'fin');save();return null;}
   m.done='He keeps his decision';msg(nm,'My decision stands',`Thank you, coach${promise?'. The offer of a job on your staff means a lot to me':''}. But my body tells me it is time. This is my last season.`,'fin');save();return null;}
 /* ===================== Retirement conversation ===================== */
-// A player who announced his retirement can be talked to once a season. He opens with his main reason (body, role, family, motivation),
-// derived from his age, injuries, minutes, the team's position and his personality. The coach raises topics; each one moves his
-// willingness up or down depending on how well it fits his situation. Patience: three topics (four for professionals). Then he decides.
-const RT_TOP={role:'Your role in this team',body:'Your body and our medical staff',title:'One more run at a title',home:'The fans and the city',money:'A new contract',staff:'A job on my staff afterwards'};
+// A player who announced his retirement can be talked to once a season. Every talk is different: he opens with his own reason
+// (body, role, family, motivation; from his age, injuries, minutes, the table, his personality) in his own words; a second worry may
+// come up during the talk; he asks you questions you have to answer; some arguments only exist for some players (national team,
+// mentoring the young players, finishing his career at this club). Each argument moves his willingness depending on how well it fits.
+// Patience: three arguments (four for professionals). Then he decides.
+const RT_TOP={role:'Your role in this team',body:'Your body and our medical staff',title:'One more run at a title',home:'The fans and the city',money:'A new contract',staff:'A job on my staff afterwards',nt:'The national team',mentor:'Our young players need you',legacy:'Finish it here, on your terms'};
 function rtCtx(p){const ps=roster(G.user).slice().sort((a,b)=>b.o-a.o),rk=ps.indexOf(p);let mpg=null;try{mpg=devMpg(p);}catch(e){}
-  let pos=.5;try{if(userIsNL()&&nlUser())pos=(nlRank(nlUser(),G.user)-1)/Math.max(1,nlUser().ids.length-1);else pos=(userRank()-1)/Math.max(1,ELT().length-1);}catch(e){}
-  const doc=staffOf(G.user,'DOC').map(x=>x.r.med),med=doc.length?Math.max(...doc):40;
-  return {key:rk>=0&&rk<8,star:rk>=0&&rk<3,mpg,pos,med,ten:p.newAt!=null?G.season-p.newAt:3,P:persOf(p),md:moodOf(p),hurt:(p.inj||0)>10||!!p.fragile};}
-function rtReason(p,c){const w={body:(p.age>=36?3:1)+(c.hurt?3:0),role:(!c.key?4:0)+(c.mpg!=null&&c.mpg<15?2:0),family:c.P==='sensitive'?2.5:1,motivation:(c.pos>.6?2.5:.5)+(c.md<40?1.5:0)};
-  let t=Math.random()*Object.values(w).reduce((a,b)=>a+b,0);for(const k in w){t-=w[k];if(t<=0)return k;}return 'body';}
-const RT_OPEN={body:'My body is telling me it is time, coach. Every morning it takes longer to get going, and the recovery after games is not what it was.',
-  role:'Honestly? I do not want to finish my career on the bench. If I am not part of the rotation, what am I doing here?',
-  family:'My family has followed me everywhere for fifteen years. My kids want a normal life, in one place. I owe them that.',
-  motivation:'I am not sure I have the fire anymore. I need to feel that we are playing for something, and right now I do not feel it.'};
-function rtStart(pid){const p=G.players[pid];if(!p||p.tid!==G.user||p.retAt!==G.season)return null;if(p.retTry===G.season)return null;
-  const c=rtCtx(p),why=rtReason(p,c),w=clamp(32+(p.age<=34?10:p.age>=38?-14:0)+(c.md>=60?8:c.md<35?-12:0)+(c.key?6:-4),5,70);
-  return {pid,why,w,used:[],pat:c.P==='pro'?4:3,pmax:c.P==='pro'?4:3,log:[{who:pname(p),t:RT_OPEN[why]},{sys:1,t:`${PERSN[c.P]} · ${moodLabel(c.md)} · ${p.age} years old`}],money:false,staff:false,over:false};}
-function rtSay(n,k){const p=G.players[n.pid];if(!p||n.over||n.used.includes(k)||n.pat<=0)return;const c=rtCtx(p),W=n.why;let d=0,t='';
-  n.used.push(k);n.pat--;n.log.push({you:1,t:{role:c.key?'You are still one of the most important players in this team. We need you on the floor.':'I want you in the rotation next season. You will have a real role.',body:'Our medical staff will manage your minutes and your recovery. We plan your season around your body.',title:'This group can win something. I want you there for one more run.',home:'The fans love you. This city wants to see you play one more year.',money:'We will make it worth your while: a better contract for one more season.',staff:'When you finish, I want you on my coaching staff.'}[k]});
-  if(k==='role'){if(c.key){d=W==='role'?20:12;t=W==='role'?'I did not expect to hear that. If you really see me in the rotation, that changes things.':'It is good to hear that I still matter here.';}else if(W==='role'){d=-10;t='Coach, I look at the minutes every night. Please do not tell me something you do not mean.';}else{d=4;t='Maybe. We will see.';}}
-  if(k==='body'){d=c.med>=75?12:c.med>=60?7:3;if(W==='body')d+=6;if(c.hurt)d-=8;t=d>=12?'If the doctors really manage my load, my body might give me one more year.':d>0?'Good doctors help, but they cannot turn back the clock.':'Words do not heal tendons, coach. I know my body.';}
-  if(k==='title'){d=c.pos<=.25?16:c.pos<=.5?6:-8;if(W==='motivation')d+=d>0?6:-4;t=d>=12?'You are right, this team is special. A title would be the perfect way to finish.':d>0?'We are a good team. Good enough? I am not sure.':'A title run? Look at the table, coach.';}
-  if(k==='home'){d=(c.ten>=3?10:3)+(c.P==='sensitive'?5:0)+(G.fans>=70?3:0);if(W==='family')d-=6;t=W==='family'?'The fans are not the problem. This is about my family.':d>=12?'This club and these people mean a lot to me. That is not easy to walk away from.':'The fans have been good to me, I appreciate that.';}
-  if(k==='money'){d=c.P==='ego'?15:c.P==='pro'?3:6;if(W==='body'||W==='family')d-=5;n.money=true;t=d>=12?'Now we are talking. Show me you value what I bring.':d>0?'It is not about the money, but I will not say it does not help.':'Money will not fix this, coach.';}
-  if(k==='staff'){d=W==='motivation'||W==='role'?18:12;n.staff=true;t=d>=16?'A future in coaching... that is something I have thought about. You would do that for me?':'That means a lot. I would like to stay in the game after my career.';}
-  d+=rnd(-3,3);n.w=clamp(n.w+d,0,100);n.log.push({who:pname(p),t,d:d>0?1:d<0?-1:0});
-  if(n.w<=8){n.over=true;n.res='no';p.retTry=G.season;n.log.push({sys:1,t:`${p.l} has heard enough. His decision stands.`});rtEnd(n,false);}
-  else if(n.pat<=0)n.log.push({sys:1,t:'He has heard your arguments. Ask him for his decision.'});save();}
-function rtDecide(n){const p=G.players[n.pid];if(!p||n.over)return;n.over=true;p.retTry=G.season;const ok=Math.random()<clamp(n.w/100,.05,.9);n.res=ok?'yes':'no';
-  n.log.push({you:1,t:'So, what do you say? One more season?'});
-  n.log.push({who:pname(p),t:ok?`You convinced me, coach. One more season.${n.staff?' And after that, I join your staff.':''}`:'Thank you for everything, coach. But my decision stands. This is my last season.'});rtEnd(n,ok);}
+  let pos=.5,rank=null;try{if(userIsNL()&&nlUser()){rank=nlRank(nlUser(),G.user);pos=(rank-1)/Math.max(1,nlUser().ids.length-1);}else{rank=userRank();pos=(rank-1)/Math.max(1,ELT().length-1);}}catch(e){}
+  const doc=staffOf(G.user,'DOC').map(x=>x.r.med),med=doc.length?Math.max(...doc):40,yng=roster(G.user).filter(q=>q.age<=23&&q!==p).length;
+  return {key:rk>=0&&rk<8&&(mpg==null||mpg>=18),star:rk>=0&&rk<3,mpg,pos,rank,med,ten:p.newAt!=null?G.season-p.newAt:3,P:persOf(p),md:moodOf(p),hurt:(p.inj||0)>10||!!p.fragile,caps:p.ntc||0,yng};}
+function rtReason(p,c,not){const w={body:(p.age>=36?3:1)+(c.hurt?3:0),role:(!c.key?4:0)+(c.mpg!=null&&c.mpg<15?2:0),family:c.P==='sensitive'?2.5:1,motivation:(c.pos>.6?2.5:.5)+(c.md<40?1.5:0)};
+  if(not)delete w[not];let t=Math.random()*Object.values(w).reduce((a,b)=>a+b,0);for(const k in w){t-=w[k];if(t<=0)return k;}return Object.keys(w)[0];}
+function rtOpen(p,c,why){const m=c.mpg!=null?Math.round(c.mpg):null,O={
+  body:[`Coach, I have to be honest with you. At ${p.age} my body hurts in places I did not know existed. After a game it takes me two, three days to feel normal.`,`My knees talk to me every morning now. I think it is time I start listening.`,`I do not want to be the guy in the training room, collecting a salary. I want to go while I can still walk out of the arena on my own legs.`].concat(c.hurt?[`This injury was the sign. I do not want to spend my last years rehabbing instead of playing.`]:[]),
+  role:[m!=null?`${m} minutes a night, coach. I did not do every summer workout for twenty years to watch from the bench.`:`I see how you use me, coach. I did not do every summer workout for twenty years to watch from the bench.`,`I see where this team is going, and I am not really part of it. Better to leave with dignity.`,`The young guys are ready. Maybe it is time I step aside and stop taking their minutes.`],
+  family:[`My daughter starts school next year. We have moved so many times; I promised my wife this would be the last move.`,`My parents are getting older. I want to be home with them while I still can.`,`My family has followed me everywhere for fifteen years. They deserve a home that is not a hotel.`],
+  motivation:[c.rank?`We are ${ordn(c.rank)} in the table and I do not feel the fire anymore. I do not want to fake it in front of the team.`:`I do not feel the fire anymore, coach. I do not want to fake it in front of the team.`,`I have won what I wanted to win. Getting up for a Tuesday game in February... it is hard now.`,`Honestly, I am tired. Not my legs. My head.`]};
+  const tint={ego:[`And let us be honest: I want people to remember me at my best, not as an old man chasing younger guys.`,`I want to go out on top, coach. Not fading away.`],sensitive:[`It was not an easy decision. I have not slept well for weeks.`,`I hope you understand. This club means a lot to me.`],pro:[`I have thought about it carefully. I do not make decisions like this lightly.`,`I wanted you to hear it from me first, face to face.`]}[c.P];
+  return pick(O[why])+(Math.random()<.65?' '+pick(tint):'');}
+// questions he asks back (answered with one of two replies)
+const RT_Q={
+  start:{q:['Tell me straight: will I still be a starter?','If I stay, do I start, or do I come off the bench?'],a:[['Yes. You start.',p=>({d:persOf(p)==='ego'?16:10,t:'That is all I wanted to hear.',start:1})],['Your minutes depend on how you play.',p=>persOf(p)==='pro'?{d:6,t:'Fair. That is how it should be.'}:{d:-8,t:'So nothing is guaranteed. I see.'}]]},
+  load:{q:['Could I skip the back-to-backs and the easy games?','Would you manage my minutes, rest me when my body needs it?'],a:[['Yes, we plan your season around your body.',()=>({d:10,t:'That would make a real difference.'})],['I need you every night.',(p,n)=>n.why==='motivation'?{d:5,t:'Every night... at least you still believe in me.'}:{d:-8,t:'Every night? That is exactly what I cannot do anymore.'}]]},
+  fam:{q:['Would the club help my family? A school for my kids, a bigger apartment closer to the city?','My wife is worried about the move again. Would the club take care of the practical things?'],a:[['Of course. The club takes care of it.',()=>({d:11,t:'That would mean the world to my wife.',fam:1})],['That is your private life.',()=>({d:-12,t:'My private life is the reason I am stopping, coach.'})]]},
+  capt:{q:['And the armband? Would I be the captain?','I want to lead this team. Would I be your captain?'],a:[['Yes, the armband is yours.',p=>({d:persOf(p)==='pro'?6:13,t:'Captain in my last season. I like the sound of that.',capt:1})],['We already have a captain.',p=>({d:persOf(p)==='ego'?-9:-2,t:'Right. Of course.'})]]},
+  why:{q:['Why do you want me, coach? Really?','What do I still give this team that a younger player cannot?'],a:[['Your experience. The locker room listens to you.',(p,n,c)=>({d:c.key?7:10,t:'The locker room... yes, I think they do.'})],['Your game. You are still one of our best.',(p,n,c)=>c.key?{d:10,t:'You really mean that. Okay.'}:{d:-9,t:'One of the best? Look at the box scores, coach.'}]]}};
+function rtStart(pid){const p=G.players[pid];if(!p||p.tid!==G.user||p.retAt!==G.season||p.retTry===G.season)return null;
+  const c=rtCtx(p),why=rtReason(p,c),w=clamp(30+(p.age<=34?10:p.age>=38?-14:0)+(c.md>=60?8:c.md<35?-12:0)+(c.key?6:-4)+rnd(-6,6),5,68);
+  const tops=['role','body','title','home','money','staff'].concat(c.caps>=15&&p.age<=37?['nt']:[],c.yng>=3?['mentor']:[],c.ten>=4?['legacy']:[]);
+  const qs=shuffle({body:['load','why','start'],role:['start','why','capt'],family:['fam','load','capt'],motivation:['capt','why','start']}[why].slice()).slice(0,2);
+  return {pid,why,why2:null,w,used:[],tops,qs,q:null,qn:0,pat:c.P==='pro'?4:3,pmax:c.P==='pro'?4:3,log:[{who:pname(p),t:rtOpen(p,c,why)},{sys:1,t:`${PERSN[c.P]} \xb7 ${moodLabel(c.md)} \xb7 ${p.age} years old`}],money:false,staff:false,over:false};}
+function rtYou(k,p,c){const m=c.mpg!=null?Math.round(c.mpg):null;return pick({
+  role:c.key?['You are still one of the most important players in this team. We need you on the floor.','Look at the games we win: you are in the middle of all of them.','I build my rotation around you. That does not change next season.']:['I want you in the rotation next season. You will have a real role.',`I know ${m!=null?m+' minutes is':'your minutes are'} not what you want. That changes next season.`],
+  body:['Our medical staff will manage your minutes and your recovery. We plan your season around your body.','I will talk to the doctors myself. Load management, extra recovery days, whatever you need.','Players older than you are still playing at the top level. With the right plan, so can you.'],
+  title:c.pos<=.3?['This group can win something. I want you there for one more run.','Look at the table. We are right there, and I want you on the floor when it matters.']:['Next season we go for it. I want you to be part of that.','We are building something. One more run, with you.'],
+  home:['The fans love you. This city wants to see you play one more year.','Did you hear the arena last week when you checked in? They are not ready to say goodbye.','People here will tell their kids about you. Give them one more season.'],
+  money:['We will make it worth your while: a better contract for one more season.','Let me show you what you are worth to this club. A raise, one more year.'],
+  staff:['When you finish, I want you on my coaching staff.','You see the game like a coach already. After this season, there is a place for you on my bench.'],
+  nt:[`${c.caps} caps for your country. Keep playing and you can still be there next summer.`,'If you stop now, your national team career stops too. One more season keeps you sharp for them.'],
+  mentor:['Our young players need someone like you. Teach them what nobody else can.','I want you to take the kids under your wing. That is a job only you can do.'],
+  legacy:[`${c.ten} seasons here. You decide when it ends, not your body, not anyone else.`,'Finish it here, at this club, with a proper farewell. On your terms.']}[k]);}
+function rtSay(n,k){const p=G.players[n.pid];if(!p||n.over||n.q||n.used.includes(k)||n.pat<=0)return;const c=rtCtx(p),W=n.why,W2=n.why2;let d=0,b='mid';
+  n.used.push(k);n.pat--;n.log.push({you:1,t:rtYou(k,p,c)});
+  const fit=(r,v)=>(W===r?v:0)+(W2===r?Math.round(v*.6):0);
+  if(k==='role')d=c.key?12+fit('role',8):fit('role',-14)||4;
+  if(k==='body')d=(c.med>=75?12:c.med>=60?7:3)+fit('body',6)-(c.hurt?8:0);
+  if(k==='title')d=(c.pos<=.25?16:c.pos<=.5?6:-8)+(W==='motivation'?(c.pos<=.5?6:-4):0);
+  if(k==='home')d=(c.ten>=3?10:3)+(c.P==='sensitive'?5:0)+(G.fans>=70?3:0)+fit('family',-8);
+  if(k==='money'){d=(c.P==='ego'?15:c.P==='pro'?3:6)+fit('body',-5)+fit('family',-5);n.money=true;}
+  if(k==='staff'){d=12+fit('motivation',6)+fit('role',6);n.staff=true;}
+  if(k==='nt')d=c.caps>=40?13:9;
+  if(k==='mentor')d=(c.P==='ego'?2:10)+fit('role',6);
+  if(k==='legacy')d=8+(c.P==='sensitive'?6:0)+(c.ten>=7?4:0);
+  d+=rnd(-3,3);b=d>=10?'good':d>0?'mid':'bad';
+  const R={role:{good:['I did not expect to hear that. If you really see me like that, it changes things.','It is good to hear that I still matter here.','Okay. That means something, coming from you.'],mid:['Maybe. We will see.','Words are easy in October, coach.'],bad:['Coach, I look at the minutes every night. Please do not tell me something you do not mean.','With respect, that is not what I see on the court.']},
+    body:{good:['If the doctors really manage my load, my body might give me one more year.','A real plan for my body... I had not thought of it like that.'],mid:['Good doctors help, but they cannot turn back the clock.','Maybe. I would need to feel it in pre-season.'],bad:['Words do not heal tendons, coach. I know my body.','I have heard that before. My body did not listen.']},
+    title:{good:['You are right, this team is special. A title would be the perfect way to finish.','One more ring... now you are speaking my language.'],mid:['We are a good team. Good enough? I am not sure.','Maybe. A lot has to go right.'],bad:['A title run? Look at the table, coach.','Next season we go for it? I have heard that every summer.']},
+    home:{good:['This club and these people mean a lot to me. That is not easy to walk away from.','When they sing my name... yes, I will miss that.'],mid:['The fans have been good to me, I appreciate that.','The city is great. That is not really the question.'],bad:['The fans are not the problem. This is about my family.','I love this city, but that does not change anything at home.']},
+    money:{good:['Now we are talking. Show me you value what I bring.','I will not pretend that does not matter. Go on.'],mid:['It is not about the money, but I will not say it does not help.','Money is nice. It is not the reason.'],bad:['Money will not fix this, coach.','You think this is about money? That hurts a bit.']},
+    staff:{good:['A future in coaching... that is something I have thought about. You would do that for me?','You would really want me on your bench? That changes how I see it.'],mid:['That means a lot. I would like to stay in the game after my career.','I will think about it. I like the idea.'],bad:['Maybe one day. Right now I am thinking about being a player, or not.']},
+    nt:{good:['Playing for my country again next summer... you know how to get to me.','The national team. Yes. That is still a dream.'],mid:['The federation has younger players now. But maybe.'],bad:['My national team days are behind me, coach.']},
+    mentor:{good:['The kids... yes. I remember who taught me. I owe that to someone.','That is a role I would take seriously.'],mid:['I can help them, sure. But I still want to play.'],bad:['I am not a babysitter, coach. I am a player.']},
+    legacy:{good:['On my terms. I like that. Not my knees deciding, me.','A proper farewell here... that would be beautiful.'],mid:['It would be nice to finish here, yes.'],bad:['Farewells are for the fans. I need to think about my life.']}};
+  n.w=clamp(n.w+d,0,100);n.log.push({who:pname(p),t:pick(R[k][b]),d:d>0?1:d<0?-1:0});
+  // a second worry may come up after the first argument
+  if(n.used.length===1&&!n.why2&&Math.random()<.45){n.why2=rtReason(p,c,W);n.log.push({who:pname(p),t:pick({body:['There is something else. My back has been bad since the summer, and nobody knows.','And to be honest, my body is also a question.'],role:['And I also wonder what my role would really be.','Also... I see the minutes going to the younger guys.'],family:['And my wife... she is tired of all this, coach.','There is also my family. They want me home.'],motivation:['And part of me just does not feel it anymore.','Also, I am not sure what we would be playing for.']}[n.why2])});}
+  // he asks a question back
+  if(n.qs.length&&n.used.length>=1&&n.qn<2&&Math.random()<(n.used.length===1?.45:.6)&&n.w>8){const qk=n.qs.shift();n.q=qk;n.qn++;n.log.push({who:pname(p),t:pick(RT_Q[qk].q)});}
+  if(n.w<=8){n.over=true;n.res='no';p.retTry=G.season;n.q=null;n.log.push({sys:1,t:`${p.l} has heard enough. His decision stands.`});rtEnd(n,false);}
+  else if(n.pat<=0&&!n.q)n.log.push({sys:1,t:'He has heard your arguments. Ask him for his decision.'});save();}
+function rtAnswer(n,i){const p=G.players[n.pid];if(!p||!n.q||n.over)return;const Q=RT_Q[n.q],[lbl,f]=Q.a[i],r=f(p,n,rtCtx(p));n.q=null;
+  n.log.push({you:1,t:lbl});n.w=clamp(n.w+r.d+rnd(-2,2),0,100);n.log.push({who:pname(p),t:r.t,d:r.d>0?1:r.d<0?-1:0});if(r.start)n.start=1;if(r.fam)n.fam=1;if(r.capt)n.capt=1;
+  if(n.pat<=0)n.log.push({sys:1,t:'He has heard your arguments. Ask him for his decision.'});save();}
+function rtDecide(n){const p=G.players[n.pid];if(!p||n.over||n.q)return;n.over=true;p.retTry=G.season;const ok=Math.random()<clamp(n.w/100,.05,.9);n.res=ok?'yes':'no';
+  n.log.push({you:1,t:pick(['So, what do you say? One more season?','I need an answer. Are you with us next season?','Sleep on it if you want, but tell me: one more year?'])});
+  n.log.push({who:pname(p),t:ok?pick([`You convinced me, coach. One more season.${n.staff?' And after that, I join your staff.':''}`,`Okay. One more year. Let us make it count.${n.staff?' Then I sit next to you on the bench.':''}`,`My wife will kill me... but yes. One more season.`,`Alright. One more. But this time it really is the last one.`]):pick(['Thank you for everything, coach. But my decision stands. This is my last season.','I respect what you tried. But I know it is time.','You almost had me. Almost. But no, this is it.','I am sorry, coach. My mind is made up.'])});rtEnd(n,ok);}
 function rtEnd(n,ok){const p=G.players[n.pid],nm=pname(p);for(const m of G.inbox)if(m.type==='retire'&&m.act&&m.act.pid===n.pid&&!m.done)m.done=ok?(n.staff?'Stays one more season · staff job promised':'Stays one more season'):'He keeps his decision';
   if(ok){delete p.retAt;p.oneMore=G.season+1;if(n.staff)p.acProm=1;let txt='';if(p.yrs<=1){const sal=r10k(n.money?Math.max(p.sal,demand(p))*1.15:Math.min(p.sal,demand(p)));p.yrs+=1;p.sal=sal;p.extS=G.season;txt=` He signs a one-year extension at ${eur(sal)} per season.`;}
-    moodAdd(p,6);msg('Sporting Director',`${nm} stays one more season`,`${nm} has agreed to play one more season${n.staff?'; after that he joins the coaching staff as an assistant':''}.${txt}`,'fin');}
+    if(n.capt){try{setCaptain(p.id);}catch(e){}}if(n.fam){const cst=r10k(Math.max(20000,p.sal*.03));G.fin.bal-=cst;txt+=` The club helps his family settle (${eur(cst)}).`;}
+    moodAdd(p,6);msg('Sporting Director',`${nm} stays one more season`,`${nm} has agreed to play one more season${n.staff?'; after that he joins the coaching staff as an assistant':''}${n.capt?', as our captain':''}.${txt}${n.start?' You promised him a starting role.':''}`,'fin');}
   else{if(n.w<20)moodAdd(p,-4);msg('Sporting Director',`${nm} retires at the end of the season`,`${nm} keeps his decision: this is his last season as a player.`,'fin');}save();}
 
 function afterCareer(p){if((p.o<58&&!(p.acProm&&p.tid===G.user))||p.prospect)return;ensureStaff();const T=p.tid!=null?G.teams[p.tid]:null,mine=T&&T.id===G.user,P=persOf(p);
