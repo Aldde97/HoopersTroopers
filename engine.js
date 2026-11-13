@@ -129,8 +129,8 @@ function awNBA(A,rec){const st=p=>p.kreg||p.kst||blank(),g=p=>st(p).gp,mpg=p=>g(
 function nbaRegSnap(){const L=G.nl&&G.nl.NBA;if(!L)return;if(G.oSv!==G.season){G.oSv=G.season;for(const p of Object.values(G.players))if(p.oS==null||p.oSs!==G.season){p.oS=p.o;p.oSs=G.season;}}
   if(L.phase!=='reg'&&G.kregS!==G.season){G.kregS=G.season;for(const i of L.ids)for(const p of roster(i))if(p.kst)p.kreg=Object.assign({},p.kst);}
   if(L.phase==='reg'&&G.kregS!==G.season)for(const p of Object.values(G.players))if(p.kreg&&p.kregY!==G.season){delete p.kreg;}}
-// All-Star selection, early February (55% of the regular season)
-function nbaAllStarTick(){try{nbaRegSnap();}catch(e){}const L=G.nl&&G.nl.NBA;if(!L||L.phase!=='reg'||!L.sched||L.round<Math.floor(L.sched.length*.55))return;if(G.asg&&G.asg.s===G.season)return;
+// All-Star selection, mid February (67% of the regular season, after the trade deadline)
+function nbaAllStarTick(){try{nbaRegSnap();}catch(e){}const L=G.nl&&G.nl.NBA;if(!L||L.phase!=='reg'||!L.sched||L.round<Math.floor(L.sched.length*.67))return;if(G.asg&&G.asg.s===G.season)return;
   const S=seasonStr(),rec={};for(const i of L.ids){const r=nlRec(L,i);rec[i]=(r[0]+r[1])?r[0]/(r[0]+r[1]):.5;}const st=p=>p.kst||blank(),gp=p=>st(p).gp;
   const pool=L.ids.flatMap(i=>roster(i)).filter(p=>gp(p)>=Math.max(5,Math.round(L.round*.45)));const vote=p=>per(st(p),'pts')*1.2+per(st(p),'pir')*.6+(p.o-75)*.35+(rec[p.tid]||.5)*4,coach=p=>per(st(p),'pir')*(.7+.6*(rec[p.tid]||.5));
   const out={s:G.season,conf:{}},U=G.user,mine=[];
@@ -2456,7 +2456,19 @@ function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
 
 // every game day ends with the short-term contract and trial checks
-function simStep(um){const r=simStep0(um);try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+// NBA careers: the date follows the NBA calendar instead of the European one. Regular season 21 October to 12 April (days from
+// 1 October), play-in from 14 April, first round from 18 April, conference semifinals from 4 May, conference finals from 19 May,
+// Finals from 3 June until about 21 June. Each step is a game day (two calendar days); the date never goes backwards.
+const NBA_PO_DAY={pi1:195,pi2:197,r16:199,qf:215,sf:230,fin:245};
+function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=G.nl.NBA;let d=null;
+  if(L.phase==='reg'&&L.sched&&L.sched.length)d=20+Math.round(L.round*173/L.sched.length);
+  else if(L.phase==='wait')d=194;
+  else if(L.phase==='po'&&L.po){const st=L.po.stage,s0=NBA_PO_DAY[st];if(s0==null)return;if(!G.cal||G.cal.st!==st||G.cal.y!==G.season)G.cal={st,n:0,y:G.season};else G.cal.n++;
+    const ks=Object.keys(NBA_PO_DAY),nx=NBA_PO_DAY[ks[ks.indexOf(st)+1]]||263;d=Math.min(nx-1,s0+G.cal.n*2);}
+  else if(L.phase==='done')d=263;
+  if(d!=null)G.day=Math.max(d0+1,d);}
+
+function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
