@@ -4055,7 +4055,7 @@ function ntWC27(){const tab={},T={UKR:[6,2],ESP:[5,3],GEO:[5,3],POR:[4,4],GRE:[4
     wins:[{s:2026,day:56,lbl:'November 2026 window',days:[day(0),day(1)],done:false,res:[]},{s:2026,day:147,lbl:'February 2027 window',days:[day(2),day(3)],done:false,res:[]}],
     note:'Tables after the August 2026 window (FIBA). Results from the first round carry over.'};}
 // later cycles: EuroBasket in 2029, 2033 ...; World Cup in 2031, 2035 ... with the same European format as 2027
-function ntCycle0(year){const TT=ntTier(),S=ntStrAll(TT,false),seed=TT.slice().sort((a,b)=>S[b]-S[a]),G8=ntSnake(seed,8),L='ABCDEFGH';const groups={};G8.forEach((g,i)=>groups[L[i]]=g);
+function ntCycle0(year){const TT=ntTier(),S=ntStrAll(TT,false),seed=TT.slice().sort((a,b)=>rkCmp(a,b,S)),G8=ntSnake(seed,8),L='ABCDEFGH';const groups={};G8.forEach((g,i)=>groups[L[i]]=g);
   const fx=k=>Object.values(groups).flatMap(g=>rr4(g)[k]);
   if((year-2029)%4===0){const s0=year-2;// windows Feb of season year-2, Nov and Feb of season year-1
     return {id:'EB'+year,kind:'EB',year,name:`FIBA EuroBasket ${year}`,stage:'q',groups,tab:{},hosts:NT_EBHOST[year]||[],wins:ntEBWins(s0,fx)};}
@@ -4171,8 +4171,8 @@ function ntQualified(C){const S=ntStrAll(NT_EUR,false),H=C.hosts||[];return Obje
 // one window: call-ups (in season), two game days, effects on the players, news
 function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inSeason=w.day>=0&&!silent,nats=[...new Set(Object.values(C.groups).flat().concat(ntPQNats(C)).filter(c=>ntWPlays(w,c)))],sq={},S={};
   const J=G.nt.job,key=C.id+':'+C.wins.indexOf(w);for(const c of nats){const me=J&&J.c===c;sq[c]=me?ntUserSquad(c,w.day>=0,key):ntPool(c,w.day>=0);S[c]=ntStr(c,sq[c])+(me?ntCoachBonus():0);}
-  const from=w.dd||0,to=upto==null?w.days.length:Math.min(w.days.length,from+upto);for(let i=from;i<to;i++)for(const [h,a] of w.days[i]){const o=w.ovr&&w.ovr[i],r=o&&o[0]===h&&o[1]===a?o.slice():ntGame(h,a,S,false);w.res.push(r);ntApply(C.tab,r);ntAfterGame(r);}w.dd=to;if(to<w.days.length){save();return;}
-  w.done=true;if(G.nt.pend!=null&&C.wins[G.nt.pend]===w)G.nt.pend=null;if(J&&sq[J.c])J.prevSq=sq[J.c].map(p=>p.id);const U=G.user,mine=[],hurt=[];
+  const from=w.dd||0,to=upto==null?w.days.length:Math.min(w.days.length,from+upto);for(let i=from;i<to;i++)for(const [h,a] of w.days[i]){const o=w.ovr&&w.ovr[i],r=o&&o[0]===h&&o[1]===a?o.slice():ntGame(h,a,S,false);w.res.push(r);ntApply(C.tab,r);ntAfterGame(r);try{rkGame(r,C.kind==='WC'?'WC':'EB',rkWinStage(C,h),'EU',false);}catch(e){}}w.dd=to;if(to<w.days.length){save();return;}
+  w.done=true;try{rkBg(C);rkPublish(w.lbl);}catch(e){console.error(e);}if(G.nt.pend!=null&&C.wins[G.nt.pend]===w)G.nt.pend=null;if(J&&sq[J.c])J.prevSq=sq[J.c].map(p=>p.id);const U=G.user,mine=[],hurt=[];
   for(const c of nats)for(const p of sq[c]){p.ntc=(p.ntc||0)+2;p.ntN=c;if(!inSeason)continue;
     const mine_=J&&J.c===c;p.energy=Math.max(40,(p.energy==null?100:p.energy)-(mine_&&J.camp==='rec'?rnd(2,6):rnd(6,14)));moodAdd(p,3);if((p.inj||0)<=0&&Math.random()<.025*(mine_&&J.staff&&J.staff.doc?clamp(1.4-J.staff.doc.o/100,.5,1):1)){injSet(p,70);if(p.tid===U)hurt.push(`${pname(p)} (${p.injT}, out ${p.inj} games)`);}
     if(p.tid===U)mine.push(`${pname(p)} (${ntName(c)})`);}
@@ -4241,8 +4241,9 @@ function ntTourStart(C){const nE=C.kind==='EB'?24:12;let field=(C.qual||ntQualif
 function ntTourGo(kind,name,year,field,nG,key){const N=G.nt,J=N.job;
   // the coach's nation goes through a preparation camp first (once per event: the Olympic qualifier and the Games share it)
   if(J&&field.includes(J.c)&&!(N.campDone&&N.campDone[key])){ntCampStart([kind,name,year,field,nG,key]);return;}
+  if(kind!=='OQ')try{rkDiscount(key);}catch(e){}
   const S={},sqi={};for(const c of field){const me=J&&J.c===c,sq=me?ntUserSquad(c,false,key):ntPool(c,false);sqi[c]=sq.map(p=>p.id);S[c]=ntStr(c,sq)+(me?ntCoachBonus():0);}
-  const seed=field.slice().sort((a,b)=>S[b]-S[a]),T={name,year,kind,groups:{},g1:[],g2:{},ko:{},tab:{},field,str:S,sqi,ph:'g1'},L='ABCDEFGH';
+  const seed=field.slice().sort((a,b)=>rkCmp(a,b,S)),T={name,year,kind,groups:{},g1:[],g2:{},ko:{},tab:{},field,str:S,sqi,ph:'g1'},L='ABCDEFGH';
   ntSnake(seed,nG).forEach((g,i)=>T.groups[L[i]]=g);
   const R=Object.values(T.groups).map(ntRR),nd=Math.max(...R.map(r=>r.length));
   const w={tour:true,kind,key,name,yr:year,days:[],rl:[],dates:[],res:[],dres:[],dd:0,done:false,box:{},ovr:{},lbl:''};
@@ -4255,7 +4256,7 @@ function ntTourGo(kind,name,year,field,nG,key){const N=G.nt,J=N.job;
   if(mine&&!w.days[0].some(x=>x[0]===J.c||x[1]===J.c))ntTourPlay(1);}
 function ntTourPlay(n){const N=G.nt,X=N.tour;if(!X)return;const {T,w}=X,S=T.str,J=N.job;let k=0;
   while(!w.done&&(n==null||k<n)){if(w.dd>=w.days.length){ntTourNext();continue;}
-    const i=w.dd,o=w.ovr[i],out=[];for(const [h,a] of w.days[i]){const r=o&&o[0]===h&&o[1]===a?o.slice():ntGame(h,a,S,true);out.push(r);w.res.push(r);ntAfterGame(r);
+    const i=w.dd,o=w.ovr[i],out=[];for(const [h,a] of w.days[i]){const r=o&&o[0]===h&&o[1]===a?o.slice():ntGame(h,a,S,true);out.push(r);w.res.push(r);ntAfterGame(r);try{rkGame(r,T.kind==='OQ'?'OG':T.kind,rkTourStage(T,w,i,out.length-1),null,true);}catch(e){}
       if(T.ph==='g1'){T.g1.push(r);ntApply(T.tab,r);}else if(T.ph==='g2'){T.g1.push(r);ntApply(w.cl&&w.cl.includes(h)?T.tab3:T.tab2,r);}}
     w.dres[i]=out;w.dd++;k++;if(w.dd>=w.days.length)ntTourNext();
     // the coach's nation is out: the rest of the tournament is simulated
@@ -4284,7 +4285,39 @@ function ntTourRes(T,c){const m=T.podium.indexOf(c),has=L=>(L||[]).some(r=>r[0]=
   if(T.kind==='OQ')return m===0?'Winner \u00b7 qualified for the Olympic Games':m===1?'Lost the final':has(T.ko.sf)?'Out in the semi-finals':'Out in the group stage';if(m>=0)return ['Gold medal','Silver medal','Bronze medal'][m];if(has(T.ko.sf))return 'Fourth place';
   if(has(T.ko.qf))return 'Quarter-finals · places 5–8';if(has(T.ko.r16))return 'Round of 16 · places 9–16';if(T.final2&&Object.values(T.final2).some(g=>g.includes(c)))return 'Second round · places 9–16';
   const p=T.cl?ntClPlace(T,c):null;if(p)return `First round · ${ordn(p)} place after the classification round`;return T.kind==='EB'?'Group stage · places 17–24':T.kind==='OG'?'Group stage · places 9–12':'Group stage';}
-function ntTourEnd(){const N=G.nt,X=N.tour,T=X.T,J=N.job,U=G.user,mine=[],medal=['gold','silver','bronze'],nm=NT_KN[T.kind]||'World Cup',oq=T.kind==='OQ',big=T.kind==='WC'||T.kind==='EB';
+// FIBA World Ranking Men presented by Nike, update of 1 September 2026 (fiba.basketball/en/ranking/men): [game code or "", name, zone, points, change since 13 July 2026]
+const FIBA_RK0=[["USA","USA","AM",952.3,0],["GER","Germany","EU",877.4,0],["FRA","France","EU",870.9,1],["SRB","Serbia","EU",870.6,-1],["CAN","Canada","AM",863.0,0],["ESP","Spain","EU",822.1,0],["AUS","Australia","AS",822.0,0],["ARG","Argentina","AM",809.2,0],["TUR","Türkiye","EU",808.1,2],["LTU","Lithuania","EU",801.3,0],["BRA","Brazil","AM",799.0,-2],["LAT","Latvia","EU",787.9,0],["GRE","Greece","EU",784.4,0],["SLO","Slovenia","EU",756.3,0],["ITA","Italy","EU",745.4,0],["FIN","Finland","EU",706.0,1],["PUR","Puerto Rico","AM",698.8,-1],["MNE","Montenegro","EU",671.2,0],["POL","Poland","EU",651.2,0],["GEO","Georgia","EU",614.7,0],["DOM","Dominican Republic","AM",605.2,0],["JPN","Japan","AS",550.7,0],["CZE","Czechia","EU",531.0,0],["SSD","South Sudan","AF",530.4,0],["NZL","New Zealand","AS",515.2,0],["MEX","Mexico","AM",478.6,2],["ANG","Angola","AF",473.9,5],["IRN","Iran","AS",472.0,-2],["ISR","Israel","EU",471.9,0],["CHN","China","AS",469.1,0],["BIH","Bosnia and Herzegovina","EU",465.7,2],["CRO","Croatia","EU",465.1,2],["LBN","Lebanon","AS",461.8,-2],["VEN","Venezuela","AM",455.0,-7],["CIV","Côte d'Ivoire","AF",413.8,2],["BEL","Belgium","EU",412.0,-1],["UKR","Ukraine","EU",410.6,1],["EST","Estonia","EU",410.3,-2],["SWE","Sweden","EU",405.5,1],["PHI","Philippines","AS",397.3,-1],["JOR","Jordan","AS",387.1,0],["EGY","Egypt","AF",373.6,1],["","Uruguay","AM",372.2,-1],["POR","Portugal","EU",372.1,1],["ISL","Iceland","EU",366.7,-1],["HUN","Hungary","EU",361.8,1],["SEN","Senegal","AF",353.4,1],["GBR","Great Britain","EU",351.3,-2],["","Bahamas","AM",343.0,0],["TUN","Tunisia","AF",330.3,1],["","Cape Verde","AF",330.1,-1],["NGR","Nigeria","AF",325.8,1],["NED","Netherlands","EU",322.7,-1],["","Colombia","AM",316.0,0],["CMR","Cameroon","AF",292.4,3],["","Panama","AM",290.4,0],["KOR","Korea","AS",282.7,0],["BUL","Bulgaria","EU",275.1,-3],["","Chile","AM",270.7,1],["DEN","Denmark","EU",259.4,-1],["","Mali","AF",259.2,2],["ROU","Romania","EU",253.0,0],["SUI","Switzerland","EU",251.0,-2],["","Saudi Arabia","AS",244.7,1],["MKD","North Macedonia","EU",237.7,-1],["AUT","Austria","EU",234.5,0],["","Guinea","AF",223.9,4],["","Congo DR","AF",214.5,4],["CYP","Cyprus","EU",212.4,0],["","Cuba","AM",210.9,-3],["","Chinese Taipei","AS",210.0,-3],["SVK","Slovakia","EU",209.1,-2],["","Syria","AS",200.1,1],["","Qatar","AS",185.7,2],["","Nicaragua","AM",185.6,-2],["","India","AS",170.8,-1],["","Bahrain","AS",166.8,3],["","Guam","AS",160.2,-1],["","Jamaica","AM",157.7,-1],["","Uganda","AF",154.8,-1],["","Kazakhstan","AS",151.7,5],["","Iraq","AS",149.5,-1],["NOR","Norway","EU",148.4,1],["","Rwanda","AF",148.1,-2],["IRL","Ireland","EU",144.8,-2],["","Costa Rica","AM",140.2,-1],["LUX","Luxembourg","EU",135.6,0],["KOS","Kosovo","EU",133.8,0],["","Libya","AF",133.2,0],["","Madagascar","AF",126.8,0],["","Virgin Islands","AM",124.8,0],["","Indonesia","AS",121.3,2],["ARM","Armenia","EU",119.5,-1],["","Thailand","AS",117.1,3],["","Paraguay","AM",116.6,-2],["ALB","Albania","EU",108.5,-1],["","Palestine","AS",107.0,7],["AND","Andorra","EU",106.9,-2],["","Central African Rep.","AF",104.1,-1],["AZE","Azerbaijan","EU",103.0,-1],["MLT","Malta","EU",102.8,-1],["","Barbados","AM",101.5,-1],["","El Salvador","AM",100.5,-1],["","UAE","AS",97.3,7],["","Mongolia","AS",97.1,3],["","Guyana","AM",90.9,-3],["","Antigua & Barbuda","AM",88.6,-2],["","St.Vincent and the Grenadines","AM",88.4,-2],["","Kenya","AF",88.2,-2],["","Kuwait","AS",87.0,8],["","Honduras","AM",84.4,-2],["SMR","San Marino","EU",84.1,-2],["","Malaysia","AS",83.1,8],["","Grenada","AM",82.9,-2],["","Hong Kong, China","AS",82.4,8],["","Ecuador","AM",81.8,-3],["GIB","Gibraltar","EU",77.0,-3],["","Guatemala","AM",75.5,-3],["","Bolivia","AM",75.1,-3],["","Bermuda","AM",75.0,-3],["","South Africa","AF",74.2,-2],["","Burundi","AF",73.9,-2],["","Morocco","AF",72.1,-1],["","Mozambique","AF",70.6,0],["","Algeria","AF",69.5,0],["","Sri Lanka","AS",69.5,4],["","Chad","AF",69.1,-1],["","Belize","AM",68.2,-1],["","Maldives","AS",66.8,0],["","Vietnam","AS",64.5,1],["","Samoa","AS",64.4,-3],["","Singapore","AS",63.9,1],["","Gabon","AF",58.5,-4],["","Somalia","AF",55.8,-2],["","Oman","AS",54.7,6],["","Tahiti","AS",53.4,-2],["","Equatorial Guinea","AF",52.9,-2],["","Tonga","AS",52.2,-2],["","Bangladesh","AS",51.4,-2],["","Fiji","AS",50.2,2],["","Zambia","AF",49.8,-3],["","American Samoa","AS",49.1,-3],["","Nepal","AS",45.8,0],["","Tanzania","AF",43.9,-4],["","Zimbabwe","AF",39.8,-2],["","Haiti","AM",38.5,-2],["","Macau","AS",37.0,-2],["","Eritrea","AF",27.1,-2],["","Cook Islands","AS",25.6,-2],["","Turks and Caicos","AM",18.7,-2],["","Cayman Islands","AM",15.8,-2],["","Dominica","AM",15.8,-2],["","Kyrgyzstan","AS",12.3,0],["","Papua New Guinea","AS",8.9,-3],["","Solomon Islands","AS",8.0,-3],["","New Caledonia","AS",6.4,-3],["","Vanuatu","AS",5.4,-3],["","Micronesia","AS",3.1,0],["","Palau","AS",2.7,0]];
+/* ===================== FIBA World Ranking (men) ===================== */
+// Starts from the real ranking of 1 September 2026 (FIBA_RK0). Since November 2025 FIBA ranks by accumulated rating points: every game
+// in an official FIBA competition or its qualifiers gives points to both teams. Loser: G = 10 x region factor x stage factor. Winner:
+// G x 1.25 x (1 + 0.0001 x the loser's points before the game) x 1.1 for an away win x margin (1.05 for 15-29, 1.20 for 30+). Before
+// every World Cup, Olympics and continental championship all totals are discounted by 33% (the order does not change). Region factors
+// 2025-29: Europe and multi-region events 1.00, Americas 0.93, Africa 0.69, Asia/Oceania 0.68. Stage factors from FIBA (via Wikipedia).
+// Friendlies (the preparation games) do not count. Nations outside the game keep their points (they only take the discount).
+const RK_S={EB:{pq:.4,q:.8,grp:1,r16:2,qf:2.5,sf:3.5,b:3,f:4},OG:{pq:.15,q:.3,grp:1.75,r16:3.5,qf:4.375,sf:6.125,b:5.25,f:7},WC:{pq:.4,q1:1,q2:1.2,grp:2,r16:4,qf:5,sf:7,b:6,f:8}};
+const RK_R={EU:1,AM:.93,AF:.69,AS:.68,OC:.68};
+function rkEnsure(){if(G.rk&&G.rk.p)return G.rk;const p={},prev={},chg={};FIBA_RK0.forEach(([c,n,z,pts,d],i)=>{const k=c||n;p[k]=pts;prev[k]=i+1;chg[k]=d;});
+  G.rk={p,prev,chg,d:'1 September 2026',disc:{}};return G.rk;}
+const rkKey=r=>r[0]||r[1];
+function rkTable(){const R=rkEnsure();return FIBA_RK0.map(r=>({k:rkKey(r),c:r[0],n:r[0]?ntName(r[0]):r[1],z:r[2],p:R.p[rkKey(r)]||0})).sort((a,b)=>b.p-a.p);}
+function rkRank(c){const T=rkTable();return T.findIndex(x=>x.k===c)+1;}
+const rkPts=c=>{const R=rkEnsure();return R.p[c]||0;};
+const rkCmp=(a,b,S)=>(rkPts(b)-rkPts(a))||(((S&&S[b])||0)-((S&&S[a])||0));
+function rkGame(r,comp,stage,reg,neutral){const R=rkEnsure(),P=R.p,[h,a,hs,as]=r;if(hs===as)return;const win=hs>as?h:a,los=hs>as?a:h,Sx=((RK_S[comp]||RK_S.EB)[stage])||1;
+  const Gl=10*(reg?RK_R[reg]||1:1)*Sx,TL=P[los]||0,mg=Math.abs(hs-as),A=!neutral&&win===a?1.1:1,M=mg>=30?1.2:mg>=15?1.05:1;
+  P[los]=(P[los]||0)+Gl;P[win]=(P[win]||0)+Gl*1.25*(1+.0001*TL)*A*M;}
+function rkTourStage(T,w,i,j){if(T.kind==='OQ')return 'q';const l=(w.rl&&w.rl[i])||'';if(/Final day/.test(l))return j===0?'b':'f';if(/^Final/.test(l))return 'f';if(/Semi/.test(l))return 'sf';if(/Quarter/.test(l))return 'qf';if(/Round of 16/.test(l))return 'r16';return 'grp';}
+const rkWinStage=(C,c)=>ntInPQ(C,c)?'pq':C.kind==='WC'?(C.stage==='r2'?'q2':'q1'):'q';
+// the other continents play their qualifiers in the same windows: two games per nation against a nation close in the ranking
+function rkBg(C){for(const reg of ['AM','AS','AF']){const L=NT_REG[reg].slice();if(L.length<2)continue;const S=ntStrAll(L,false),o=L.map(c=>[c,rkPts(c)+Math.random()*60]).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  for(let i=0;i+1<o.length;i+=2){const x=o[i],y=o[i+1];for(const [h,a] of [[x,y],[y,x]])rkGame(ntGame(h,a,S,false),C.kind==='WC'?'WC':'EB',C.kind==='WC'?(C.stage==='r2'?'q2':'q1'):'q',ntCont(h)==='OC'?'OC':reg,false);}}}
+function rkDiscount(key){const R=rkEnsure();if(R.disc[key])return;R.disc[key]=1;for(const k in R.p)R.p[k]=Math.round(R.p[k]*.67*10)/10;}
+// FIBA publishes a new ranking after every window and tournament
+function rkPublish(lbl,tour){const R=rkEnsure(),T=rkTable(),J=G.nt&&G.nt.job;T.forEach((x,i)=>{R.chg[x.k]=(R.prev[x.k]||i+1)-(i+1);R.prev[x.k]=i+1;});R.d=tour?`after the ${lbl}`:`${dateStr()} (after the ${lbl})`;
+  const top=T.slice(0,5).map((x,i)=>`${i+1}. ${x.n} ${x.p.toFixed(1)}`).join(', ');news('FIBA World Ranking update',`After the ${lbl}: ${top}.`);
+  if(J){const i=T.findIndex(x=>x.k===J.c),ch=R.chg[J.c]||0;msg(`${ntName(J.c)} Basketball Federation`,`FIBA World Ranking: ${ntName(J.c)} ${ordn(i+1)}`,`The new FIBA World Ranking after the ${lbl}: ${ntName(J.c)} ${ch>0?`climb ${ch} place${ch>1?'s':''} to`:ch<0?`drop ${-ch} place${ch<-1?'s':''} to`:'stay'} ${ordn(i+1)} in the world with ${T[i].p.toFixed(1)} points (${ordn(T.filter(x=>x.z===T[i].z).findIndex(x=>x.k===J.c)+1)} in Europe). The ranking decides the seeding for the next qualifier draws and tournaments.`,'nt');}}
+
+function ntTourEnd(){try{const T0=G.nt.tour.T;if(T0.kind!=='OQ')rkPublish(T0.name,1);}catch(e){console.error(e);}const N=G.nt,X=N.tour,T=X.T,J=N.job,U=G.user,mine=[],medal=['gold','silver','bronze'],nm=NT_KN[T.kind]||'World Cup',oq=T.kind==='OQ',big=T.kind==='WC'||T.kind==='EB';
   // the players: caps, honours, a tired start to the season, a few injuries
   for(const c of T.field)for(const p of ntTourSq(c)){p.ntc=(p.ntc||0)+(oq?3:5);p.ntN=c;p.energy=Math.min(p.energy==null?100:p.energy,88);const m=oq?-1:T.podium.indexOf(c);
     if(m>=0){(p.ntHon=p.ntHon||[]).push(`${nm} ${T.year} ${medal[m]}`);moodAdd(p,6-m*2);}
@@ -4326,7 +4359,7 @@ function ntOgSetup(T){const y=T.year+1,host=NT_OGHOST[y]||null,rank=ntTourRank(T
   const wc=rank.filter(c=>!direct.includes(c)).slice(0,19);
   const pool=[...new Set([...NT_EUR,...Object.values(NT_REG).flat()])].filter(c=>!T.field.includes(c)&&c!==host),S0=ntStrAll(pool,false),
     best=(k,n)=>pool.filter(c=>k==='AS'?['AS','OC'].includes(ntCont(c)):ntCont(c)===k).map(c=>[c,S0[c]+ntGs()*3]).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
-  const pre=[...best('AF',1),...best('AM',1),...best('AS',1),...best('EU',2)],f=wc.concat(pre),S=ntStrAll(f,false),oq=ntSnake(f.slice().sort((a,b)=>S[b]-S[a]),4);
+  const pre=[...best('AF',1),...best('AM',1),...best('AS',1),...best('EU',2)],f=wc.concat(pre),S=ntStrAll(f,false),oq=ntSnake(f.slice().sort((a,b)=>rkCmp(a,b,S)),4);
   const O=G.nt.og={y,host,name:`Olympic Games ${y}`,direct:host?[host].concat(direct):direct,pre,oq,oqW:[],oqRes:[],ordP:0,stage:'oq'};
   news(`Olympic Games ${y}: the first ${O.direct.length} teams are in`,`${host?`Host ${ntName(host)} and, through the ${T.name}, `:`Through the ${T.name}: `}${direct.map(ntName).join(', ')}. Four more places go to the winners of the Olympic qualifying tournaments in summer ${y}.`);
   const J=G.nt.job;if(J){const c=J.c,i=oq.findIndex(g=>g.includes(c)),fed=`${ntName(c)} Basketball Federation`;
@@ -4402,7 +4435,7 @@ function rr3(g){const [a,b,c]=g,r=[[[a,b]],[[c,a]],[[b,c]]];return r.concat(r.ma
 const ntRRx=g=>g.length===4?rr4(g):g.length===3?rr3(g):ntRR(g).concat(ntRR(g).map(x=>x.map(([h,q])=>[q,h])));
 // pre-qualifier groups for a new cycle: the nations outside the 32, groups of three or four, the top two of each go up (eight places)
 function ntPQMake(C){const TT=Object.values(C.groups).flat(),pool=NT_EUR.filter(c=>!TT.includes(c));if(pool.length<2)return;const S=ntStrAll(pool,false),n=Math.max(1,Math.ceil(pool.length/4));
-  const Gs=ntSnake(pool.slice().sort((a,b)=>S[b]-S[a]),n),L='ABCDEFGH',groups={},promo={};Gs.forEach((g,i)=>{groups[ntPQKey(L[i])]=g;promo[ntPQKey(L[i])]=Math.min(2,g.length-1);});
+  const Gs=ntSnake(pool.slice().sort((a,b)=>rkCmp(a,b,S)),n),L='ABCDEFGH',groups={},promo={};Gs.forEach((g,i)=>{groups[ntPQKey(L[i])]=g;promo[ntPQKey(L[i])]=Math.min(2,g.length-1);});
   C.pq={groups,promo,r:'gen'};const wins=C.wins.slice(0,3);for(const [k,g] of Object.entries(groups)){const R=ntRRx(g);R.slice(0,6).forEach((pairs,d)=>{const w=wins[Math.floor(d/2)];if(w&&w.days[d%2])w.days[d%2].push(...pairs);});}}
 // the real 2026/27 pre-qualifiers (Wikipedia, EuroBasket 2029 qualification, results to 30 August 2026)
 const NT_PQ27={"D":{"t":["DEN","ROU","BUL"],"r":[["DEN","ROU",78,89],["ROU","BUL",86,103]],"f":[["BUL","DEN"],["ROU","DEN"],["BUL","ROU"],["DEN","BUL"]]},"E":{"t":["SUI","GBR","SVK"],"r":[["SUI","GBR",75,110],["GBR","SVK",97,72]],"f":[["SVK","SUI"],["GBR","SUI"],["SVK","GBR"],["SUI","SVK"]]},"F":{"t":["CYP","AUT","MKD"],"r":[["CYP","AUT",77,72],["AUT","MKD",59,91]],"f":[["MKD","CYP"],["AUT","CYP"],["MKD","AUT"],["CYP","MKD"]]},"G":{"t":["BEL","CZE","NOR"],"r":[["BEL","CZE",92,81],["CZE","NOR",108,97]],"f":[["NOR","BEL"],["CZE","BEL"],["NOR","CZE"],["BEL","NOR"]]}};
@@ -4416,7 +4449,7 @@ function ntPQFix(){const N=G.nt,C=N&&N.cyc;if(!C||C.pq)return;
 // 2027: the third round in July/August, after the second round: the eight second-round losers and the six first-round losers
 function ntPQThird(C){if(!C||!C.pq||C.pq.r!=='wc27'||C.pq.third||!C.wins[1]||!C.wins[1].done)return;C.pq.third=1;
   const lose=[];for(const L of 'DEFG'){const g=C.pq.groups[ntPQKey(L)];if(g)lose.push(...ntSort(g,C.tab).slice(1));}
-  const pool=lose.concat(NT_PQ27_R1OUT.filter(c=>NTN[c])),S=ntStrAll(pool,false),Gs=ntSnake(pool.sort((a,b)=>S[b]-S[a]),4),days=[[],[],[]];
+  const pool=lose.concat(NT_PQ27_R1OUT.filter(c=>NTN[c])),S=ntStrAll(pool,false),Gs=ntSnake(pool.sort((a,b)=>rkCmp(a,b,S)),4),days=[[],[],[]];
   Gs.forEach((g,i)=>{const k=ntPQKey('HIJK'[i]);C.pq.groups[k]=g;C.pq.promo[k]=1;const R=g.length===4?rr4(g).slice(0,3):[[[g[0],g[1]]],[[g[2],g[0]]],[[g[1],g[2]]]];R.forEach((p,d)=>days[d].push(...p));});
   C.wins.push({s:C.year,day:-1,lbl:`July ${C.year} window`,days,done:false,res:[],pq:1});
   news('Pre-Qualifiers: third round drawn',`${Gs.map((g,i)=>`Group ${'HIJK'[i]}: ${g.map(ntName).join(', ')}`).join('. ')}. The group winners join the EuroBasket ${C.year+2} Qualifiers.`);}
