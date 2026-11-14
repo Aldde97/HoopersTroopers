@@ -239,7 +239,7 @@ function genPlayer(level,pos,nat,age){
   G.players[p.id]=p;return p;
 }
 const NUMS=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,19,20,21,22,23,24,25,30,31,32,33,35,41,44,45,55,77];
-function join(p,t){if(t.dom==='NCAA'&&p.portal){if(p.elig)p.yrs=p.elig;delete p.elig;delete p.portal;}p.tid=t.id;const used=new Set(t.order.map(id=>G.players[id].no));const free=NUMS.filter(n=>!used.has(n));p.no=free.length?pick(free):rnd(50,99);t.order.push(p.id);p.energy=Math.max(p.energy,80);}
+function join(p,t){if(t&&t.ntTemp){p.tid=null;if(G.fa&&!G.fa.includes(p.id))G.fa.push(p.id);return;}if(t.dom==='NCAA'&&p.portal){if(p.elig)p.yrs=p.elig;delete p.elig;delete p.portal;}p.tid=t.id;const used=new Set(t.order.map(id=>G.players[id].no));const free=NUMS.filter(n=>!used.has(n));p.no=free.length?pick(free):rnd(50,99);t.order.push(p.id);p.energy=Math.max(p.energy,80);}
 function leave(p){if(p.tid==null)return;const t=G.teams[p.tid];t.order=t.order.filter(i=>i!==p.id);p.tid=null;G.listed=G.listed.filter(i=>i!==p.id);}
 // players who left the user's club, newest first: where they went is read live from the player (shown in the Squad tab)
 function noteExit(p,how,season){if(!G)return;G.exp=(G.exp||[]).filter(e=>e.id!==p.id);G.exp.unshift({id:p.id,name:pname(p),pos:p.pos,season:season||seasonStr(),how,club:G.teams[G.user]?G.teams[G.user].name:''});if(G.exp.length>60)G.exp.length=60;}
@@ -2647,7 +2647,7 @@ function retPlan(){if(!G||G.retV===G.season)return;G.retV=G.season;const mine=[]
   for(const p of mine)msg(pname(p),'This is my last season',`Coach, I have thought about it for a long time: this season will be my last as a player. I will not sign a new contract.`,'retire',{pid:p.id});
   if(last.length)msg('Sporting Director','Farewell season',`As agreed a year ago, this is the last season of ${last.join(', ')}.`,'fin');}
 function aiFASign(rate){if(!G||!G.fa.length)return 0;let n=0;
-  const clubs=G.teams.filter(t=>t.id!==G.user&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&!(t.dfin&&(t.dfin.st==='crisis'||t.dfin.st==='admin')&&t.order.length>=12)).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t),cap:lcap(t)};});
+  const clubs=G.teams.filter(t=>t.id!==G.user&&!t.ntTemp&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&!(t.dfin&&(t.dfin.st==='crisis'||t.dfin.st==='admin')&&t.order.length>=12)).map(t=>{const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);return {t,lv:teamLevel(t),tenth:ps[9]?ps[9].o:0,n:ps.length,R:ruleOfTeam(t),cap:lcap(t)};});
   const fas=G.fa.map(i=>G.players[i]).filter(p=>p&&!p.nfa&&!p.portal&&p.o>=58&&p.yth==null&&!(p.loan&&p.loan.dev)&&!(G.faBid&&G.faBid[p.id])).sort((a,b)=>b.o-a.o);
   for(const p of fas){if(Math.random()>rate)continue;
     // he prefers clubs near his level, but a step or two down (for less money) is also on the table
@@ -4566,7 +4566,14 @@ function ntSummer(){ntInit();const C=G.nt.cyc;if(!C)return;if(G.nt.job)G.coach.b
 /* ===================== National team games in the match engine ===================== */
 // The coach's own window games can be played like club games: two temporary teams (the two squads) are added for the game only,
 // the result goes into the window, then they are removed again.
-function ntTempClear(){if(!G)return;while(G.teams.length&&G.teams[G.teams.length-1].ntTemp)G.teams.pop();}
+function ntTempClear(){if(!G)return;let k=0;while(G.teams.length&&G.teams[G.teams.length-1].ntTemp){G.teams.pop();k++;}if(k)tidFix();}
+// players whose club id points at a club that is gone (a temporary national team club) go back to the real club that lists them, or to free agency
+function tidFix(){if(!G||!G.players)return 0;let n=0;const ok=i=>i!=null&&G.teams[i]&&!G.teams[i].ntTemp;
+  for(const p of Object.values(G.players)){if(!p)continue;
+    if(p.tid!=null&&!G.teams[p.tid]){const t=G.teams.find(t=>!t.ntTemp&&t.order&&t.order.includes(p.id));if(t)p.tid=t.id;else{p.tid=null;if(G.fa&&!G.fa.includes(p.id))G.fa.push(p.id);}n++;}
+    if(p.yth!=null&&!ok(p.yth)){p.yth=null;n++;}
+    if(p.loan&&p.loan.from!=null&&!ok(p.loan.from)){delete p.loan;n++;}}
+  return n;}
 function ntTempTeam(c,sq,me){const [c1,c2]=NT_COL[c]||['#2b3038','#8d949d'];const t={id:G.teams.length,short:c,name:ntName(c),city:ntName(c),c1,c2,rep:Math.round(ntStr(c,sq)),arena:`${ntName(c)} national team`,cap:10000,nat:c,order:sq.map(p=>p.id),w:0,l:0,pf:0,pa:0,form:[],staff:[],dom:'NT',nt:c,ntTemp:1,ntU:!!me};G.teams.push(t);t.tac=me?G.tactics:aiStyle(t);return t;}
 function ntUserPair(w,i){const c=G.nt.job.c;return (w.days[i]||[]).find(x=>x[0]===c||x[1]===c)||null;}
 function ntLiveStart(){const w=ntPend();if(!w)return null;const i=w.dd||0,g=ntUserPair(w,i);if(!g)return null;ntTempClear();
