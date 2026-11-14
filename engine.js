@@ -311,6 +311,78 @@ function rumRespond(rid,k){const r=(G.rum||[]).find(x=>x.id===+rid);if(!r||r.st!
   else{txt=`No comment. The story runs for a while longer.`;if(ps==='ego')moodAdd(p,-1);}
   const m=G.inbox.find(x=>x.type==='media'&&x.act&&x.act.rid===r.id);if(m)m.done=k==='nfs'?'Not for sale':k==='price'?'Every player has a price':'No comment';
   save();return txt;}
+
+/* ===================== Transfer requests ===================== */
+// Unhappy or ambitious players hand in a formal transfer request. The user lists him, refuses, or talks him round (a conversation with
+// arguments that work differently by the reason and his personality). The dressing room reacts either way.
+const treqOpen=p=>!!(p&&p.treq&&p.treq.st==='open'&&p.tid===G.user);
+const treqList=()=>roster(G.user).filter(treqOpen);
+const TR_WHY={unhappy:'He is unhappy at the club',minutes:'He wants more minutes',ambition:'He feels he has outgrown the club',bid:'A bigger club wanted him and you said no',promise:'He feels you broke your promise'};
+function treqStar(p){return roster(G.user).slice().sort((a,b)=>b.o-a.o).indexOf(p)<3||(G.captain===p.id);}
+function treqMake(p,why,tid){if(!p||p.tid!==G.user||treqOpen(p)||p.loan||p.short||p.ten)return;if(p.treq&&p.treq.s===G.season&&p.treq.st==='withdrawn'&&G.day-p.treq.d<30)return;
+  const t=tid!=null?G.teams[tid]:null;p.treq={s:G.season,d:G.day,why,tid:t?t.id:null,st:'open',talkD:null};const nm=pname(p),ps=persOf(p);
+  const L={unhappy:[`Coach, I have thought about this for a long time. I am not happy here and I want to leave. I am handing in a formal transfer request.`,`I don't want to make a scene, but I need a change. Please accept my transfer request.`],
+    minutes:[`I came here to play, not to watch. I want a transfer to a club where I get real minutes.`,`At my age every season counts. I am asking you to let me go somewhere I will play.`],
+    ambition:[`I respect this club, but I want to win the big trophies and play at the highest level. I am asking for a transfer.`,`I think I am ready for a bigger stage. I have told my agent to find me a move, and I am asking you to let me go.`],
+    bid:[`${t?t.name:'A big club'} wanted me and you said no without asking me. That was my chance. I want a transfer.`,`I heard about the offer from ${t?t.name:'that club'}. I want to go. Please don't stand in my way.`],
+    promise:[`You promised me a role and you did not keep it. I want to leave. Here is my transfer request.`,`I trusted you when I signed. That trust is gone. I am asking for a transfer.`]};
+  msg(nm,`${nm} hands in a transfer request`,`${pick(L[why]||L.unhappy)}${agentOf&&agentOf(p)?` (His agent ${agentOf(p)[0]} has confirmed it in writing.)`:''}`,'treq',{pid:p.id});
+  // the dressing room hears about it
+  const star=treqStar(p);for(const q of roster(G.user))if(q.id!==p.id)moodAdd(q,star?-2:-0.5);
+  if(ps==='ego'&&star){G.fans=clamp(G.fans-2,0,100);msg('Media',`${nm} wants out`,`${nm} has asked to leave ${G.teams[G.user].name}. ${ps==='ego'?'The news broke within hours.':''}`,'media');}
+  save();}
+function treqTick(){if(!G||G.sacked||preOn()||userNBA())return;const me=G.teams[G.user],lv=teamLevel(me),now=G.day;
+  // declined bids from bigger clubs
+  for(const m of G.inbox){if(m.type!=='offer'||m.done!=='Declined'||m.trq||!m.act)continue;m.trq=1;const p=G.players[m.act.pid],t=G.teams[m.act.tid];if(!p||!t||p.tid!==G.user)continue;
+    if(t.rep>=me.rep+6&&persOf(p)!=='pro'&&p.age<=31&&Math.random()<(persOf(p)==='ego'?.6:.35))treqMake(p,'bid',t.id);}
+  if(seasonOver())return;
+  for(const p of roster(G.user)){if(p.loan||p.short||p.ten||treqOpen(p)||(p.treq&&p.treq.s===G.season))continue;
+    // ambitious players at a club below their level
+    if(p.age>=22&&p.age<=31&&p.o>=lv+7&&p.o>=74&&moodOf(p)<72&&p.yrs>=1&&Math.random()<(persOf(p)==='ego'?.012:persOf(p)==='sensitive'?.006:.003))treqMake(p,'ambition');
+    // a player who barely plays for weeks
+    else if(p.age>=21&&moodOf(p)<30&&typeof roleGap==='function'&&roleGap(p)==='low'&&Math.random()<.04)treqMake(p,'minutes');}
+  for(const p of roster(G.user)){const R=p.treq;if(!R||R.st!=='listed'||!R.bidDue)continue;
+    // the club he wants (or another) comes in once he is on the list
+    if(R.bidDue&&now>=R.bidDue){R.bidDue=null;const t=R.tid!=null&&G.teams[R.tid]&&teamFinState(R.tid)!=='admin'?G.teams[R.tid]:pick(G.teams.filter(x=>x.id!==G.user&&!x.ntTemp&&!isNBA(x)&&x.dom!=='NCAA'&&x.dom!=='GONE'&&!x.bankrupt&&teamFinState(x.id)==='ok'&&teamLevel(x)<=p.o+6&&teamLevel(x)>=p.o-10));
+      if(t){const fee=r10k(value(p)*rf(.8,1.05));msg(t.name,`Offer for ${pname(p)}`,`${t.name} have heard ${pname(p)} wants to leave and offer ${eur(fee)}. Players who ask to leave rarely fetch full price.`,'offer',{pid:p.id,tid:t.id,fee});}}}
+  // refused requests: ego players go public after a while, the atmosphere sours
+  for(const p of roster(G.user)){const R=p.treq;if(!R||R.st!=='refused'||R.pub||now-R.rd<18)continue;if(moodOf(p)>=40){R.st='closed';continue;}
+    R.pub=1;if(persOf(p)!=='pro'){G.fans=clamp(G.fans-3,0,100);for(const q of roster(G.user))if(q.id!==p.id)moodAdd(q,-1.5);msg('Media',`${pname(p)} goes public`,`${pname(p)} told reporters he asked to leave and the club refused. "I just want to play somewhere I am wanted." The dressing room is tense.`,'media');}}
+  // a summer promise falls due
+  for(const p of roster(G.user)){if(p.treqSummer!=null&&p.treqSummer<G.season){p.treqSummer=null;if(!G.listed.includes(p.id))G.listed.push(p.id);p.treq={s:G.season,d:now,why:'ambition',tid:null,st:'listed',bidDue:now+rnd(3,8)};msg(pname(p),'You gave me your word','Last season you promised to let me go this summer. I am holding you to it.','staff');msg('Sporting Director',`${pname(p)} on the transfer list`,`As you promised him, ${pname(p)} is on the transfer list.`,'fin');}}}
+function treqDecide(pid,k){const p=G.players[pid];if(!treqOpen(p))return 'This request is no longer open.';const R=p.treq,star=treqStar(p),nm=pname(p);
+  const m=G.inbox.find(x=>x.type==='treq'&&x.act&&x.act.pid===p.id&&!x.done);
+  if(k==='list'){R.st='listed';if(!G.listed.includes(p.id))G.listed.push(p.id);moodAdd(p,12);R.bidDue=G.day+rnd(3,9);
+    for(const q of roster(G.user))if(q.id!==p.id)moodAdd(q,star?-2:persOf(p)==='ego'&&moodOf(p)<30?1:0);if(star)G.fans=clamp(G.fans-2,0,100);if(m)m.done='Listed';save();
+    return `${nm} is on the transfer list. He is relieved.${star?' The squad is unsettled to see one of its leaders go.':''} Expect offers soon, though rarely at full price.`;}
+  if(k==='refuse'){R.st='refused';R.rd=G.day;moodAdd(p,persOf(p)==='pro'?-6:-12);if(m)m.done='Refused';save();
+    return `You refused. ${nm} is ${persOf(p)==='pro'?'disappointed but will keep doing his job':'angry'}.${persOf(p)!=='pro'?' If he does not settle, he may take it to the press.':''}`;}
+  return '';}
+// the conversation: arguments that work by reason and personality
+const TR_ARG={role:'A bigger role',money:'A new contract',project:'Our project',key:'You are key to us',captain:'The captain\u2019s armband',summer:'Stay now, go in summer'};
+function treqTalk(pid){const p=G.players[pid];if(!treqOpen(p))return null;const R=p.treq;if(R.talkD!=null&&G.day-R.talkD<21)return {err:`You talked to him recently. Try again in ${21-(G.day-R.talkD)} days.`};
+  R.talkD=G.day;const ps=persOf(p),w0={unhappy:30,minutes:32,ambition:22,bid:18,promise:15}[R.why]+(moodOf(p)-30)*.3+(ps==='pro'?8:0);
+  const op={unhappy:`"I just don't feel right here, coach. Tell me why I should stay."`,minutes:`"I want to play. That's all. Can you give me that?"`,ambition:`"I want trophies and the big stage. Convince me that can happen here."`,bid:`"${R.tid!=null&&G.teams[R.tid]?G.teams[R.tid].name:'That club'} wanted me. Why should I stay?"`,promise:`"You gave me your word once already. Why should I believe you now?"`}[R.why];
+  const n={pid,w:clamp(Math.round(w0),5,60),pat:3,pmax:3,used:[],log:[{sys:1,t:TR_WHY[R.why]+'.'},{who:pname(p),t:op}],over:false,res:null};return n;}
+function treqSay(n,k){const p=G.players[n.pid];if(!p||n.over||n.used.includes(k)||n.pat<=0)return;n.used.push(k);n.pat--;const R=p.treq,ps=persOf(p),why=R.why,me=G.teams[G.user];
+  let d=0,t='';const good=(x)=>x>=10,rk=userRank();
+  if(k==='role'){d=why==='minutes'?22:why==='promise'?-6:why==='unhappy'?10:why==='ambition'?3:5;n.role=1;t=d>=15?`"Starting minutes? If you mean it, that changes things."`:d<0?`"You said that last time."`:`"Minutes are nice. It's not only about that."`;}
+  else if(k==='money'){const raise=r5k(p.sal*.2),ok=userNBA()||wageBill(G.user)+raise<=G.fin.wageBudget;if(!ok){n.used.pop();n.pat++;n.log.push({sys:1,t:`No room in the wage budget for a raise of ${eur(raise)}.`});return;}
+    d=(why==='unhappy'?12:why==='ambition'?6:why==='bid'?8:4)+(agTrait&&agTrait(p)==='greedy'?8:0)+(ps==='ego'?4:0);n.money=raise;t=d>=14?`"That shows me you're serious. My agent will like it."`:`"Money is not everything, coach."`;}
+  else if(k==='project'){const cr=(G.crep||me.rep)-me.rep;d=(why==='ambition'||why==='bid'?(rk<=4?16:rk<=8?6:-6):6)+Math.round(cr/2);t=d>=12?`"We are near the top, it's true. Maybe I can win here."`:d<0?`"With respect, we are ${ordn(rk)}. That is not a project."`:`"I hear you. I'm not sure I see it."`;}
+  else if(k==='key'){d=ps==='sensitive'?16:ps==='ego'?9:5;if(why==='promise')d-=6;t=d>=12?`"Nobody told me that before. It matters."`:`"Words are easy, coach."`;}
+  else if(k==='captain'){if(G.captain===p.id){n.used.pop();n.pat++;n.log.push({sys:1,t:'He is already your captain.'});return;}d=ps==='ego'?18:p.age>=27?10:4;n.cap=1;t=d>=14?`"The armband? That would mean a lot to me."`:`"I'm not sure I'm a captain."`;}
+  else if(k==='summer'){d=why==='ambition'||why==='bid'?20:why==='unhappy'?8:2;n.summer=1;t=d>=15?`"One more season, and then you let me go if a big club calls? I can live with that."`:`"Summer is a long way away."`;}
+  d+=rnd(-3,3);n.w=clamp(n.w+d,0,100);n.log.push({you:1,t:TR_ARG[k]});n.log.push({who:pname(p),t,d:d>=8?1:d<0?-1:0});
+  if(n.pat<=0)treqDecideTalk(n);}
+function treqDecideTalk(n){const p=G.players[n.pid];if(!p||n.over)return;n.over=true;const R=p.treq,ok=n.w>=60||(n.w>=45&&Math.random()<(n.w-45)/25);
+  if(ok){R.st='withdrawn';R.d=G.day;moodAdd(p,14);if(n.role)p.ptPromise={left:8,bad:0};if(n.money){p.sal+=n.money;p.yrs+=1;}if(n.cap)setCaptain(p.id);if(n.summer)p.treqSummer=G.season;
+    for(const q of roster(G.user))if(q.id!==p.id)moodAdd(q,treqStar(p)?2:.5);n.res='yes';
+    n.log.push({who:pname(p),t:pick([`"Okay. I'll withdraw the request. Don't make me regret it."`,`"Fine, coach. I'm staying. Let's win something."`,`"You convinced me. I'll tell my agent."`])});
+    const m=G.inbox.find(x=>x.type==='treq'&&x.act&&x.act.pid===p.id&&!x.done);if(m)m.done='Withdrawn';
+    const kept=[n.role&&'a bigger role (8 games)',n.money&&`a raise to ${eur(p.sal)} and an extra year`,n.cap&&'the captaincy',n.summer&&'a move next summer if a big club calls'].filter(Boolean);if(kept.length)n.log.push({sys:1,t:`You promised ${kept.join(', ')}.`});}
+  else{n.res='no';moodAdd(p,-3);n.log.push({who:pname(p),t:pick([`"I'm sorry, coach. My mind is made up."`,`"I appreciate the talk. I still want to leave."`,`"No. I want to go."`])});n.log.push({sys:1,t:'The request stands. You can list him, refuse it, or try again in three weeks.'});}
+  save();}
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -2341,7 +2413,7 @@ function promiseCheck(){
     if(idx>4&&p.inj<=0)p.promise.bad++;else p.promise.bad=Math.max(0,p.promise.bad-1);
     if(p.promise.bad===3&&!p.unhappy){p.unhappy=true;msg(pname(p),'You promised me a star role',`When I signed you told me I'd be the star of this team. I haven't started for three games. I expect that to change.`,'staff');}
     if(p.promise.bad===0&&p.unhappy){p.unhappy=false;msg(pname(p),'Back where I belong','Thanks, coach. This is the role we talked about.','staff');}
-    if(p.promise.bad===6&&!G.listed.includes(p.id)){G.listed.push(p.id);G.fans=clamp(G.fans-3,0,100);msg('Sporting Director',`${pname(p)} asks to leave`,`${pname(p)} feels you broke your promise and has asked for a transfer. He is now on the transfer list, and the fans are not happy about it.`,'fin');}
+    if(p.promise.bad===6&&!G.listed.includes(p.id)&&!treqOpen(p)){G.fans=clamp(G.fans-3,0,100);treqMake(p,'promise');}
   }
 }
 
@@ -2600,7 +2672,7 @@ function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=
   else if(L.phase==='done')d=263;
   if(d!=null)G.day=Math.max(d0+1,d);}
 
-function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{rumourTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -6250,7 +6322,7 @@ function moodTick(){if(preOn())return;const t=G.teams[G.user],ps=roster(G.user);
       if(P.left<=0){p.ptPromise=null;moodAdd(p,8);msg(pname(p),'Thanks, coach','You kept your word about my minutes.','staff');}}
     moodAdd(p,d);
     const now=faAbs();if(p.mood<35&&!young&&!p.loan&&!p.short&&!p.ten&&(p.cplD==null||now-p.cplD>=25)){p.cplD=now;msg(pname(p),'We need to talk',roleGap(p)==='low'?(p.role?`You made me ${({star:'a star',start:'a starter',rot:'a rotation player',talent:'a talent',res:'a reserve'})[p.role]}, but I only play ${Math.round(roleAvg(p))} minutes. I expected at least ${roleExp(p)}.`:`I only play ${Math.round(roleAvg(p))} minutes. I should be playing more.`):`I am not happy here at the moment. Can we talk?`,'talk',{talk:p.id});}
-    if(p.mood<=12&&!G.listed.includes(p.id)&&!p.loan){G.listed.push(p.id);msg('Sporting Director',`${pname(p)} asks to leave`,`${pname(p)} is deeply unhappy and has asked for a transfer. He is on the transfer list now.`,'fin');}}
+    if(p.mood<=15&&!p.loan&&!p.short&&!p.ten&&!G.listed.includes(p.id)&&!treqOpen(p)&&!(p.treq&&p.treq.s===G.season&&p.treq.st!=='withdrawn'))treqMake(p,'unhappy');}
   mentorTick();}
 function canTalk(p){return p.talkD==null||faAbs()-p.talkD>=14;}
 function playerTalk(pid,k){const p=G.players[pid];if(!p||p.tid!==G.user)return {t:'He is not in your squad.'};if(!canTalk(p))return {t:`You spoke to him recently. Give it some time (${14-(faAbs()-p.talkD)} days).`};
