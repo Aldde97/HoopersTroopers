@@ -269,6 +269,48 @@ function agSigned(p){const a=agentOf(p);if(!a)return;const i=AGENTS.indexOf(a);G
   const L=agClients(p,6).filter(q=>q.tid!==G.user&&(q.tid==null||wantsOut(q)||q.yrs<=1)&&q.o>=60).slice(0,2);
   msg(a[0],`${a[1]}: working together`,`${a[0]} of ${a[1]} here. Pleased we got ${pname(p)}'s deal done.${L.length?` I also represent ${L.map(q=>`${pname(q)} (${q.pos}, ${q.tid==null?'free agent':G.teams[q.tid].name})`).join(' and ')}. Clubs that work well with me get better terms for my players: think of it as a package.`:' Clubs that work well with me get better terms for my other players.'}`,'fin');}
 function agReleased(p){const a=agentOf(p);if(!a)return;const i=AGENTS.indexOf(a);G.agRel=G.agRel||{};G.agRel[i]=Math.max(-2,(G.agRel[i]||0)-1);}
+
+/* ===================== Transfer rumours and media ===================== */
+// The press link the user's players with bigger clubs. Some links are real (a bid follows), many are not. A player linked with a big club
+// can be unsettled (ego more than professional). The user answers in public: "not for sale", "every player has a price", or no comment.
+const RUM_H=[(p,t)=>`${t.name} eye ${pname(p)}`,(p,t)=>`${pname(p)} on ${t.name}'s shortlist`,(p,t)=>`${t.name} prepare an offer for ${pname(p)}`,(p,t)=>`${pname(p)} wanted by ${t.name}`,(p,t)=>`${t.name} scouts watch ${pname(p)} again`,(p,t)=>`${pname(p)} to ${t.name}? Talks reported`];
+const rumOpen=()=>(G.rum||[]).filter(r=>r.st==='open'&&G.players[r.pid]&&G.players[r.pid].tid===G.user);
+function rumourTick(){if(!G||G.sacked||G.bankrupt||preOn()||seasonOver()||userNBA()||!G.teams[G.user]||G.phase!=='reg'&&!userNotEL())return;G.rum=G.rum||[];const me=G.teams[G.user];
+  // resolve links whose time has come
+  for(const r of G.rum){if(r.st==='done'||G.day<r.due)continue;const p=G.players[r.pid],t=G.teams[r.tid];
+    if(!p||!t||p.tid!==G.user){r.st='done';r.out='He has left';continue;}
+    if(r.st==='open'){r.st='quiet';if(persOf(p)==='ego'&&r.gap>=4){moodAdd(p,-3);}}
+    r.st='done';
+    if(r.real&&teamFinState(t.id)!=='admin'){const fee=r10k(value(p)*rf(1.05,1.35)*(r.resp==='nfs'?1.2:1));r.out=`Bid made · ${eur(fee)}`;
+      msg(t.name,`Bid for ${pname(p)}`,`The reports were true: ${t.name} have made a bid of ${eur(fee)} for ${pname(p)}.${r.resp==='nfs'?' They know you said he is not for sale, so they came in high.':''} Their sporting director is open to talks about the fee.`,'offer',{pid:p.id,tid:t.id,fee});
+      if(r.gap>=6&&persOf(p)!=='pro'&&moodOf(p)<70)msg(pname(p),`About ${t.name}`,`Coach, I heard ${t.name} made an offer for me. I won't lie: playing for a club like that is a big chance for me. I hope you will think about it.`,'staff');}
+    else{r.out=Math.random()<.5?'Denied by the club':'Nothing came of it';if(r.out[0]==='D')msg('Media',`${t.name} deny interest in ${pname(p)}`,`${t.name} say there is no truth in the reports linking them with ${pname(p)}.`,'media');
+      if(r.resp==='price'&&Math.random()<.35){const b=G.teams.filter(x=>x.id!==G.user&&!x.dom&&x.rep>=me.rep-3&&teamFinState(x.id)==='ok'&&x.id!==t.id);const c=b.length?pick(b):null;
+        if(c){const fee=r10k(value(p)*rf(.95,1.2));r.out+=` · ${c.name} bid instead`;msg(c.name,`Bid for ${pname(p)}`,`After you said every player has a price, ${c.name} have made a bid of ${eur(fee)} for ${pname(p)}.`,'offer',{pid:p.id,tid:c.id,fee});}}}}
+  G.rum=G.rum.filter(r=>r.st!=='done'||G.day-r.d<=60).slice(-14);
+  // a new link every couple of weeks or so
+  const R=G.rumR&&G.rumR.s===G.season?G.rumR:(G.rumR={s:G.season,d:-99});if(G.day-R.d<9||Math.random()>.45||rumOpen().length>=2)return;
+  const busy=new Set(G.rum.filter(r=>r.st!=='done'||G.day-r.d<40).map(r=>r.pid));
+  const L=roster(G.user).filter(p=>!p.loan&&!p.short&&!busy.has(p.id)&&p.o>=58&&!(p.nfs&&p.nfs===G.season&&Math.random()<.5)).sort((a,b)=>b.o-a.o).slice(0,8);if(!L.length)return;
+  const p=wpick(L,q=>(q.yrs<=1?2:1)*(1+Math.max(0,per(q.st,'pir')-8)/8)*Math.pow(1.08,q.o-70)),lv=p.o;
+  const C=G.teams.filter(t=>t.id!==G.user&&!t.ntTemp&&!isNBA(t)&&t.dom!=='NCAA'&&t.dom!=='GL'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&t.order&&t.order.length>=8&&t.rep>=me.rep+1&&teamLevel(t)<=lv+9&&teamLevel(t)>=lv-6);if(!C.length)return;
+  const t=wpick(C,c=>(!c.dom?2:1)*Math.pow(1.06,c.rep-me.rep)),gap=t.rep-me.rep;R.d=G.day;
+  const real=Math.random()<clamp((p.yrs<=1?.5:.35)+(teamFinState(t.id)==='ok'?.05:-.2),.05,.7);
+  const rid=(G.rumN=(G.rumN||0)+1),hd=pick(RUM_H)(p,t),src=`Reports in ${ntName(t.nat)||t.city}`;
+  const r={id:rid,pid:p.id,tid:t.id,d:G.day,due:G.day+rnd(6,13),real,gap,st:'open',hd,src,resp:null};G.rum.push(r);
+  // unsettled: a bigger club on the phone turns heads
+  const ps=persOf(p),dm=-clamp(gap/3,1,6)*(ps==='pro'?.4:ps==='ego'?1.3:1)*(agTrait&&agTrait(p)==='loyal'?.5:1)*(p.yrs<=1?1.3:1);moodAdd(p,Math.round(dm));r.dm=Math.round(dm);
+  msg('Media',hd,`${src}: ${t.name} (${jobLg(t)}) are said to be interested in ${pname(p)} (${p.pos}, ${p.age}, OVR ${p.o}).${p.yrs<=1?' His contract ends this summer.':''} ${Math.round(dm)<=-3?`${p.f} has read it, and it has turned his head.`:Math.round(dm)<0?`${p.f} is aware of the reports.`:`${p.f} seems unbothered.`} The press want your reaction.`,'media',{rid});
+  save();}
+function rumRespond(rid,k){const r=(G.rum||[]).find(x=>x.id===+rid);if(!r||r.st!=='open')return 'This story has moved on.';const p=G.players[r.pid],t=G.teams[r.tid];if(!p||!t)return 'This story has moved on.';
+  r.st='answered';r.resp=k;const top=roster(G.user).slice().sort((a,b)=>b.o-a.o).indexOf(p)<4,ps=persOf(p);let txt;
+  if(k==='nfs'){G.fans=clamp(G.fans+(top?3:1),0,100);p.nfs=G.season;const wants=r.gap>=6&&ps==='ego';moodAdd(p,wants?-6:4);if(r.real&&Math.random()<.55){r.real=false;r.cooled=1;}
+    txt=`You told the press ${pname(p)} is not for sale. The fans like it.${wants?` ${p.f} is not happy: he saw it as his big chance.`:` ${p.f} feels valued.`} If you sell him this season after all, the fans will remember.`;}
+  else if(k==='price'){G.fans=clamp(G.fans-(top?3:1),0,100);const wants=r.gap>=4;moodAdd(p,wants?3:-4);if(!r.real&&Math.random()<.35)r.real=true;r.due=Math.min(r.due,G.day+rnd(3,6));
+    txt=`You said every player has a price. Clubs read that as an invitation.${wants?` ${p.f} appreciates that you would not stand in his way.`:` ${p.f} wonders whether you want him at all.`}`;}
+  else{txt=`No comment. The story runs for a while longer.`;if(ps==='ego')moodAdd(p,-1);}
+  const m=G.inbox.find(x=>x.type==='media'&&x.act&&x.act.rid===r.id);if(m)m.done=k==='nfs'?'Not for sale':k==='price'?'Every player has a price':'No comment';
+  save();return txt;}
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -2558,7 +2600,7 @@ function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=
   else if(L.phase==='done')d=263;
   if(d!=null)G.day=Math.max(d0+1,d);}
 
-function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{rumourTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -6089,6 +6131,7 @@ function acceptOffer(mid,so){
   if(G.teams[G.user].order.length<=10)return 'You need at least 10 players. Sign a replacement first.';
   if(G.phase!=='reg'){m.done='Expired';return 'The transfer window has closed.';}
   if(so&&p.age<=24){m.act.fee=r10k(m.act.fee*.9);p.sellOn={pct:20,to:G.user};}
+  if(p.nfs===G.season){G.fans=clamp(G.fans-8,0,100);G.board=clamp(G.board-3,0,100);msg('Media',`U-turn: ${pname(p)} sold`,`Weeks after you called ${pname(p)} not for sale, he is gone. The fans feel misled.`,'media');}
   noteExit(p,`Sold \u00b7 ${eur(m.act.fee)}`);leave(p);join(p,G.teams[m.act.tid]);markNew(p,G.teams[m.act.tid]);aiFix(G.teams[m.act.tid]);if(G.teams[m.act.tid].fin)G.teams[m.act.tid].fin.bal-=m.act.fee;G.fin.bal+=m.act.fee;G.fin.season.tin+=m.act.fee;m.done=`Accepted \u00b7 ${eur(m.act.fee)}`;
   G.inbox.forEach(x=>{if(x.act&&x.act.pid===p.id&&!x.done)x.done='Player sold';});save();return null;
 }
