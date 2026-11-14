@@ -383,6 +383,49 @@ function treqDecideTalk(n){const p=G.players[n.pid];if(!p||n.over)return;n.over=
     const kept=[n.role&&'a bigger role (8 games)',n.money&&`a raise to ${eur(p.sal)} and an extra year`,n.cap&&'the captaincy',n.summer&&'a move next summer if a big club calls'].filter(Boolean);if(kept.length)n.log.push({sys:1,t:`You promised ${kept.join(', ')}.`});}
   else{n.res='no';moodAdd(p,-3);n.log.push({who:pname(p),t:pick([`"I'm sorry, coach. My mind is made up."`,`"I appreciate the talk. I still want to leave."`,`"No. I want to go."`])});n.log.push({sys:1,t:'The request stands. You can list him, refuse it, or try again in three weeks.'});}
   save();}
+
+/* ===================== Staff poaching ===================== */
+// Bigger clubs try to lure the user's best assistants, doctors, scouts and team managers; the user lets them go (compensation),
+// matches the offer, or blocks the move (he stays, but works below his level for six weeks). The user can poach other clubs' staff too:
+// compensation to their club, a raise for him, and a chance that depends on the clubs, the coach's name and his loyalty.
+const stUnh=x=>!!(x&&x.unh&&x.unhS===G.season&&G.day<x.unh);
+const stR=(x,k)=>x.r[k]*(stUnh(x)?.9:1);
+const stLoy=x=>{if(x.loy==null)x.loy=Math.round(rf(0,.35)*100)/100;return x.loy;};
+const stComp=x=>r5k(x.sal*.5*Math.max(1,x.yrs||1));
+function staffPoachTick(){if(!G||G.sacked||G.bankrupt||preOn())return;const me=G.teams[G.user],now=G.day;
+  for(const m of G.inbox)if(m.type==='spoach'&&!m.done&&m.act&&now>m.act.until){const x=(me.staff||[]).find(s=>s.id===m.act.sid);if(!x){m.done='Expired';continue;}
+    if(m.act.sal>=x.sal*1.4&&Math.random()<.6){spMove(x,G.teams[m.act.tid],m.act.sal,true);m.done='He left';msg('Sporting Director',`${x.f} ${x.l} leaves for ${G.teams[m.act.tid].name}`,`We never answered ${G.teams[m.act.tid].name}, so ${x.f} ${x.l} made the decision himself and accepted their offer. We receive ${eur(stComp(x))} in compensation.`,'staff');}
+    else{m.done='He stayed';msg('Sporting Director',`${x.f} ${x.l} stays`,`${x.f} ${x.l} turned down ${G.teams[m.act.tid].name} in the end.`,'staff');}}
+  const R=G.spR&&G.spR.s===G.season?G.spR:(G.spR={s:G.season,d:-99,n:0});if(seasonOver()||(R.n||0)>=2||now-R.d<30||Math.random()>.3)return;
+  if(G.inbox.some(m=>m.type==='spoach'&&!m.done))return;
+  const L=(me.staff||[]).filter(x=>x.role!=='HC'&&!x.interim&&x.o>=68&&!stUnh(x)&&x.spS!==G.season);if(!L.length)return;const x=wpick(L,s=>Math.pow(1.1,s.o-68));
+  const C=G.teams.filter(t=>t.id!==G.user&&!t.ntTemp&&t.dom!=='NCAA'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&isNBA(t)===isNBA(me)&&t.rep>=me.rep+3&&teamFinState(t.id)==='ok'&&staffOf(t.id,x.role).every(s=>s.o<x.o));if(!C.length)return;
+  const t=wpick(C,c=>Math.pow(1.07,c.rep-me.rep)),sal=r5k(x.sal*rf(1.3,1.7));R.d=now;R.n=(R.n||0)+1;x.spS=G.season;
+  msg(t.name,`${t.name} want ${x.f} ${x.l}`,`${t.name} have approached your ${ROLEN[x.role].toLowerCase()} ${x.f} ${x.l} (rating ${x.o}). They offer him ${eur(sal)} per season (he earns ${eur(x.sal)}). He would like to know what you think. If we let him go, they pay ${eur(stComp(x))} in compensation. Answer within 7 days.`,'spoach',{sid:x.id,tid:t.id,sal,until:now+7});save();}
+function spMove(x,t,sal,comp){const me=G.teams[G.user];me.staff=me.staff.filter(s=>s!==x);if(comp){const c=stComp(x);G.fin.bal+=c;G.fin.season.tin=(G.fin.season.tin||0)+c;if(t.fin)t.fin.bal-=c;}
+  x.sal=sal;x.yrs=rnd(2,3);x.from=me.name;delete x.unh;delete x.wasHC;t.staff=t.staff||[];
+  if(t.staff.filter(s=>s.role===x.role).length>=(ROLEMAX0[x.role]||3)){const w=t.staff.filter(s=>s.role===x.role).sort((a,b)=>a.o-b.o)[0];t.staff=t.staff.filter(s=>s!==w);w.from=t.name;G.staffFA.push(w);}
+  t.staff.push(x);news(`${t.name} hire ${x.f} ${x.l}`,`${t.name} have hired ${ROLEN[x.role].toLowerCase()} ${x.f} ${x.l} from ${me.name}.`);}
+function staffPoachAnswer(mid,k){const m=G.inbox.find(x=>x.id===+mid);if(!m||m.done||!m.act)return 'This is settled.';const me=G.teams[G.user],x=(me.staff||[]).find(s=>s.id===m.act.sid),t=G.teams[m.act.tid];if(!x||!t){m.done='Expired';return 'This is settled.';}
+  const nm=`${x.f} ${x.l}`;
+  if(k==='go'){const c=stComp(x);spMove(x,t,m.act.sal,true);m.done='Let him go';save();return `${nm} joins ${t.name}. You receive ${eur(c)} in compensation. Find a replacement in the staff market.`;}
+  if(k==='match'){const ns=r5k(m.act.sal*1.05),p=clamp(.35+stLoy(x)+(me.rep-t.rep)*.03+((G.crep||me.rep)-t.rep)*.01,.1,.9);
+    if(Math.random()<p){x.sal=ns;x.yrs=Math.max(x.yrs||1,2);m.done='Matched · he stays';save();return `${nm} stays on ${eur(ns)} per season with a contract until at least two more seasons.`;}
+    const c=stComp(x);spMove(x,t,m.act.sal,true);m.done='Matched · he left anyway';save();return `You matched the money, but ${nm} wanted the bigger club. He joins ${t.name}; you receive ${eur(c)}.`;}
+  if(k==='block'){x.unh=G.day+42;x.unhS=G.season;m.done='Blocked';save();return `${nm} stays: he is under contract. He is unhappy, and his work suffers for six weeks (-10%).`;}
+  return '';}
+function staffPoachChance(x,tid,pct){const me=G.teams[G.user],t=G.teams[tid];if(!t||x.role==='HC')return 0;if(isNBA(t)&&!isNBA(me))return .03;
+  return clamp(.3+(me.rep-t.rep)*.035+(pct>=50?.25:.1)+(((G.crep!=null?G.crep:me.rep))-t.rep)*.01-stLoy(x),.03,.95);}
+function staffApproach(sid,tid,pct){const t=G.teams[tid],me=G.teams[G.user];if(!t)return {ok:false,text:'Not found.'};const x=(t.staff||[]).find(s=>s.id===+sid);if(!x)return {ok:false,text:'He is no longer there.'};
+  if(x.role==='HC')return {ok:false,text:'You cannot hire another club’s head coach as your assistant.'};if(G.phase==='done'&&seasonOver())return {ok:false,text:'Approach staff once the new season is under way.'};
+  if(x.pzS===G.season)return {ok:false,text:`${x.f} ${x.l} already said no this season.`};if(staffOf(G.user,x.role).length>=ROLEMAX[x.role])return {ok:false,text:`All your ${ROLEN[x.role].toLowerCase()} positions are filled. Release someone first.`};
+  const c=stComp(x),fee=r5k(x.sal*(1+pct/100)*.25);if(G.fin.bal<0)return {ok:false,text:'Transfer embargo: the club is in debt.'};if(G.fin.bal<c+fee)return {ok:false,text:`You need ${eur(c+fee)}: ${eur(c)} compensation to ${t.name} and a ${eur(fee)} signing fee.`};
+  x.pzS=G.season;const p=staffPoachChance(x,tid,pct);
+  if(Math.random()>=p){save();return {ok:false,text:`${x.f} ${x.l} thanked you but stays at ${t.name}.${stLoy(x)>.25?' He is very loyal to them.':''}`};}
+  G.fin.bal-=c+fee;G.fin.season.rel+=c+fee;if(t.fin)t.fin.bal+=c;t.staff=t.staff.filter(s=>s!==x);x.sal=r5k(x.sal*(1+pct/100));x.yrs=2;x.from=t.name;me.staff.push(x);
+  try{t.staff.push(genStaff([x.role,pick(NAMES.USA.f),pick(NAMES.USA.l),'USA',0],t.rep));}catch(err){}
+  news(`${me.name} poach ${x.f} ${x.l}`,`${me.name} have hired ${ROLEN[x.role].toLowerCase()} ${x.f} ${x.l} away from ${t.name}.`);save();
+  return {ok:true,text:`${x.f} ${x.l} joins you from ${t.name} on ${eur(x.sal)} per season. You paid ${eur(c)} compensation and a ${eur(fee)} signing fee.`};}
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -1605,7 +1648,7 @@ function scoutSeed(){if(!G.staffFA||G.staffFA.some(x=>x.role==='SC'))return;for(
 const staffOf=(tid,role)=>(G.teams[tid].staff||[]).filter(x=>!role||x.role===role);
 const staffWages=tid=>(G.teams[tid].staff||[]).reduce((a,x)=>a+x.sal,0);
 function staffFx(){
-  const ac=staffOf(G.user,'AC').map(x=>x.r.coach).sort((a,b)=>b-a).slice(0,4),doc=staffOf(G.user,'DOC').map(x=>x.r.med),tm=staffOf(G.user,'TM').map(x=>x.r.neg);
+  const ac=staffOf(G.user,'AC').map(x=>stR(x,'coach')).sort((a,b)=>b-a).slice(0,4),doc=staffOf(G.user,'DOC').map(x=>stR(x,'med')),tm=staffOf(G.user,'TM').map(x=>stR(x,'neg'));
   const train=ac.length?clamp(.55+avg(ac)/140+ac.length*.05,.6,1.45):.6;
   const med=doc.length?clamp(avg(doc)/100+(doc.length-1)*.04,.3,1):.3;
   const neg=tm.length?clamp((Math.max(...tm)-50)/1000,0,.05):0;
@@ -2672,7 +2715,7 @@ function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=
   else if(L.phase==='done')d=263;
   if(d!=null)G.day=Math.max(d0+1,d);}
 
-function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
