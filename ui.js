@@ -62,7 +62,8 @@ function clubHTML(){const t=G.teams[G.user],unread=G.inbox.filter(m=>!m.read).le
   <button class="ic" data-act="savegame">${IC.save}<span>Save</span></button></div></div>`;}
 const TABS=[['home','Home'],['squad','Squad'],['tactics','Tactics'],['training','Training'],['staff','Staff'],['transfers','Transfers'],['finances','Finances'],['club','Club'],['business','Business'],['comp','Competitions'],['inbox','Inbox']];
 function navHTML(){const unread=G.inbox.filter(m=>!m.read).length;return `<nav class="navw" aria-label="Main"><div class="nav">${TABS.map(([k,l])=>`<button class="${UI.view==='main'&&UI.tab===k?'on':''}" data-act="tab:${k}">${l}${k==='inbox'&&unread?`<em>${unread}</em>`:''}</button>`).join('')}</div></nav>`;}
-function render(){
+function render(){try{return render0();}catch(err){uiErr('render',err);}}
+function render0(){
   const app=document.getElementById('app');
   if(!G||UI.view==='start'){app.innerHTML=startHTML();csScroll();if(window.csBgMount)csBgMount();return;}
   if(G.sacked||G.bankrupt){app.innerHTML=careerHTML()+modalHTML();return;}
@@ -1552,9 +1553,13 @@ document.addEventListener('dragend',()=>{UI.sqDrag=null;});
 let ntSQT=null;document.addEventListener('input',e=>{if(e.target.id!=='ntSQ')return;UI.ntSQ=e.target.value;clearTimeout(ntSQT);ntSQT=setTimeout(()=>{const pos=e.target.selectionStart;render();const f=document.getElementById('ntSQ');if(f){f.focus();try{f.setSelectionRange(pos,pos);}catch(x){}}},250);});
 let ntQT=null;document.addEventListener('input',e=>{if(e.target.id!=='ntQ')return;UI.ntQ=e.target.value;clearTimeout(ntQT);ntQT=setTimeout(()=>{const pos=e.target.selectionStart;render();const f=document.getElementById('ntQ');if(f){f.focus();try{f.setSelectionRange(pos,pos);}catch(x){}}},250);});
 let trQT=null;document.addEventListener('input',e=>{if(e.target.id!=='trQ')return;UI.trQ=e.target.value;clearTimeout(trQT);trQT=setTimeout(()=>{const pos=e.target.selectionStart;render();const f=document.getElementById('trQ');if(f){f.focus();try{f.setSelectionRange(pos,pos);}catch(x){}}},220);});
+// if a page fails to draw or a button fails, show what went wrong instead of silently doing nothing (the player can send a screenshot)
+function uiErr(where,err){try{console.error(err);const fr=String(err&&err.stack||'').split('\n').map(s=>s.trim()).filter(s=>/\.js/.test(s)).slice(0,3).map(s=>s.replace(/^at\s+/,'').replace(/https?:\/\/[^ )]*\//,'')).join(' · ');
+  let b=document.getElementById('uierr');if(!b){b=document.createElement('div');b.id='uierr';b.style.cssText='position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:99999;max-width:min(680px,calc(100vw - 32px));background:#2a0f12;color:#fff;border:1px solid #e5484d;border-radius:10px;padding:12px 14px;font:13px/1.45 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35)';document.body.appendChild(b);}
+  b.innerHTML=`<b style="display:block;margin-bottom:4px">Something went wrong (${esc(where)})</b><span>${esc(String(err&&err.message||err))}</span><small style="display:block;opacity:.7;margin-top:4px;word-break:break-all">${esc(fr)}</small><small style="display:block;opacity:.85;margin-top:6px">Please send a screenshot of this box.</small><button style="margin-top:8px;background:#e5484d;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="this.parentNode.remove()">Close</button>`;}catch(e){}}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el)return;
   if(el.dataset.act==='ovl'){if(e.target===el)ACT.close();return;}
-  e.stopPropagation();const [a,...args]=el.dataset.act.split(':');const fn=ACT[a];if(fn)fn(...args);});
+  e.stopPropagation();const [a,...args]=el.dataset.act.split(':');const fn=ACT[a];if(fn)try{fn(...args);}catch(err){uiErr(a,err);}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.modal){UI.modal=null;render();}});
 
 function scrollChat(){const c=document.getElementById('negchat');if(c)c.scrollTop=c.scrollHeight;}
