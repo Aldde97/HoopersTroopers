@@ -225,7 +225,50 @@ const mktK=o=>clamp(.12+(o-56)*.04,.12,1);
 function salScale(){if(!G||G.salV)return;G.salV=1;for(const p of Object.values(G.players)){if(p.tid==null)continue;const t=G.teams[p.tid],k=salLeague(t);if(k<1)p.sal=Math.max(5000,r5k(p.sal*k));}}
 const tkRef=t=>isNBA(t)?110:G&&G.salV&&t&&t.dom&&t.dom!=='NCAA'?Math.max(5,Math.round(30*clamp(Math.pow(MKPAY[t.dom]!=null?MKPAY[t.dom]:.25,.7),.18,1.1))):30;
 function salaryFor(p,t){t=t||(p.tid!=null&&G&&G.teams[p.tid]);if(isNBA(t))return nbaSal(p);if((t&&t.dom==='NCAA')||(!t&&p.portal))return ncNil(p);const k=salLeague(t);return Math.max(r5k(80000*k),r5k(Math.max(0,p.o-50)**2*1100*(p.age>=33?.8:1)*k));}
-const demand=p=>r5k(Math.max(salaryFor(p,p.tid!=null?G.teams[p.tid]:G.teams[G.user]),(()=>{const U=G.teams[G.user];if(!G.salV||!U||isNBA(U)||U.dom==='NCAA'||p.prospect||p.portal)return 0;return salaryFor(p,null)*(p.tid==null?1:1)*mktK(p.o)*(p.nat===U.nat?.75:.95);})())*1.12*Math.sqrt(awMult(p))*(p.tdisc&&p.tdisc.s===G.season&&p.tdisc.t===G.user?.9:1)*faTrend(p));  // a free agent who liked his trial asks 10% less
+const demand=p=>r5k(Math.max(salaryFor(p,p.tid!=null?G.teams[p.tid]:G.teams[G.user]),(()=>{const U=G.teams[G.user];if(!G.salV||!U||isNBA(U)||U.dom==='NCAA'||p.prospect||p.portal)return 0;return salaryFor(p,null)*(p.tid==null?1:1)*mktK(p.o)*(p.nat===U.nat?.75:.95);})())*1.12*Math.sqrt(awMult(p))*(p.tdisc&&p.tdisc.s===G.season&&p.tdisc.t===G.user?.9:1)*faTrend(p)*agK(p));  // a free agent who liked his trial asks 10% less
+
+/* ===================== Agents ===================== */
+// Fictional agents (names invented, not real people). Each has a personality and a home market; players from that market tend to share
+// an agent. greedy: asks more and pushes for more; loyal: advises clients to stay and is easy on renewals; auction: brings rival offers
+// to the table and plays clubs against each other; fair: straight talk. Signing several clients of the same agent builds a relationship
+// that makes his other clients cheaper and keener (a package deal).
+const AGENTS=[
+ ['Dragan Vukić','Adriatic Sports Group','auction',['SRB','MNE','BIH','MKD']],['Nenad Lazić','Danube Basket Agency','greedy',['SRB','HUN','ROU']],
+ ['Ivo Barišić','Dalmatia Players','loyal',['CRO','SLO','BIH']],['Matej Kranjc','Alpine Hoops','fair',['SLO','AUT','CRO']],
+ ['Kostas Mavridis','Aegean Sports Management','greedy',['GRE','CYP']],['Nikos Papadakis','Hellas Pro Basket','loyal',['GRE']],
+ ['Emre Kaya','Bosphorus Athletes','auction',['TUR','AZE']],['Selim Doğan','Anatolia Sports','fair',['TUR']],
+ ['Javier Ortega','Iberia Basket Partners','fair',['ESP','POR','AND']],['Álvaro Llorente','Meridian Sports','greedy',['ESP','ARG','URU']],
+ ['Marco Bellandi','Lungo Sports','loyal',['ITA','SMR']],['Stefano Ferraris','Peninsula Pro','auction',['ITA','SUI']],
+ ['Julien Moreau','Hexagone Basket','fair',['FRA','BEL','SUI']],['Karim Benhamou','Paris Elite Sports','greedy',['FRA','SEN','MLI','CIV','CMR']],
+ ['Tobias Brenner','Nordring Athletes','fair',['GER','AUT','NED','DEN']],['Lukas Hoffmann','Rheinland Sports','loyal',['GER','LUX']],
+ ['Mindaugas Petraitis','Baltic Hoops','loyal',['LTU','LAT','EST']],['Artūras Kazlauskas','Vilnius Pro Agency','auction',['LTU','LAT','POL']],
+ ['Paweł Nowicki','Vistula Sports','fair',['POL','CZE','SVK']],['Andriy Melnyk','Eastern Hoops','greedy',['UKR','GEO','RUS','BLR']],
+ ['Yossi Ben-David','Mediterranean Pro','auction',['ISR']],['Omar Haddad','Levant Basket','fair',['LBN','JOR','SYR','QAT','KSA','UAE','EGY']],
+ ['Lars Eriksen','Nordic Basket Group','loyal',['SWE','FIN','NOR','DEN','ISL']],['Ciaran Walsh','Isles Sports','fair',['GBR','IRL']],
+ ['Marcus Reid','Crossover Sports Agency','auction',['USA','CAN']],['Derrick Holloway','Full Court Management','greedy',['USA','BAH','JAM']],
+ ['Tyrone Banks','Hometown Sports','loyal',['USA','PUR','DOM']],['Brian Callahan','Baseline Partners','fair',['USA','CAN']],
+ ['Rafael Duarte','Sul Sports','greedy',['BRA','POR','ANG','CPV']],['Mateo Ríos','Andes Basket','loyal',['ARG','CHI','URU','PAR','VEN','COL','MEX']],
+ ['Kenji Mori','Pacific Rim Sports','fair',['JPN','KOR','TPE','CHN','PHI','AUS','NZL']],['Liam Fraser','Southern Cross Hoops','auction',['AUS','NZL']],
+ ['Chidi Okafor','Lagos Sports Group','auction',['NGR','GHA','CMR','SSD','COD']],['Erik Lindqvist','Global Basket Partners','fair',[]],
+ ['Sergio Mancini','Worldwide Hoops','greedy',[]],['Daniel Weiss','Intercontinental Athletes','loyal',[]]];
+const AG_T={greedy:['Greedy','r','Always wants more: higher wages and he pushes again when you are close.'],loyal:['Loyal','g','Values stability: easy on renewals, but advises clients to stay where they are.'],
+  auction:['Plays clubs off','y','Brings other offers to the table and makes clubs bid against each other.'],fair:['Fair','b','Straight talk: asks what the player is worth.']};
+const agHash=s=>{let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i);x=Math.imul(x,16777619);}return x>>>0;};
+const AG_BY={};
+function agentOf(p){if(!p)return null;if(p.ag!=null&&AGENTS[p.ag])return AGENTS[p.ag];const k=p.nat||'';
+  let L=AG_BY[k];if(!L){L=AGENTS.map((a,i)=>i).filter(i=>AGENTS[i][3].includes(k));AG_BY[k]=L;}
+  const gl=AGENTS.map((a,i)=>i).filter(i=>!AGENTS[i][3].length),hs=agHash((p.f||'')+'|'+(p.l||'')+'|'+(p.by||p.age||''));
+  // most players use an agent from their own market; stars and a share of everyone use a big international agency
+  const pool=L.length&&!(p.o>=84&&hs%3===0)&&hs%7!==0?L:gl;p.ag=pool[hs%pool.length];return AGENTS[p.ag];}
+const agTrait=p=>{const a=agentOf(p);return a?a[2]:'fair';};
+const agClients=(p,n)=>{const a=agentOf(p);if(!a)return [];return Object.values(G.players).filter(q=>q&&q!==p&&q.tid!=null||q&&q!==p&&G.fa.includes(q.id)).filter(q=>!q.ntOnly&&!q.prospect&&agentOf(q)===a).sort((x,y)=>y.o-x.o).slice(0,n||4);};
+const agRel=p=>{const a=agentOf(p);return a?clamp(((G.agRel||{})[AGENTS.indexOf(a)]||0),0,5):0;};
+// wage factor of the agent: personality and relationship with the user's club
+const agK=p=>{if(!G||!p||p.prospect||p.portal)return 1;const t=agTrait(p);return ({greedy:1.12,auction:1.05,loyal:.97,fair:1})[t]*(1-.02*agRel(p));};
+function agSigned(p){const a=agentOf(p);if(!a)return;const i=AGENTS.indexOf(a);G.agRel=G.agRel||{};const before=G.agRel[i]||0;G.agRel[i]=Math.min(5,before+1);
+  const L=agClients(p,6).filter(q=>q.tid!==G.user&&(q.tid==null||wantsOut(q)||q.yrs<=1)&&q.o>=60).slice(0,2);
+  msg(a[0],`${a[1]}: working together`,`${a[0]} of ${a[1]} here. Pleased we got ${pname(p)}'s deal done.${L.length?` I also represent ${L.map(q=>`${pname(q)} (${q.pos}, ${q.tid==null?'free agent':G.teams[q.tid].name})`).join(' and ')}. Clubs that work well with me get better terms for my players: think of it as a package.`:' Clubs that work well with me get better terms for my other players.'}`,'fin');}
+function agReleased(p){const a=agentOf(p);if(!a)return;const i=AGENTS.indexOf(a);G.agRel=G.agRel||{};G.agRel[i]=Math.max(-2,(G.agRel[i]||0)-1);}
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -2148,6 +2191,7 @@ function ptPlayerStage(n){
   n.stage='player';n.demand=demand(p);
   let iv=46+(cur?(me.rep-cur.rep)*1.4:5)+rnd(-6,6);if(p.nat===me.nat)iv+=8;if(wantsOut(p))iv+=10;if(fin==='strain')iv-=6;if(fin==='crisis')iv-=15;
   const m=myRole(p);iv+=m.rank<5?6:m.rank>=10?-12:0;
+  {const a=agentOf(p),tr=agTrait(p),rel=agRel(p);if(tr==='loyal'&&cur)iv-=6;iv+=rel*4;n.ag=a?a[0]:null;n.agT=tr;}
   n.interest=clamp(Math.round(iv),3,85);n.pmax=p.o>=82?1:2;n.patience=n.pmax;n.wage=r5k(n.demand*.92);
   const g=[];
   if(fin==='admin'){n.over=true;n.log.push({who:pname(p),t:`Your club is insolvent. My agent won't even let me talk to you.`});return;}
@@ -2158,6 +2202,9 @@ function ptPlayerStage(n){
   else g.push(cur?`I'm happy at ${cur.name}, but I'll listen.`:`I'm looking for the right project. Let's talk.`);
   if(fin==='crisis'||fin==='strain')g.push(`But I've heard your club has money problems. My agent will want guarantees.`);
   n.log.push({who:pname(p),t:g.join(' ')});
+  {const a=agentOf(p),tr=agTrait(p),rel=agRel(p);if(a){const lines={greedy:`My client knows his value. Don't waste our time with small numbers.`,loyal:cur?`My advice to him has always been stability. Give us a good reason to leave ${cur.name}.`:`We want a club that will look after him for years, not one season.`,auction:`I'll be honest: we're talking to other clubs too. The best offer wins.`,fair:`Make a fair offer and we can get this done quickly.`};
+    n.log.push({who:`${a[0]} (agent)`,t:lines[tr]+(rel>=2?` We've done good business together before, so I'll make this easy.`:rel<0?` After how you treated my last client, I'm not in a hurry.`:'')});
+    if(tr==='auction'&&!cur&&!n.rival&&!userNBA()&&p.o>=64){const R=faRivals(Object.assign(Object.create(Object.getPrototypeOf(p)),p,{faHot:9e9}));if(R.length){const r=R.sort((x,y)=>y.wage-x.wage)[0];r.wage=r5k(Math.max(r.wage,n.demand*rf(.98,1.08)));n.rival={tid:r.tid,wage:r.wage};n.log.push({sys:1,t:`His agent says ${G.teams[r.tid].name} have offered ${eur(r.wage)} per season. Beat it or he signs there.`});}}}}
   if(p.o>=82)n.log.push({sys:1,t:`${pname(p)} is in demand. You only get one chance at a counter-offer.`});
 }
 function ptClubOffer(n){
@@ -2215,7 +2262,7 @@ function ptOffer(n){
   if(n.interest<15&&w<n.demand*1.3){n.over=true;n.log.push({who:pname(p),t:`It's not about money. I don't want to play for ${G.teams[G.user].name}.`});return;}
   if(w<req*.7){n.over=true;n.log.push({who:pname(p),t:`My agent laughed when he saw that number. We're done.`});return;}
   if((n.counter&&w>=n.counter)||w>=req){
-    if(!n.pushed&&!n.counter&&n.interest<70&&Math.random()<.45){n.pushed=true;n.counter=r5k(w*rf(1.04,1.08));n.log.push({who:pname(p),t:`We're almost there. ${eur(n.counter)} and I'll sign.`,counter:n.counter});return;}
+    if(!n.pushed&&!n.counter&&n.interest<70&&Math.random()<({greedy:.75,auction:.6,loyal:.25,fair:.4})[agTrait(p)]){n.pushed=true;n.counter=r5k(w*rf(1.04,1.08));n.log.push({who:pname(p),t:`We're almost there. ${eur(n.counter)} and I'll sign.`,counter:n.counter});return;}
     n.deal={wage:w,yrs:n.yrs};n.log.push({who:pname(p),t:n.interest>=65?`Let's do it. I can't wait to play for ${G.teams[G.user].name}.`:`OK, we have an agreement.`});return;
   }
   n.patience--;
@@ -2237,7 +2284,7 @@ function ptSign(n){
     news(`${F.name} do not match`,`The ${F.name} declined to match the offer sheet of the ${G.teams[G.user].name} for ${pname(p)}.`);}
   const nr=userNBA()?nbaRoute(n.deal.wage,G.user,p):null;if(nr&&nr.route==='mle'){G.mle=G.season;msg('General Manager','Mid-level exception used',`We used the ${nr.kind} mid-level exception to sign ${pname(p)}.`,'fin');}
   delete p.sellOn;p.clause=n.clauseOn&&!sk&&!userNBA()?clauseFor(p):null;
-  p.tid=null;p.sal=n.deal.wage;p.yrs=sk?1:n.deal.yrs;delete p.tw;delete p.nfa;join(p,G.teams[G.user]);
+  p.tid=null;p.sal=n.deal.wage;p.yrs=sk?1:n.deal.yrs;delete p.tw;delete p.nfa;join(p,G.teams[G.user]);if(!sk)try{agSigned(p);}catch(err){}
   if(sk){p.short={k:sk,until:sk==='mo'?G.day+30:null,for:sk==='jk'?need[0].id:null};delete p.trial;
     msg('Sporting Director',`${pname(p)} signed \u00b7 ${SHORTK[sk]}`,`${pname(p)} has signed a short-term deal. ${sk==='mo'?`His contract runs for one month, until ${dateStr(new Date(G.season,9,1+G.day+30))}.`:sk==='jk'?`He replaces the injured ${pname(need[0])} and leaves when he is fit again.`:'His contract runs until the end of the season.'} We pay him at a rate of ${eur(p.sal)} per season, only for the time he is here.`,'fin');save();return null;}
   if(n.promise){p.promise={bad:0};const t=G.teams[G.user];t.order=[p.id,...t.order.filter(i=>i!==p.id)];}
@@ -6106,8 +6153,8 @@ function waivTick(){if(!G||!G.nl||!G.nl.NBA)return;G.wsteps=(G.wsteps||0)+1;cons
   G.dead=(G.dead||[]).filter(d=>Object.keys(d.m).some(y=>+y>=G.season&&d.m[y]>0));}
 
 function releaseCost(p){return r5k(p.sal*.5*p.yrs);}
-function releasePlayer(pid){if(userNBA())return userWaive(pid,false);const p=G.players[pid],c=releaseCost(p);if(p.loan)return 'He is only here on loan. Send him back instead.';if(G.teams[G.user].order.length<=10)return 'You need at least 10 players.';G.fin.bal-=c;G.fin.season.rel+=c;noteExit(p,'Released');toFA(p);p.sal=salaryFor(p);msg('Sporting Director',`${pname(p)} released`,`${pname(p)} was released. The buyout cost ${eur(c)}.`,'fin');save();return null;}
-function extendPlayer(pid,y){if(userNBA()&&typeof nbaExtTerms==='function'&&nbaExtTerms(G.players[pid]))return nbaExtend(pid,y);const p=G.players[pid],d=demand(p);if(p.retAt===G.season)return `${pname(p)} has decided to retire at the end of the season.`;p.extS=G.season;if(moodOf(p)<25&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal. Speak to him first.`;if(!userNBA()&&wageBill(G.user)-p.sal+d>G.fin.wageBudget)return `His new wage of ${eur(d)} would exceed your wage budget.`;p.sal=d;p.yrs+=2;msg('Sporting Director',`${pname(p)} extended`,`${pname(p)} signed a two-year extension at ${eur(d)} per season.`,'fin');save();return null;}
+function releasePlayer(pid){if(userNBA())return userWaive(pid,false);const p=G.players[pid],c=releaseCost(p);if(p.loan)return 'He is only here on loan. Send him back instead.';if(G.teams[G.user].order.length<=10)return 'You need at least 10 players.';G.fin.bal-=c;G.fin.season.rel+=c;noteExit(p,'Released');toFA(p);p.sal=salaryFor(p);try{agReleased(p);}catch(err){}msg('Sporting Director',`${pname(p)} released`,`${pname(p)} was released. The buyout cost ${eur(c)}.${agentOf(p)?` His agent ${agentOf(p)[0]} will remember this.`:''}`,'fin');save();return null;}
+function extendPlayer(pid,y){if(userNBA()&&typeof nbaExtTerms==='function'&&nbaExtTerms(G.players[pid]))return nbaExtend(pid,y);const p=G.players[pid],d=demand(p);if(p.retAt===G.season)return `${pname(p)} has decided to retire at the end of the season.`;p.extS=G.season;if(moodOf(p)<(agTrait(p)==='loyal'?15:agTrait(p)==='greedy'?32:25)&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal${agTrait(p)==='greedy'?`, and his agent ${agentOf(p)[0]} wants to test the market`:''}. Speak to him first.`;if(!userNBA()&&wageBill(G.user)-p.sal+d>G.fin.wageBudget)return `His new wage of ${eur(d)} would exceed your wage budget.`;p.sal=d;p.yrs+=2;msg('Sporting Director',`${pname(p)} extended`,`${pname(p)} signed a two-year extension at ${eur(d)} per season.`,'fin');save();return null;}
 
 
 
