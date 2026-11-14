@@ -6552,7 +6552,7 @@ const forRoom=(t,p,R)=>!R||R.floor||!isForeign(p,R)||forCount(t.id,R)<R.cap;
 // After agreeing with the user a good free agent (OVR 64+, not the NBA's own free agency, not short deals) may have other offers. He
 // then decides after two game days between them; the user can raise the offer twice. Clubs must fit him as in aiFASign.
 function faRivals(p){const hot=p.faHot&&p.faHot>faAbs();if(p.o<64||Math.random()>(hot?1:p.o>=70?.5:.3))return [];
-  const fit=G.teams.filter(t=>t.id!==G.user&&!isNBA(t)&&t.dom!=='GL'&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&t.order.length<17&&teamFinState(t.id)==='ok').filter(t=>{const lv=teamLevel(t),ps=roster(t.id).sort((a,b)=>b.o-a.o),tenth=ps[9]?ps[9].o:0;return p.o>tenth+2&&p.o>=lv-7&&p.o<=lv+10&&forRoom(t,p,ruleOfTeam(t));});
+  const fit=G.teams.filter(t=>t.id!==G.user&&!isNBA(t)&&t.dom!=='GL'&&t.dom!=='NCAA'&&!t.ntTemp&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&t.order.length<17&&teamFinState(t.id)==='ok').filter(t=>{const lv=teamLevel(t),ps=roster(t.id).sort((a,b)=>b.o-a.o),tenth=ps[9]?ps[9].o:0;return p.o>tenth+2&&p.o>=lv-7&&p.o<=lv+10&&forRoom(t,p,ruleOfTeam(t));});
   return shuffle(fit).slice(0,rnd(1,2)).map(t=>({tid:t.id,wage:r5k(salaryFor(p,t)*faTrend(p)*rf(.95,1.12))}));}
 function faBidStart(n,p){const rivals=faRivals(p);if(!rivals.length)return false;G.faBid=G.faBid||{};
   G.faBid[p.id]={wage:n.deal.wage,yrs:n.deal.yrs,promise:!!n.promise,clauseOn:!!n.clauseOn,left:2,imp:0,rivals};
