@@ -181,7 +181,7 @@ function awRun(){const S=seasonStr(),R={};G.awards=G.awards||{};const mineL=[];
   for(const A of awLeagues()){const rec={};for(const i of A.ids){const r=A.rec(i);rec[i]=(r[0]+r[1])?r[0]/(r[0]+r[1]):.5;}
     if(A.key==='NBA'){const O=awNBA(A,rec);if(O){R.NBA=O;const tg=(e,k)=>{const p=e&&G.players[e.pid];if(!p)return;(p.aw=p.aw||[]).push([S,'NBA',k]);if(k==='first'||k==='first2'||k==='first3')p.anba=(p.anba||[]).concat([G.season]);if(k==='roy'&&p.pot<97)p.pot++;if(p.tid===G.user){G.board=clamp(G.board+(k==='mvp'?3:1),0,100);G.fans=clamp(G.fans+(k==='mvp'?3:1),0,100);}};
       tg(O.mvp,'mvp');O.first.forEach(e=>tg(e,'first'));O.second.forEach(e=>tg(e,'first2'));O.third.forEach(e=>tg(e,'first3'));for(const k of ['dpoy','roy','smoy','mip'])if(O[k])tg(O[k],k);
-      const ex=G.aexp&&G.aexp.r||{},rkk=A.ids.slice().sort((a,b)=>rec[b]-rec[a]),best=A.ids.map(i=>({i,d:(ex[A.key+'|'+i]||rkk.indexOf(i)+1)-(rkk.indexOf(i)+1)})).sort((a,b)=>b.d-a.d||rec[b.i]-rec[a.i])[0];if(best){const t=G.teams[best.i];O.coach={tid:best.i,n:(best.i===G.user?G.mgr:hcName(t))||'',t:t.short,d:best.d};if(best.i===G.user){(G.coachAw=G.coachAw||[]).push([S,A.key]);G.board=clamp(G.board+8,0,100);G.fans=clamp(G.fans+3,0,100);}}
+      const ex=G.aexp&&G.aexp.r||{},rkk=A.ids.slice().sort((a,b)=>rec[b]-rec[a]),best=A.ids.map(i=>({i,d:(ex[A.key+'|'+i]||rkk.indexOf(i)+1)-(rkk.indexOf(i)+1)})).sort((a,b)=>b.d-a.d||rec[b.i]-rec[a.i])[0];if(best){const t=G.teams[best.i];O.coach={tid:best.i,n:(best.i===G.user?G.mgr:hcName(t))||'',t:t.short,d:best.d};if(best.i===G.user){(G.coachAw=G.coachAw||[]).push([S,A.key]);try{crepAdd(3,'Coach of the Year');}catch(e){}G.board=clamp(G.board+8,0,100);G.fans=clamp(G.fans+3,0,100);}}
       if(A.ids.includes(G.user))mineL.push(A.key);}continue;}
     const pool=A.ids.flatMap(i=>roster(i)).filter(p=>p[A.st]&&p[A.st].gp>0);if(pool.length<10)continue;const mx=Math.max(...pool.map(p=>p[A.st].gp));
     const el=pool.filter(p=>p[A.st].gp>=Math.max(3,mx*.5)).map(p=>({p,sc:per(p[A.st],'pir')*(.8+.4*(rec[p.tid]||.5))})).sort((a,b)=>b.sc-a.sc);if(!el.length)continue;
@@ -195,7 +195,7 @@ function awRun(){const S=seasonStr(),R={};G.awards=G.awards||{};const mineL=[];
     // effects on the players
     const tag=(e,k)=>{const p=G.players[e.pid];if(!p)return;(p.aw=p.aw||[]).push([S,A.key,k]);if(k==='young'&&p.pot<97)p.pot++;if(p.tid===G.user){G.board=clamp(G.board+(k==='mvp'?3:1),0,100);G.fans=clamp(G.fans+(k==='mvp'?3:1),0,100);}};
     tag(O.mvp,'mvp');(O.first||[]).forEach(e=>tag(e,'first'));if(O.young)tag(O.young,'young');
-    if(O.coach&&O.coach.tid===G.user){(G.coachAw=G.coachAw||[]).push([S,A.key]);G.board=clamp(G.board+8,0,100);G.fans=clamp(G.fans+3,0,100);}
+    if(O.coach&&O.coach.tid===G.user){(G.coachAw=G.coachAw||[]).push([S,A.key]);try{crepAdd(3,'Coach of the Year');}catch(e){}G.board=clamp(G.board+8,0,100);G.fans=clamp(G.fans+3,0,100);}
     if(A.ids.includes(G.user))mineL.push(A.key);}
   G.awards[S]=R;const ks=Object.keys(G.awards);if(ks.length>15)delete G.awards[ks[0]];
   for(const k of mineL){const O=R[k];if(!O)continue;const me=x=>x&&G.teams.find(t=>t.short===x.t)&&G.teams.find(t=>t.short===x.t).id===G.user;
@@ -1848,7 +1848,45 @@ function replaceClub(t,why){
   news(`${t.name} join the EuroLeague`,`${t.name} from ${t.city} take the place of ${why==='relegated'?'the relegated':'the bankrupt'} ${oldName}.`);
 }
 // how attractive the coach is on the market: club level, board confidence and titles won
-function coachScore(){const cur=G.teams[G.user],titles=G.history.filter(h=>h.champ===G.user||(h.dom&&h.dom.champ===G.user)).length,met=G.history.slice(0,3).filter(h=>h.met).length;
+// coach reputation: a personal score that follows the user from club to club (results, objectives, titles, dismissals)
+function crepInit(){if(!G||G.crep!=null)return;const cur=G.teams[G.user];if(!cur)return;const titles=G.history.filter(h=>h.champ===G.user||(h.dom&&h.dom.champ===G.user)).length,met=G.history.slice(0,3).filter(h=>h.met).length;
+  G.crep=clamp(Math.round(cur.rep+(cur.dom==='ABA2'?-4:cur.dom==='KLS'?-6:cur.dom==='BIH'?-8:0)+titles*2+met),25,95);G.crepLog=[];G.crepG=0;}
+function crepAdd(d,why){crepInit();if(G.crep==null||!d)return 0;const b=G.crep;G.crep=Math.round(clamp(G.crep+d,20,99)*10)/10;const real=Math.round((G.crep-b)*10)/10;
+  if(why&&real){(G.crepLog=G.crepLog||[]).unshift({s:seasonStr(),d:real,why});G.crepLog.length=Math.min(G.crepLog.length,30);}return real;}
+const CREP_T=[[88,'Elite'],[78,'Top European'],[68,'Respected in Europe'],[58,'National'],[45,'Local'],[0,'Unknown']];
+const crepLbl=v=>CREP_T.find(([m])=>v>=m)[1];
+// a coach whose name is bigger than the club gets more patience from the board; an unknown coach gets less
+const crepPat=()=>{if(!G||G.crep==null)return 0;const c=G.teams[G.user];return c?clamp(Math.round((G.crep-c.rep)/3),-5,6):0;};
+function crepGame(won,op){if(!G||!op||preOn()||G.sacked)return;crepInit();const c=G.teams[G.user];if(!c||G.crep==null)return;const pe=1/(1+Math.exp(-(c.rep-op.rep)/6)),d=.12*((won?1:0)-pe);G.crep=Math.round(clamp(G.crep+d,20,99)*100)/100;G.crepG=(G.crepG||0)+d;}
+function crepSeason(met){const h=G.history[0];if(!h||G.crepS===h.season)return;G.crepS=h.season;crepInit();if(G.crep==null)return;const cur=G.teams[G.user],b0=Math.round(G.crep),parts=[];
+  if(G.crepG){const r=Math.round(G.crepG*10)/10;G.crepG=0;if(r){parts.push(['Results against expectations',r]);(G.crepLog=G.crepLog||[]).unshift({s:h.season,d:r,why:'Results against expectations'});}}
+  const add=(d,w)=>{const r=crepAdd(d,w);if(r)parts.push([w,r]);};
+  add(met?2:-2.5,met?'Board objective met':'Board objective missed');
+  if(h.champ===G.user)add(isNBA(cur)?9:7,isNBA(cur)?'NBA championship':'EuroLeague title');
+  if(h.dom&&h.dom.champ===G.user&&h.dom.champ!==h.champ)add(cur.rep>=75?3:2,`${h.dom.name} title`);
+  const pull=(cur.rep-G.crep)*(cur.rep>G.crep?.1:.05);if(Math.abs(pull)>=.3)add(pull,cur.rep>G.crep?`Coaching a club of ${cur.name}'s profile`:`Working below your level at ${cur.name}`);
+  const b1=Math.round(G.crep);if(parts.length)msg('Agent',`Your reputation: ${b1} (${crepLbl(b1)})`,`After the ${h.season} season your standing as a coach ${b1>b0?'rose':b1<b0?'fell':'held'} from ${b0} to ${b1}. ${parts.map(([w,d])=>`${w} ${d>0?'+':''}${d}`).join(' \u00b7 ')}. Clubs judge you by this when they look for a head coach.`,'board');}
+function crepSack(){if(G.resigned){if(!G.expired&&!seasonOver())crepAdd(-1.5,`Walked out on ${G.teams[G.user].name} during the season`);}else if(G.bankrupt)crepAdd(-2,`${G.teams[G.user].name} went bankrupt`);else if(!G.expired)crepAdd(-5,`Dismissed by ${G.teams[G.user].name}`);}
+function coachScore(){crepInit();if(G.crep==null)return coachScore0();return G.crep+(G.board-50)/10+coachAwB()-(G.sacked&&!G.resigned&&!G.expired&&!G.bankrupt?3:0);}
+const jobLg=t=>{const N=NLCFG[t.dom];return !t.dom?'EuroLeague':N?N.name:t.dom==='CUP'?cupName(cupOfTeam(t.id)):t.dom==='ABA'?'AdmiralBet ABA League':t.dom==='ABA2'?'ABA League 2':t.dom==='KLS'?'KLS First League':t.dom==='BIH'?'Liga 14':isNBA(t)?'NBA':t.dom;};
+// open head coach positions the user can apply for, and the chance a club picks him
+const jobVacs=()=>G.teams.filter(t=>t.id!==G.user&&!t.ntTemp&&t.dom!=='GONE'&&t.dom!=='FOUND'&&t.dom!=='NCAA'&&!t.bankrupt&&t.order&&t.order.length&&hasVac(t)).sort((a,b)=>b.rep-a.rep);
+function jobChance(t){const s=coachScore();if(isNBA(t)&&s<82&&!isNBA(G.teams[G.user]))return .01;return clamp(.45+(s-t.rep)*.06,.02,.92);}
+function jobApply(tid){const t=G.teams[tid];if(!t||G.sacked||G.bankrupt)return {ok:false,text:'Not possible right now.'};if(preOn())return {ok:false,text:'Clubs appoint coaches for the new season before pre-season. Apply once the season is under way.'};
+  G.apps=(G.apps||[]).filter(a=>a.s===G.season);if(G.apps.some(a=>a.tid===tid))return {ok:false,text:`You already applied to ${t.name}.`};if(G.apps.filter(a=>a.st==='wait').length>=3)return {ok:false,text:'You have three applications open. Wait for an answer first.'};
+  if(!hasVac(t))return {ok:false,text:`${t.name} are not looking for a head coach.`};
+  G.apps.push({tid,s:G.season,d:G.day,dec:G.day+rnd(3,7),st:'wait'});let leak='';
+  if(Math.random()<.35){G.board=clamp(G.board-5,0,100);leak=' Word got out: your board know about it.';msg(boardType().n||'Club President',`You applied to ${t.name}`,`We read that you applied for the head coach job at ${t.name}. We expect full commitment from our coach. This has not gone down well.`,'board');}
+  save();return {ok:true,text:`Application sent to ${t.name}. They decide within a week.${leak}`};}
+function appTick(){if(!G||!G.apps||!G.apps.length)return;for(const a of G.apps){if(a.st!=='wait'||G.day<a.dec&&!seasonOver())continue;const t=G.teams[a.tid];if(!t){a.st='no';continue;}
+    if(G.sacked||G.bankrupt){a.st='no';continue;}
+    if(!hasVac(t)){a.st='no';msg(t.name,`${t.name}: position filled`,`Thank you for your application. ${t.name} have appointed ${hcName(t)||'another coach'} as head coach.`,'board');continue;}
+    if(Math.random()<jobChance(t)){a.st='yes';if(seasonOver())msg(t.name,`Job offer: head coach of ${t.name}`,`After your application, ${t.name} (${jobLg(t)}) want you as their head coach from next season. They offer about ${eur(coachSalFor(t))} per season. If you accept, you move there when the new season starts.`,'job',{tid:t.id});
+      else msg(t.name,`Offer now: head coach of ${t.name}`,`After your interview, ${t.name} (${jobLg(t)}) want you to take over immediately. You would leave ${G.teams[G.user].name} at once and continue this season with their squad and their record. They offer about ${eur(coachSalFor(t))} per season. The offer is open for 10 days.`,'midjob',{tid:t.id,until:G.day+10});}
+    else{a.st='no';msg(t.name,`${t.name}: application declined`,`Thank you for your interest. ${t.name} have decided to go with ${pick(['a coach with more experience at this level','a candidate who knows the league better','another candidate','a coach with a bigger name'])}.`,'board');}}}
+const jobSec=()=>{if(!G||G.sacked)return ['Dismissed','r'];if(G.ulti)return ['Ultimatum','r'];if(G.coach&&stake(G.user)>50)return ['Owner','g'];const b=G.board+crepPat()*2;
+  return b>=85?['Untouchable','g']:b>=65?['Secure','g']:b>=45&&!G.warn?['Stable','b']:b>=30?['Under pressure','y']:['At risk','r'];};
+function coachScore0(){const cur=G.teams[G.user],titles=G.history.filter(h=>h.champ===G.user||(h.dom&&h.dom.champ===G.user)).length,met=G.history.slice(0,3).filter(h=>h.met).length;
   return cur.rep+(cur.dom==='ABA2'?-4:cur.dom==='KLS'?-6:cur.dom==='BIH'?-8:0)+(G.board-50)/10+titles*2+met+coachAwB()-(G.sacked&&!G.resigned&&!G.expired&&!G.bankrupt?7:0);}
 // the coach resigns: offers come from clubs that rate him, in the EuroLeague or not
 function resign(){if(G.sacked||G.bankrupt)return;G.resigned=true;G.sacked=true;
@@ -1857,9 +1895,9 @@ function resign(){if(G.sacked||G.bankrupt)return;G.resigned=true;G.sacked=true;
   news(G.expired?`${G.mgr} leaves ${G.teams[G.user].name}`:`${G.mgr} resigns at ${G.teams[G.user].name}`,G.expired?`${G.mgr} leaves ${G.teams[G.user].name} at the end of his contract.`:`${G.mgr} has stepped down as head coach of ${G.teams[G.user].name}.`);save();}
 // a coach without a club hears from every league that rates him, big and small: 6 to 10 offers around his level, the NBA only for the best
 // during the season a club may want the user right now: he moves at once, takes over their squad, record and season. At most 2 a season, valid for 14 days.
-function midJobTick(){if(!G||G.sacked||G.bankrupt||preOn()||seasonOver())return;for(const m of G.inbox)if(m.type==='midjob'&&!m.done&&m.act&&G.day>m.act.until)m.done='Expired';
+function midJobTick(){try{appTick();}catch(err){console.error(err);}if(!G||G.sacked||G.bankrupt||preOn()||seasonOver())return;for(const m of G.inbox)if(m.type==='midjob'&&!m.done&&m.act&&G.day>m.act.until)m.done='Expired';
   if(G.day<45||G.day>150)return;if(G.jobStart===G.season&&G.day-(G.jobDay||0)<60)return;const R=G.mjR&&G.mjR.s===G.season?G.mjR:(G.mjR={s:G.season,n:0,d:0});if(R.n>=2||G.day-R.d<20)return;R.d=G.day;if(Math.random()>(G.board>=60?.3:.15))return;
-  const s=coachScore(),cur=G.teams[G.user],L=G.teams.filter(t=>t.id!==G.user&&t.dom!=='FOUND'&&t.dom!=='GONE'&&!t.bankrupt&&t.order&&t.order.length>=SQUADMIN&&teamFinState(t.id)!=='admin'&&t.dom!=='NCAA'&&t.rep>=s-14&&t.rep<=s+5&&(!isNBA(t)||s>=84||isNBA(cur))&&(t.dom||G.phase==='reg')&&(!NLCFG[t.dom]||(nlOf(t.id)&&nlOf(t.id).phase==='reg'))&&hasVac(t)&&!G.inbox.some(m=>m.type==='midjob'&&!m.done&&m.act&&m.act.tid===t.id));if(!L.length)return;
+  const s=coachScore(),cur=G.teams[G.user],L=G.teams.filter(t=>t.id!==G.user&&t.dom!=='FOUND'&&t.dom!=='GONE'&&!t.bankrupt&&t.order&&t.order.length>=SQUADMIN&&teamFinState(t.id)!=='admin'&&t.dom!=='NCAA'&&t.rep>=s-14&&t.rep<=s+5&&(!isNBA(t)||s>=84||isNBA(cur))&&(t.dom||G.phase==='reg')&&(!NLCFG[t.dom]||(nlOf(t.id)&&nlOf(t.id).phase==='reg'))&&(hasVac(t)||(!isNBA(t)&&t.rep>=cur.rep+4&&s>=t.rep+2&&G.board>=55))&&!G.inbox.some(m=>m.type==='midjob'&&!m.done&&m.act&&m.act.tid===t.id));if(!L.length)return;
   const t=wpick(L,c=>Math.pow(1.12,c.rep-40)*(hasVac(c)?8:1)),N=NLCFG[t.dom],lg=!t.dom?'EuroLeague':N?N.name:t.dom==='CUP'?cupName(cupOfTeam(t.id)):t.dom==='ABA'?'AdmiralBet ABA League':t.dom==='ABA2'?'ABA League 2':t.dom==='KLS'?'KLS First League':t.dom==='BIH'?'Liga 14':t.dom;R.n++;
   msg(t.name,`Offer now: head coach of ${t.name}`,`${t.name} (${lg}) ${hasVac(t)?`parted ways with ${t.hcVac.old} and `:''}want you to take over immediately. You would leave ${cur.name} at once and continue this season with their squad and their record. They offer about ${eur(coachSalFor(t))} per season. The offer is open for 14 days.`,'midjob',{tid:t.id,until:G.day+14});}
 const midJobs=()=>G.inbox.filter(m=>m.type==='midjob'&&!m.done&&m.act&&G.teams[m.act.tid]);
@@ -2443,7 +2481,7 @@ function userResult(m,r){
   const prK=1-.1*sk('pr'),nk=isNBA(G.teams[G.user])&&(r.kind==='nl'||r.kind==='nlpo')?(r.kind==='nl'?.4:.7):1;const dbyName=derbyOf(r.h,r.a),dbyK=dbyName?2:1;G.board=clamp(G.board+(won?(wp<.4?3:1.5):-(wp>.6?3:1.5)*prK)*dk*nk*dbyK,0,100);
   G.fans=clamp(G.fans+(won?2:-2.5*prK)*dk*nk*dbyK,0,100);
   derbyDone(r,won,G.teams[op.tid]);
-  ultiResult(won);
+  ultiResult(won);try{crepGame(won,G.teams[op.tid]);}catch(e){}
   roleMinutes(me);
   G.sLost=(G.sLost||0)+roster(G.user).filter(p=>p.inj>0).length;
   fanResult(r,won,me.pts-op.pts,ui===0&&!m.neutral);roomResult(r,won);
@@ -4793,16 +4831,17 @@ function seasonEndDom(){
 }
 // end of season: other clubs (EuroLeague and ABA) may want to hire the user
 function jobOfferRound(met){
+  try{crepSeason(met);}catch(e){console.error(e);}
   if(G.sacked||G.bankrupt)return;
-  const cur=G.teams[G.user],champ=(G.po&&G.po.champ===G.user)||(G.dom&&G.dom.champ===G.user),good=met||G.board>=70;
+  const cur=G.teams[G.user],R0=G.crep!=null?Math.round((cur.rep+2*G.crep)/3):cur.rep,champ=(G.po&&G.po.champ===G.user)||(G.dom&&G.dom.champ===G.user),good=met||G.board>=70;
   const cand=G.teams.filter(t=>t.id!==G.user&&(!isNBA(t)||isNBA(cur))&&t.dom!=='BIH'&&t.dom!=='FOUND'&&t.dom!=='GONE'&&!t.bankrupt&&t.dom!=='ABA2'&&t.dom!=='KLS'&&!(G.dom&&G.dom.releg===t.id)&&teamFinState(t.id)!=='admin');
-  const up=good?cand.filter(t=>t.rep>cur.rep&&t.rep<=cur.rep+(champ?12:7)):[];
-  const side=cand.filter(t=>!!t.dom!==!!cur.dom&&t.rep>=cur.rep-8&&t.rep<=cur.rep+1);
+  const up=good?cand.filter(t=>t.rep>R0&&t.rep<=R0+(champ?12:7)):[];
+  const side=cand.filter(t=>!!t.dom!==!!cur.dom&&t.rep>=R0-8&&t.rep<=R0+1);
   const offers=[];
   if(up.length&&Math.random()<(champ?.85:.5))offers.push(pick(up));
   const s=side.filter(t=>!offers.includes(t));if(s.length&&Math.random()<(cur.dom?(good?.5:.1):(met?.35:.6)))offers.push(pick(s));
   // NBA teams also look at European coaches after a good season at a strong club (more often after a title); smaller franchises first
-  if(!isNBA(cur)&&good&&(champ||cur.rep>=80)){const nba=G.teams.filter(t=>isNBA(t)&&t.id!==G.user&&t.rep<=cur.rep+(champ?10:5)&&!offers.includes(t));
+  if(!isNBA(cur)&&good&&(champ||R0>=80)){const nba=G.teams.filter(t=>isNBA(t)&&t.id!==G.user&&t.rep<=R0+(champ?10:5)&&!offers.includes(t));
     if(nba.length&&Math.random()<(champ?.45:met&&G.board>=75?.2:.08))offers.push(nba.sort((a,b)=>a.rep-b.rep+rf(-3,3))[0]);}
   // G League head coaches are a classic route to the NBA: after a good season (above all a title) an NBA franchise may call
   if(cur.dom==='GL'&&good){const glC=G.nl&&G.nl.GL&&G.nl.GL.champ===G.user,nba=G.teams.filter(t=>isNBA(t)&&t.id!==G.user&&!offers.includes(t));
@@ -4893,7 +4932,7 @@ function coachTick(){
   if(!G.coach){G.coach={bal:0,earned:0,sev:0};newCoachDeal(G.teams[G.user],2);}
   const C=G.coach,k=monthKey();
   if(G.sacked||G.bankrupt){
-    if(!C.settled){C.settled=true;C.lastKey=k;
+    if(!C.settled){C.settled=true;C.lastKey=k;try{crepSack();}catch(e){}
       if(G.resigned){C.lastSev=0;if(!G.expired)msg('Agent','Contract ended',`You resigned, so ${G.teams[G.user].name} owe you no severance. Your savings: ${eur(C.bal)}.`,'fin');}
       else{const share=G.bankrupt?.25:G.relegated?.5:1,amt=Math.round(coachLeft()*C.sal/12*share/1e3)*1e3;C.bal+=amt;C.earned+=amt;C.sev+=amt;C.lastSev=amt;
         msg('Agent','Severance payment',`${G.teams[G.user].name} pay you ${eur(amt)} in severance${share<1?` (${Math.round(share*100)}% of the rest of your contract, because the club ${G.bankrupt?'is bankrupt':'was relegated'})`:' for the rest of your contract'}. Your savings: ${eur(C.bal)}.`,'fin');}}
@@ -5035,7 +5074,7 @@ function ultiResult(won){const B=brd();B.g++;if(won)B.w++;const U=G.ulti;
     if(U.w>=U.need){G.ulti=null;G.board=clamp(Math.max(G.board,25)+12,0,100);msg('Club President','Ultimatum met',`${U.w} wins from ${U.of-U.left} games: you delivered when it counted. You keep your job, and the board's confidence recovers.`,'board');return;}
     if(U.w+U.left<U.need){G.ulti=null;G.sacked=true;msg('Club President','You are dismissed',`We asked for ${U.need} wins from ${U.of} games. You could no longer reach that. Our ways part here.`,'board');}
     return;}
-  if(G.board<=(G.warn?35:22)+boardType().ulti&&!G.sacked&&B.g>=4&&!B.ulti&&!seasonOver()){B.ulti=1;const need=clamp(Math.ceil(5*clamp(B.w/B.g+.15,.4,.6)),2,3);G.ulti={need,of:5,w:0,left:5};
+  if(G.board<=(G.warn?35:22)+boardType().ulti-crepPat()&&!G.sacked&&B.g>=4&&!B.ulti&&!seasonOver()){B.ulti=1;const need=clamp(Math.ceil(5*clamp(B.w/B.g+.15,.4,.6)),2,3);G.ulti={need,of:5,w:0,left:5};
     msg('Club President','Ultimatum',`Board confidence has collapsed (${Math.round(G.board)}%). Win ${need} of the next 5 games, or you are out.`,'board');}}
 function boardSeason(){const B=G.brd,h=G.history[0];pledgeCheck(h);G.pledge=G.pledgeNext||null;G.pledgeNext=null;G.sLost=0;if(G.ulti){G.ulti=null;msg('Club President','Ultimatum lifted',"The season ended before the ultimatum ran out. You start the new season on a clean slate, but the board are watching.",'board');}
   if(B&&B.grant&&h&&!h.met&&!G.sacked){G.board=clamp(G.board-10,0,100);msg('Club President','The money was not well spent',`We gave you ${eur(B.grant)} extra and you still missed the target. Board confidence falls by another 10.`,'board');}}
@@ -5346,7 +5385,7 @@ function meetAnswer(k){const M=G.meet,f=meetFacts(),say=(d,t)=>{M.d+=d<0?d*board
   save();}
 function boardScoreMeet(M){const f=meetFacts(),B=boardType(),yng=roster(G.user).filter(p=>p.age<=23&&(roleAvg(p)||0)>=15).length;return G.board+M.d+(f.met?10:0)-(f.miss>=1?(f.miss>=2?12+(f.miss-2)*8:4)*B.miss:0)+(f.seasons<=1?B.first:0)+(f.champ?10:0)-((f.fin==='crisis'||f.fin==='admin'?10:f.fin==='strain'?5:0)+(f.net<-100000?4:0))*B.fin+Math.min(yng,3)*B.young-(f.fans<30?5:0);}
 function meetVerdict(){const M=G.meet,f=meetFacts(),s=boardScoreMeet(M),t=G.teams[G.user];M.done=true;M.score=s;G.warn=null;
-  const B=boardType();if(!f.met&&s<B.sack){M.v='sack';M.log.push({who:1,t:`${B.sack_t} Your time at ${t.name} ends today.`});G.board=clamp(Math.min(G.board,10),0,100);msg(meetBoss(),'You are dismissed',`After the season review the board relieved you of your duties at ${t.name}.`,'board');news(`${t.name} sack ${G.mgr}`,`${t.name} dismissed head coach ${G.mgr} after the season review.`);}
+  const B=boardType();if(!f.met&&s+crepPat()<B.sack){M.v='sack';M.log.push({who:1,t:`${B.sack_t} Your time at ${t.name} ends today.`});G.board=clamp(Math.min(G.board,10),0,100);msg(meetBoss(),'You are dismissed',`After the season review the board relieved you of your duties at ${t.name}.`,'board');news(`${t.name} sack ${G.mgr}`,`${t.name} dismissed head coach ${G.mgr} after the season review.`);}
   else if(s<B.warn){M.v='warn';G.warn=1;G.board=clamp(Math.max(G.board,28)+M.d*.3,0,100);M.log.push({who:1,t:'You stay, for now. But this is your final warning. A bad start next season and we will act quickly.'});}
   else if(s<B.back||!f.met){M.v='ok';G.board=clamp(Math.max(G.board,42)+M.d*.5,0,100);M.log.push({who:1,t:f.met?'You have our trust. Keep going.':'We believe you can still do this job. But the next season has to be better.'});}
   else{M.v='back';G.board=clamp(Math.max(G.board,60)+M.d*.5+4,0,100);M.log.push({who:1,t:B.back_t});}
