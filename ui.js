@@ -819,12 +819,25 @@ function inboxHTML(){const IB=myInbox();if((UI.msg==null||!IB.some(x=>x.id===UI.
 function cmpRow(l,a,b,lo=40,hi=95){const pa=clamp((a-lo)/(hi-lo)*100,3,100),pb=clamp((b-lo)/(hi-lo)*100,3,100);return `<div class="cmp"><span class="l">${Math.round(a)}</span><span class="bl"><i style="width:${pa}%;background:${a>=b?'var(--or)':'#b8bec6'}"></i></span><span class="t">${l}</span><span class="br"><i style="width:${pb}%;background:${b>a?'var(--or)':'#b8bec6'}"></i></span><span class="rr">${Math.round(b)}</span></div>`;}
 // a player's stats live per competition: take the one he has played most in this season
 const bestSt=p=>[p.st,p.kst,p.dst,p.est].filter(Boolean).reduce((a,b)=>(b.gp>(a?a.gp:0)?b:a),null);
+function gplanHTML(opp,R){const T=oppTend(opp),full=R.full,cur=G.plan&&G.plan.opp===opp.id?G.plan.k:'none',pct=v=>Math.round(v*100)+'%';
+  const tile=(l,v,s)=>`<div class="gp-t"><small>${l}</small><b>${v}</b>${s?`<span>${s}</span>`:''}</div>`,ns='<i class="gp-ns">Not scouted</i>';
+  const tiles=[tile('Top scorer',T.top?esc(sname(T.top)):'\u2013',T.ppg!=null?`${T.ppg.toFixed(1)} pts${T.share!=null?` \u00b7 ${pct(T.share)} of their points`:''}`:'no games yet'),
+    tile('Pace',({slow:'Slow',normal:'Normal',fast:'Fast'})[T.pace]||'Normal',T.pace==='fast'?'they run':T.pace==='slow'?'long possessions':'average tempo'),
+    tile('3-point reliance',`${pct(T.r3)} of shots`,T.r3>=.42?'heavy':T.r3<=.3?'light':'average'+(T.r3real?'':' (estimate)')),
+    tile('Weak defender',full&&T.weak?esc(sname(T.weak)):ns,full&&T.weak?`${T.weak.pos} \u00b7 defense ${T.weak.a.def}`:''),
+    tile('Rim protection',full?String(T.rim):ns,full?(T.rim>=78?'strong':T.rim<=66?'soft':'average'):''),
+    tile('Glass',String(T.reb),T.reb-rotAttr(G.user,'reb')>=3?'they out-rebound you':T.reb-rotAttr(G.user,'reb')<=-3?'you have the edge':'even')].join('');
+  const fl=v=>v>=2?['Good fit','g']:v===1?['Fair','b']:v<0?['Poor fit','r']:['Neutral','k'];
+  const opts=Object.keys(GPLAN).map(k=>{const on=k===cur,f=k==='none'?null:fl(full||k==='slow'||k==='three'||k==='run'?gpFit(k,opp,T):0);
+    return `<button class="gp-o${on?' on':''}" data-act="gplan:${opp.id}:${k}"><b>${esc(GPLAN[k][0])}${f&&full?` <em class="${f[1]}">${f[0]}</em>`:''}</b><small>${esc(k==='star'&&T.top?GPLAN[k][1].replace('him',sname(T.top)):k==='weak'&&T.weak&&full?GPLAN[k][1].replace('Hunt the mismatch.',`Hunt ${sname(T.weak)}.`):GPLAN[k][1])}</small></button>`;}).join('');
+  return `<div class="gp"><div class="sr-l">Tendencies <small>${T.r3real?'this season':'early-season estimate'}</small></div><div class="gp-ts">${tiles}</div>
+  <div class="sr-l" style="margin-top:14px">Your focus for this game <small>${cur==='none'?'none':esc(GPLAN[cur][0])}</small></div><div class="gp-os">${opts}</div>${full?'':'<p class="sr-hint">A better scout or assistant (Scouting 62+) reveals the weak defender, rim protection and which focus fits.</p>'}</div>`;}
 function scoutHTML(f,opp){const R=scoutReport(opp),hc=lum(opp.c1)>.85?opp.c2:opp.c1,cur=G.dbl&&G.dbl.opp===opp.id?G.dbl.pid:null,hid=new Set(R.full?[]:['pas','ath','reb']);
   const bars=R.prof.map(x=>{const tag=hid.has(x.k)?'':x.d>=3?'<em class="g">Strength</em>':x.d<=-3?'<em class="r">Weakness</em>':'';return `<div class="sr-r"><span class="sr-n">${x.n}${tag}</span>${hid.has(x.k)?'<span class="sr-q">Not scouted</span>':`<span class="sr-b"><i style="width:${clamp((x.o-40)/55*100,4,100)}%;background:${hc}"></i><u style="left:${clamp((x.m-40)/55*100,0,100)}%"></u></span><b>${x.o}</b>`}</div>`;}).join('');
   const P=R.keys.map(p=>{const on=cur===p.id,rec=R.full&&R.best===p;return `<div class="sr-p${on?' on':''}"><span class="avatar ph" style="width:52px;height:52px;flex:none;box-shadow:none">${avatarIn(p,p.no)}</span><div class="sr-pi"><b>${esc(pname(p))}${rec?'<em class="k">Suggested</em>':''}</b><small>#${p.no} \u00b7 ${p.pos} \u00b7 OVR ${ovrTxt(p)} \u00b7 ${(s=>s&&s.gp?`${per(s,'pts').toFixed(1)} pts in ${s.gp} G`:'no games yet')(bestSt(p))}</small><small class="sr-note">${esc(R.note(p))}</small></div><button class="sr-d" data-act="dbl:${opp.id}:${on?'':p.id}">${on?'Doubled \u2713':'Double'}</button></div>`;}).join('');
   return `<section class="sr" aria-label="Scouting report"><header class="sr-h" style="--sr1:${hc}"><span class="sr-cr">${crest(opp)}</span><div class="sr-t"><small>Scouting report \u00b7 ${R.full?'full':'basic'} (assistant ${Math.round(R.lvl)})</small><b>${esc(opp.name)}</b><span>${hcName(opp)?`${esc(hcName(opp))}: `:''}${tacLine(aiStyle(opp))}</span></div><span class="sr-fm">${opp.form.slice(-5).map(x=>`<i class="${x==='W'?'w':'l'}">${x}</i>`).join('')}</span></header>
   ${(c=>{const n=aiSync(opp),nw=aiTop(opp).filter(p=>n.f[p.id]<50).length;return `<div class="sr-ch"><b style="color:${chemCol(c)}">${R.full?c+' · ':''}${chemLabel(c)}</b><span>Dressing room${nw?` · ${nw} of their top 9 still new`:''}${R.keys.some(wantsOut)?` · ${esc(pname(R.keys.find(wantsOut)))} unsettled`:''}</span></div>`;})(aiChem(opp))}<div class="sr-g"><div class="sr-c"><div class="sr-l">Team profile <small>the mark shows your team</small></div>${bars}${R.tips.length&&R.full?`<ul class="sr-tips">${R.tips.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}${R.full?'':'<p class="sr-hint">A better assistant coach (Scouting 62+) gets you the full report and a suggestion.</p>'}</div>
-  <div class="sr-c"><div class="sr-l">Whom do you double? <small>${cur!=null?'one player':'nobody yet'}</small></div>${P}<p class="sr-hint">A doubled player shoots less and worse, but everyone else gets better looks. You can change it during the game.</p></div></div></section>`;}
+  <div class="sr-c"><div class="sr-l">Whom do you double? <small>${cur!=null?'one player':'nobody yet'}</small></div>${P}<p class="sr-hint">A doubled player shoots less and worse, but everyone else gets better looks. You can change it during the game.</p></div></div>${gplanHTML(opp,R)}</section>`;}
 function prematchHTML(){const f=userFx(),h=G.teams[f.h],a=G.teams[f.a],rh=ratings(h.id),ra=ratings(a.id),opp=f.h===G.user?a:h,T=G.tactics;
   const keys=roster(opp.id).filter(p=>p.inj<=0).sort((x,y)=>y.o-x.o).slice(0,4);const five=roster(G.user).filter(p=>p.inj<=0).slice(0,5);
   const seg=(key)=>`<div class="seg">${TAC[key].map(o=>`<button class="${T[key]===o.v?'on':''}" data-act="tac:${key}:${o.v}">${o.l}</button>`).join('')}</div>`;
@@ -1533,6 +1546,7 @@ const ACT={
   course(k){const e=startCourse(k);toast(e||'Course booked');render();},
   jobsopen(){UI.modal={kind:'jobs'};render();},
   jobapply(tid){const r=jobApply(+tid);UI.modal={kind:'jobs',res:{ok:r.ok,t:r.text}};render();},
+  gplan(opp,k){gplanSet(+opp,k);render();},
   spans(mid,k){const t=staffPoachAnswer(mid,k);if(t)toast(t);render();},
   spapp(sid,tid,pct){const r=staffApproach(+sid,+tid,+pct);toast(r.text);render();},
   treq(pid,k){const t=treqDecide(+pid,k);if(UI.modal&&UI.modal.kind==='treq')UI.modal=null;if(t)toast(t);render();},

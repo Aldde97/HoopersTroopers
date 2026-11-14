@@ -426,6 +426,33 @@ function staffApproach(sid,tid,pct){const t=G.teams[tid],me=G.teams[G.user];if(!
   try{t.staff.push(genStaff([x.role,pick(NAMES.USA.f),pick(NAMES.USA.l),'USA',0],t.rep));}catch(err){}
   news(`${me.name} poach ${x.f} ${x.l}`,`${me.name} have hired ${ROLEN[x.role].toLowerCase()} ${x.f} ${x.l} away from ${t.name}.`);save();
   return {ok:true,text:`${x.f} ${x.l} joins you from ${t.name} on ${eur(x.sal)} per season. You paid ${eur(c)} compensation and a ${eur(fee)} signing fee.`};}
+
+/* ===================== Opponent tendencies and the game-plan focus ===================== */
+// Tendencies come from the opponent's season numbers (or ratings early on). The user picks one focus for the game against that opponent;
+// Match reads it (this.gp): shot selection, possession length, fouls drawn, offensive boards, fatigue, and the opponent's star.
+const GPLAN={none:['No special focus','Play your normal game.'],star:['Stop their star','Deny him the ball and send help. He shoots less and worse; the others get more room. Your defenders tire a little faster.'],
+  paint:['Attack the paint','Drive and post up. Fewer threes, better twos, more fouls drawn. Works less well against a strong rim protector.'],three:['Let it fly','Hunt threes. Many more three-point attempts, slightly more contested.'],
+  slow:['Slow the game','Long possessions, fewer turnovers, fewer possessions in the game. The classic underdog plan.'],run:['Push the pace','Run at every chance. More possessions and easy baskets, more turnovers, tired legs.'],
+  boards:['Crash the glass','Send extra bodies to the offensive boards. More second chances, but they get more in transition.'],weak:['Attack their weak defender','Hunt the mismatch. Better looks while he is on the court, and he gets into foul trouble.']};
+function oppTend(opp){const ps=roster(opp.id).filter(p=>p.inj<=0),top8=ps.slice().sort((a,b)=>b.o-a.o).slice(0,8),st=p=>(typeof bestSt==='function'?bestSt(p):p.st)||p.st||{};
+  const sc=ps.map(p=>({p,s:st(p)})).filter(x=>x.s&&x.s.gp>=2),tp=sc.reduce((a,x)=>a+(x.s.pts||0),0);
+  const topS=sc.length?sc.slice().sort((a,b)=>per(b.s,'pts')-per(a.s,'pts'))[0]:null,top=topS?topS.p:top8[0];
+  const ppg=topS?per(topS.s,'pts'):null,share=topS&&tp?(topS.s.pts||0)/tp:null;
+  const fga=sc.reduce((a,x)=>a+(x.s.fga||0),0),tpa=sc.reduce((a,x)=>a+(x.s.tpa||0),0),r3=fga>=60?tpa/fga:clamp(.33+(rotAttr(opp.id,'sht')-72)*.008,.2,.5);
+  const sty=aiStyle(opp),pace=opp.id===G.user?G.tactics.pace:sty.pace;
+  const weak=top8.slice(0,7).reduce((a,b)=>b.a.def<a.a.def?b:a,top8[0]);const bigs=top8.filter(p=>p.pos==='C'||p.pos==='PF'),rim=bigs.length?avg(bigs.map(p=>p.a.def)):rotAttr(opp.id,'def');
+  return {top,ppg,share,r3,r3real:fga>=60,pace,weak,rim:Math.round(rim),reb:Math.round(rotAttr(opp.id,'reb')),ath:Math.round(rotAttr(opp.id,'ath')),age:avg(top8.map(p=>p.age)),def:sty.def};}
+// how well each focus fits this opponent: 2 good, 1 fair, 0 neutral, -1 poor
+function gpFit(k,opp,T){T=T||oppTend(opp);const me=G.user,my=k2=>rotAttr(me,k2),gap=(ratings(opp.id).ovr||0)-(ratings(me).ovr||0);
+  switch(k){case 'star':return T.share==null?(T.top&&T.top.o>=82?1:0):T.share>=.24?2:T.share>=.18?1:-1;
+    case 'paint':return T.rim>=78?-1:my('ins')-T.rim>=4?2:my('ins')-T.rim>=0?1:0;
+    case 'three':return my('sht')>=76?2:my('sht')>=72?1:-1;
+    case 'slow':return gap>=4?2:gap>=1||T.pace==='fast'?1:gap<=-3?-1:0;
+    case 'run':return my('ath')-T.ath>=4||T.age>=30?2:my('ath')-T.ath>=1?1:-1;
+    case 'boards':return my('reb')-T.reb>=4?2:my('reb')-T.reb>=1?1:-1;
+    case 'weak':return T.weak&&T.weak.a.def<=58?2:T.weak&&T.weak.a.def<=64?1:0;}return 0;}
+function gplanSet(oppId,k){const opp=G.teams[oppId];if(!opp)return;if(k==='none'||!GPLAN[k]){G.plan=null;save();return;}const T=oppTend(opp);G.plan={opp:oppId,k,star:T.top?T.top.id:null,weak:T.weak?T.weak.id:null};save();}
+const GPD=(k,w)=>k==='slow'?3.2*w:k==='run'?-2.4*w:0;
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -1455,6 +1482,7 @@ class Match{
     this.crowd=h===G.user&&!this.neutral&&this.kind!=='pre'&&typeof crowdBonus==='function'?crowdBonus(h,a):0;
     this.chem=this.kind!=='pre'&&typeof chemBonus==='function'?{[h]:chemBonus(h),[a]:chemBonus(a)}:{};
     this.heat={};this.feed=null;this.rested={};if(this.kind!=='pre')matchCtx(this,h,a);
+    this.gp=[null,null];this.gpS=[null,null];this.gpW=[null,null];if(G.plan&&this.kind!=='pre'){for(let ui=0;ui<2;ui++){const me=this.s[ui].tid;if((me===G.user||me===this.ntU)&&G.plan.opp===this.s[1-ui].tid){this.gp[ui]=G.plan.k;this.gpS[ui]=G.plan.star;this.gpW[ui]=G.plan.weak;if(G.plan.k==='run')this.s[ui].fk=(this.s[ui].fk||1)*1.12;if(G.plan.k==='star')this.s[ui].fk=(this.s[ui].fk||1)*1.05;}}}
     this.run_=[0,0];this.play=[null,null];this.lastPlay=[null,null];this.foul=[false,false];this.manual=-1;
     if(this.log)this.add(-1,'period','Tip-off');
   }
@@ -1464,6 +1492,11 @@ class Match{
     const box={},tgt={},k=this.ql/600;ord.forEach((p,i)=>{box[p.id]=blank();tgt[p.id]=minTgt(p,i,tid,k);});
     return {tid,home,ord,box,tgt,on:[],pts:0,tac:tid===this.ntU?ntTacs():tid===G.user?G.tactics:(t.tac=aiStyle(t)),to:this.ql===720?4:2,hc:hcBonus(tid)+finMalus(tid),pf:{},out:{},fat:{},tf:0,man:false};
   }
+  gpAdj(o,d,oi,sh,three){if(!this.gp)return 0;const k=this.gp[oi],kd=this.gp[1-oi];let v=0;
+    if(k==='paint'&&!three){const big=d.on.filter(p=>p.pos==='C'||p.pos==='PF'),rim=big.length?avg(big.map(p=>p.a.def)):avg(d.on.map(p=>p.a.def));v+=clamp(.02-(rim-70)*.0025,-.012,.035);}
+    if(k==='three'&&three)v-=.006;if(k==='run')v+=.008;
+    if(k==='weak'&&this.gpW[oi]!=null&&d.on.some(p=>p.id===this.gpW[oi]))v+=.016;
+    if(kd==='star')v+=sh.id===this.gpS[1-oi]?-.045:.006;if(kd==='boards')v+=.012;return v;}
   gtime(){const Q=this.ql;return this.q<=4?(this.q-1)*Q+(Q-this.clock):4*Q+(this.q-5)*300+(300-this.clock);}
   rotate(){
     const e=this.gtime(),st=this.q<=4?Math.floor(e/(this.ql/2)):100+this.q;if(st===this.stint)return;this.stint=st;
@@ -1477,7 +1510,7 @@ class Match{
   // fouls: 5 in Europe, 6 in the NBA and G League. Coaches sit a player in foul trouble until the last minutes. From the 5th team foul in a period every foul means free throws.
   foulLimit(){return this.ql===720?6:5;}
   trouble(s,p){const n=s.pf[p.id]||0,lim=this.foulLimit();return n>=lim-1||(this.q<=3&&n>=this.q+1+(lim-5))?1:0;}
-  defPick(d){const lim=this.foulLimit();return wpick(d.on,p=>(p.pos==='C'||p.pos==='PF'?1.15:1)*clamp(1.25-(p.a.def-60)*.012,.5,1.6)*((d.pf[p.id]||0)>=lim-1?.1:(d.pf[p.id]||0)>=lim-2?.4:1));}
+  defPick(d){const lim=this.foulLimit(),wk=this.gpW&&this.gp[this.s[0]===d?1:0]==='weak'?this.gpW[this.s[0]===d?1:0]:null;return wpick(d.on,p=>(p.id===wk?1.7:1)*(p.pos==='C'||p.pos==='PF'?1.15:1)*clamp(1.25-(p.a.def-60)*.012,.5,1.6)*((d.pf[p.id]||0)>=lim-1?.1:(d.pf[p.id]||0)>=lim-2?.4:1));}
   charge(s,p,i){s.pf[p.id]=(s.pf[p.id]||0)+1;s.tf++;if(s.pf[p.id]<this.foulLimit()||s.out[p.id])return;
     const nx=s.ord.find(q=>!s.out[q.id]&&q!==p&&!s.on.includes(q));if(!nx)return;s.out[p.id]=1;const k=s.on.indexOf(p);if(k>=0)s.on[k]=nx;
     this.add(i,'period',`${sname(p)} fouls out \u2013 ${sname(nx)} comes in`);if(i===this.manual)this.halt=`${sname(p)} has fouled out`;}
@@ -1492,7 +1525,7 @@ class Match{
     this.rotate();
     const oi=this.poss,o=this.s[oi],d=this.s[1-oi];
     const before=[this.s[0].pts,this.s[1].pts],fl=this.foulDue(oi),pl=fl?null:this.play[oi],lead=o.pts-d.pts,late=this.q>=4&&this.clock<=60;
-    let dur=clamp(Math.round(rf(11,21)+this.bx.p+PACE[o.tac.pace]+PACE[d.tac.pace]*.4),4,24);
+    let dur=clamp(Math.round(rf(11,21)+this.bx.p+PACE[o.tac.pace]+PACE[d.tac.pace]*.4+GPD(this.gp[oi],1)+GPD(this.gp[1-oi],.5)),4,24);
     this.nsf=!fl&&!pl&&!late&&Math.random()<0.15*this.bx.f;
     if(fl)dur=rnd(2,5);else if(this.nsf)dur=rnd(2,6);else if(pl==='hold')dur=rnd(20,24);else if(pl==='quick')dur=rnd(4,7);else if(this.q>=4&&this.clock<=24&&lead<0&&oi===this.manual)dur=rnd(4,8);else if(late&&oi!==this.manual)dur=lead>0?(this.clock<=24?this.clock:rnd(16,24)):lead<0?rnd(5,11):dur;
     if(dur>this.clock)dur=this.clock;
@@ -1523,10 +1556,10 @@ class Match{
       if(!last){const rb=wpick(d.on,p=>p.a.reb**2.2);d.box[rb.id].reb++;}this.add(oi,m?'score':'miss',`Team foul by ${n} \u2013 ${sname(sh)} makes ${m} of 2`,m);return false;}
     const dDef=avg(d.on.map(p=>p.a.def)),oPas=avg(o.on.map(p=>p.a.pas));
     let bonus=(o.home&&!this.neutral?(this.homeB!=null?this.homeB:.012)+this.crowd:0)+(o.hc||0)+(o.adj||0);if(this.mom[oi]>0){bonus+=.03;this.mom[oi]--;}
-    const toP=.15-(oPas-65)*.0016+(avg(d.on.map(p=>p.a.def*.5+p.a.ath*.5))-65)*.0013+(d.tac.def==='press'?.035:0)+(o.tac.pace==='fast'?.01:0)+(pl==='iso'?.015:pl==='pnr'?-.015:0);
+    const toP=.15-(oPas-65)*.0016+(avg(d.on.map(p=>p.a.def*.5+p.a.ath*.5))-65)*.0013+(d.tac.def==='press'?.035:0)+(o.tac.pace==='fast'?.01:0)+(pl==='iso'?.015:pl==='pnr'?-.015:0)+(this.gp[oi]==='run'?.012:this.gp[oi]==='slow'?-.012:0);
     const dblId=this.dbl[1-oi],dblP=dblId!=null?o.on.find(p=>p.id===dblId):null;
     const read=pl&&pl===this.lastPlay[oi];if(pl)this.lastPlay[oi]=pl;
-    const sh=this.playPick(o,pl)||wpick(o.on,p=>Math.pow(Math.max(2,p.o-45),1.6)*(.5+p.energy/200)*(p.promise&&o.tid===G.user&&o.ord.indexOf(p)===0?1.25:1)*(p.id===dblId?.45:1)*(o.tid===G.user&&pRole(p)==='star'?1.15:1)*(oi===this.manual&&this.feed&&this.feed.id===p.id?1.7:1));
+    const sh=this.playPick(o,pl)||wpick(o.on,p=>Math.pow(Math.max(2,p.o-45),1.6)*(.5+p.energy/200)*(p.promise&&o.tid===G.user&&o.ord.indexOf(p)===0?1.25:1)*(p.id===dblId?.45:1)*(this.gp[1-oi]==='star'&&p.id===this.gpS[1-oi]?.72:1)*(o.tid===G.user&&pRole(p)==='star'?1.15:1)*(oi===this.manual&&this.feed&&this.feed.id===p.id?1.7:1));
     if(oi===this.manual&&this.feed&&--this.feed.left<=0)this.feed=null;
     const B=o.box[sh.id],N=sname(sh);
     if(Math.random()<toP+(sh===dblP?.03:0)){
@@ -1535,12 +1568,12 @@ class Match{
       else{const k=rnd(0,4);if(k===2)this.charge(o,sh,oi);this.add(oi,'to',[`Turnover by ${N} \u2013 bad pass`,`${N} called for travelling`,`Offensive foul on ${N}`,`${N} loses the ball out of bounds`,`Shot-clock violation`][k]);}
       return false;
     }
-    const tpr=clamp(({PG:.42,SG:.45,SF:.38,PF:.24,C:.08})[sh.pos]+this.bx.t+(sh.a.sht-70)*.006+({perimeter:.12,balanced:0,inside:-.12})[o.tac.focus]+(d.tac.def==='zone'?.06:0),.02,.75);
+    const tpr=clamp(({PG:.42,SG:.45,SF:.38,PF:.24,C:.08})[sh.pos]+this.bx.t+(sh.a.sht-70)*.006+({perimeter:.12,balanced:0,inside:-.12})[o.tac.focus]+(this.gp[oi]==='paint'?-.12:this.gp[oi]==='three'?.1:0)+(d.tac.def==='zone'?.06:0),.02,.75);
     const three=pl==='three'||(pl!=='pnr'&&pl!=='post'&&Math.random()<tpr),en=(sh.energy-85)*.001-(sh.unhappy?.02:0)-(sh.fragile?.015:0)+((sh.mood==null?60:sh.mood)-60)*.0004+(this.chem[sh.tid]||0)-Math.min(.05,Math.max(0,(o.fat[sh.id]||0)-480)*.00007),val=three?3:2;
     let pm=three?.3413+(sh.a.sht-72)*.0019-(dDef-72)*.0017+(d.tac.def==='zone'?.012:0)
                :.4948+(sh.a.ins-72)*.0029-(dDef-72)*.0026-(d.tac.def==='zone'?.03:0)+(d.tac.def==='press'?.02:0)+(o.tac.focus==='inside'?.01:0);
-    pm+=bonus+en+(this.bx.e||0)+(pl?LIVEPLAY[pl].pm(sh):0)-(read?.035:0)+(dblP?(sh===dblP?-.09:dblOpen(dblP)):0);
-    const fouled=Math.random()<(three?.03:pl==='post'?.2:0.145)*this.bx.f,made=Math.random()<pm*(fouled?.45:1);if(fouled)this.charge(d,this.defPick(d),1-oi);
+    pm+=bonus+en+(this.bx.e||0)+(pl?LIVEPLAY[pl].pm(sh):0)-(read?.035:0)+(dblP?(sh===dblP?-.09:dblOpen(dblP)):0)+this.gpAdj(o,d,oi,sh,three);
+    const fouled=Math.random()<(three?.03:pl==='post'?.2:0.145*(this.gp[oi]==='paint'?1.22:1))*this.bx.f,made=Math.random()<pm*(fouled?.45:1);if(fouled)this.charge(d,this.defPick(d),1-oi);
     if(fouled&&!made){
       let m=0;for(let i=0;i<val;i++){B.fta++;if(Math.random()<ftp(sh)){B.ftm++;m++;}}
       B.pts+=m;o.pts+=m;this.add(oi,m?'score':'miss',`${N} fouled on the ${three?'three':'shot'} \u2013 ${m} of ${val} from the line`,m);return false;
@@ -1556,7 +1589,7 @@ class Match{
     let txt=three?`${N} misses from three`:`${N} misses the ${pick(['jumper','layup','floater','hook shot'])}`;
     if(!three&&Math.random()<.08){const bl=wpick(d.on,p=>p.a.def*(p.pos==='C'||p.pos==='PF'?3:1));d.box[bl.id].blk++;txt=`${sname(bl)} blocks ${N}!`;}
     const oR=avg(o.on.map(p=>p.a.reb)),dR=avg(d.on.map(p=>p.a.reb));
-    const orb=Math.random()<clamp(.27+(oR-dR)*.006+(dblP&&(dblP.pos==='C'||dblP.pos==='PF')?.05:0),.12,.47);
+    const orb=Math.random()<clamp(.27+(oR-dR)*.006+(this.gp[oi]==='boards'?.055:0)+(dblP&&(dblP.pos==='C'||dblP.pos==='PF')?.05:0),.12,.47);
     const sd=orb?o:d,rb=wpick(sd.on,p=>p.a.reb**2.2);sd.box[rb.id].reb++;
     txt+=orb?` \u2013 offensive rebound ${sname(rb)}`:` \u2013 rebound ${sname(rb)}`;
     this.add(oi,'miss',txt);return orb;
