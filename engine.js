@@ -453,6 +453,154 @@ function gpFit(k,opp,T){T=T||oppTend(opp);const me=G.user,my=k2=>rotAttr(me,k2),
     case 'weak':return T.weak&&T.weak.a.def<=58?2:T.weak&&T.weak.a.def<=64?1:0;}return 0;}
 function gplanSet(oppId,k){const opp=G.teams[oppId];if(!opp)return;if(k==='none'||!GPLAN[k]){G.plan=null;save();return;}const T=oppTend(opp);G.plan={opp:oppId,k,star:T.top?T.top.id:null,weak:T.weak?T.weak.id:null};save();}
 const GPD=(k,w)=>k==='slow'?3.2*w:k==='run'?-2.4*w:0;
+
+/* ===================== Press room ===================== */
+// A press conference is a short session: several journalists, questions built from what actually happened (stats, injuries, streaks,
+// the opponent's coach, referees, young players' minutes), several phrasings each, answers whose effect depends on the context and on
+// the players' personalities. Dodging invites a follow-up. The press remember how you treat them (G.mrel), and rivals pin provocative
+// quotes to their wall (G.rivalFire: a small lift for them in the next game against you).
+const PR_J=[['Marko Petrović','Sport Daily'],['Elena Rossi','Basket Weekly'],['Dimitris Kalogerakis','Courtside Radio'],['Carlos Ruiz','Hoops Insider'],['Thomas Weber','Morning Sports'],['Aylin Demir','Sport TV'],
+  ['Jonas Kazlauskas','Rim & Net'],['Sarah Mitchell','Global Hoops'],['Luca Bianchi','The Paint'],['Nikos Georgiou','Fast Break Magazine'],['Ana Kovač','City Herald'],['Pierre Laurent','Le Panier'],['David Cohen','Full Court Press'],['Mehmet Yılmaz','Court Report'],['Ivana Horvat','Evening Post'],['Ben Carter','Baseline Podcast']];
+const PR_TONE={dip:'Diplomatic',conf:'Confident',hon:'Honest',dodge:'Evasive',prov:'Provocative',prot:'Protective',hard:'Demanding',hum:'Light-hearted'};
+const prPick=(a,i)=>a[i%a.length];
+function prCtx(Q){const me=G.teams[G.user],c={type:Q.type,key:Q.key||null,rank:userRank(),form:me.form.slice(-5).join(''),mrel:G.mrel||0};
+  if(Q.type==='pre'){const f=Q.f;c.opp=f.h===G.user?f.a:f.h;c.derby=derbyOf(f.h,f.a);c.kind=f.kind;c.ulti=!!G.ulti;
+    const T=oppTend(G.teams[c.opp]);c.star=T.top?T.top.id:null;c.ppg=T.ppg;c.inj=(roster(G.user).filter(p=>p.inj>0).sort((a,b)=>b.o-a.o)[0]||{}).id;
+    const top5=roster(G.user).slice().sort((a,b)=>b.o-a.o).slice(0,5);if(c.inj!=null&&!top5.some(p=>p.id===c.inj))c.inj=null;c.plan=G.plan&&G.plan.opp===c.opp?G.plan.k:null;}
+  else if(Q.type==='post'){Object.assign(c,{opp:Q.oppId,won:Q.won,top:Q.top,tpts:Q.tpts,low:Q.low,lline:Q.lline,lfga:Q.lfga,ftd:Q.ftd,margin:Q.margin,ns:Q.ns,yid:Q.yid,ymin:Q.ymin,derby:Q.derby,why:Q.why});}
+  else{c.topic=Q.key;c.pid=Q.pid;c.mj=Q.key&&Q.key.startsWith('job')?+Q.key.slice(3):null;}
+  c.hc=c.opp!=null?hcName(G.teams[c.opp]):'';return c;}
+// fx: t team mood, b board, f fans, m press mood, p [[pid,d],...], bet [win, loss] as [[fans,board],[fans,board]], rival, leak, fine
+const P_=id=>G.players[id],PN=id=>P_(id)?pname(P_(id)):'',PF=id=>P_(id)?P_(id).f:'';
+const prPers=(id,pro,sen,ego)=>{const p=P_(id);if(!p)return 0;const k=persOf(p);return k==='pro'?pro:k==='sensitive'?sen:ego;};
+const PRQ={
+ star:{w:'pre',ok:c=>c.star!=null&&c.ppg>=11,make:c=>({q:[`${PN(c.star)} is averaging ${c.ppg.toFixed(1)} points. How do you slow him down?`,`Everyone is talking about ${PN(c.star)}. What is the plan for him?`,`${PN(c.star)} has been unstoppable lately. Do you have an answer?`],
+   a:[{k:'dip',t:[`"He is one of the best players in this league. We respect him, but this is five against five."`,`"You don't stop a player like that, you make life hard for him. That is the job."`],fx:{b:1,m:1},re:['A measured answer. The room moves on.']},
+      {k:'dodge',t:[c.plan?`"We have a plan. You will see it on the court, not here."`:`"I am not going to give our game plan to the newspapers."`,`"Come to the game and you will see."`],fx:{t:1,m:-1},re:['A few journalists smile. Nobody writes it down.']},
+      {k:'prov',t:[`"He has not played against a defense like ours yet."`,`"Good players have bad nights. Maybe this is his."`],fx:{t:2,f:1,m:2,rival:1,bet:[[3,1],[-3,-2]]},re:['Pens move fast. That quote will be on their dressing-room wall by tomorrow.','The room goes quiet for a second, then everybody writes.']}]})},
+ inj:{w:'pre',ok:c=>c.inj!=null&&P_(c.inj),make:c=>{const p=P_(c.inj),bk=roster(G.user).filter(q=>q.pos===p.pos&&q.inj<=0&&q.id!==p.id).sort((a,b)=>b.o-a.o)[0];return {q:[`You are without ${pname(p)}. How big a loss is that?`,`${pname(p)} is out. Can you win this without him?`,`How do you replace ${pname(p)}?`],
+   a:[{k:'conf',t:[bk?`"Next man up. ${pname(bk)} is ready for this."`:`"Next man up. We have a deep squad."`],fx:{t:1,p:bk?[[bk.id,5]]:[],m:1},re:[bk?`${bk.f} will read that.`:'The players like hearing it.']},
+      {k:'hon',t:[`"It is a big loss and I am not going to pretend otherwise."`,`"Of course it hurts. He is one of our most important players."`],fx:{b:1,t:-1,m:1},re:['Honest. Some will read it as an excuse in advance.']},
+      {k:'hard',t:[`"No excuses. Whoever plays has to deliver."`],fx:{t:1,bet:[[1,1],[-1,-1]]},re:['A hard line. The board like it.']}]};}},
+ form:{w:'pre',ok:c=>/L.*L.*L/.test(c.form.slice(-4))||/WWWW/.test(c.form),make:c=>{const bad=/L.*L.*L/.test(c.form.slice(-4));return bad?{q:[`${(c.form.slice(-4).match(/L/g)||[]).length} defeats in your last four games. Is this a crisis?`,`The results have dried up. What is going wrong?`,`Fans are getting restless. Is the team in trouble?`],
+   a:[{k:'dip',t:[`"Crisis is a big word. We know what we have to fix and we are working on it."`],fx:{b:1,m:1},re:['Calm. Nobody is convinced, nobody is upset.']},
+      {k:'hon',t:[`"I am not happy, and neither are the players. We will respond."`,`"It has not been good enough. That starts with me."`],fx:{t:2,b:-1,bet:[[2,1],[-2,-1]],m:1},re:['The players will hear that you have their back. Now the result has to follow.']},
+      {k:'dodge',t:[`"Ask me again after this game."`],fx:{f:1,m:-1},re:['A short answer. The radio guy shrugs.']}]}:{q:[`Four wins in a row. Can anybody stop you right now?`,`The team is flying. What has changed?`],
+   a:[{k:'dip',t:[`"We take it one game at a time. That is not a cliché here, it is how we work."`],fx:{b:1},re:['Textbook.']},
+      {k:'conf',t:[`"Right now? I don't think so."`,`"We are playing the best basketball in the league."`],fx:{t:2,f:2,rival:1,bet:[[2,1],[-3,-1]]},re:['Bold. Every opponent will read it.']},
+      {k:'hum',t:[`"Please don't jinx it."`],fx:{f:1,m:2},re:['Laughter in the room. The press like you today.']}]};}},
+ oppcoach:{w:'pre',ok:c=>!!c.hc,make:c=>({q:[`${c.hc} said this week that you are the favourites. Do you agree?`,`${c.hc} says you are the favourites and his team has nothing to lose. Your reaction?`],
+   a:[{k:'dip',t:[`"${c.hc.split(' ').slice(-1)[0]} is a smart coach. He knows it is never that simple."`],fx:{b:1,m:1},re:['Respectful. No headlines.']},
+      {k:'conf',t:[`"We are. And we will play like it."`,`"We are ready. Let him worry about his team."`],fx:{t:2,f:1,rival:1,bet:[[2,1],[-2,-2]]},re:['It will be in their dressing room by tonight.']},
+      {k:'hum',t:[`"He says that every week. One day he will be right."`],fx:{f:1,m:2,rival:1},re:['The room laughs. Their bench will not.']}]})},
+ derby:{w:'pre',ok:c=>!!c.derby,make:c=>({q:[`It is the ${c.derby}. What does this game mean to you?`,`The whole city is talking about the ${c.derby}. Can you feel it?`],
+   a:[{k:'dip',t:[`"For our fans it is the game of the season. We feel that responsibility."`],fx:{f:2,m:1},re:['The fans will like that.']},
+      {k:'hon',t:[`"Two points, like every other game."`],fx:{b:1,f:-3},re:['Rational. The supporters’ forums will not be kind.']},
+      {k:'prov',t:[`"We want this city to be ours again."`,`"Our fans deserve to have the city back."`],fx:{f:3,t:1,rival:1,bet:[[3,1],[-4,-2]]},re:['A headline. The other side will be fired up.']}]})},
+ table:{w:'pre',ok:c=>G.phase==='reg'&&c.rank>=1,make:c=>({q:[`You are ${ordn(c.rank)} and the target is to ${objText().toLowerCase()}. How important is this game?`,`Where do you see this team at the end of the season?`],
+   a:[{k:'dip',t:[`"Every game matters. We look at the table in April."`],fx:{b:1},re:['Safe.']},
+      {k:'conf',t:[`"We will reach the target. I have no doubt about it."`],fx:{t:1,b:2,f:1,bet:[[1,1],[-1,-2]]},re:['The board will hold you to that.']},
+      {k:'hon',t:[`"We are where we deserve to be. We have to be better."`],fx:{t:-1,b:1,m:1},re:['Honest. Some players will not love it.']}]})},
+ plan:{w:'pre',ok:c=>!!c.plan,make:c=>({q:[`Will we see anything different from you tactically tonight?`,`Any surprises planned?`],
+   a:[{k:'dodge',t:[`"You will see."`,`"Maybe. Maybe not."`],fx:{m:-1},re:['Nothing to report.']},
+      {k:'hon',t:[`"We will try to ${({star:'take their best player out of the game',paint:'attack the paint',three:'shoot more threes',slow:'slow the game down',run:'push the pace',boards:'crash the offensive glass',weak:'attack a mismatch'})[c.plan]||'play our game'}."`],fx:{m:2,f:1,leak:1},re:['The journalists love a straight answer. Their video coach will too.']},
+      {k:'hum',t:[`"If I told you, I would have to sell you a ticket."`],fx:{m:1},re:['A laugh, and no information.']}]})},
+ job:{w:'pre',ok:c=>c.ulti||G.board<38,make:c=>({q:[G.ulti?`The board want ${G.ulti.need} wins from ${G.ulti.of} games. Is your job on the line tonight?`:`Results have not been good enough. Is your job in danger?`,`There are reports the board are losing patience. Are you under pressure tonight?`],
+   a:[{k:'conf',t:[`"We will win, and we will turn this around."`],fx:{t:3,bet:[[3,3],[-3,-4]]},re:['Fighting talk. Now it has to happen.']},
+      {k:'hon',t:[`"Results decide in this job. I know that and I accept it."`],fx:{b:2,m:1},re:['A dignified answer.']},
+      {k:'prov',t:[`"The board should back this team."`],fx:{t:3,f:2,b:-4},re:['The players and fans are with you. The president is not amused.']}]})},
+ top:{w:'post',ok:c=>c.top!=null&&c.tpts>=16&&P_(c.top),make:c=>{const p=P_(c.top);return c.won?{q:[`${pname(p)} had ${c.tpts} tonight. Is he the best ${({PG:'point guard',SG:'shooting guard',SF:'small forward',PF:'power forward',C:'center'})[p.pos]} in the league?`,`${c.tpts} points from ${pname(p)}. Is he the most important player on this team?`],
+   a:[{k:'dip',t:[`"He was great, but this was a team win."`],fx:{t:1,p:[[p.id,2]]},re:['Balanced. Everybody is happy.']},
+      {k:'conf',t:[`"Yes. I would not swap him for anybody."`],fx:{p:[[p.id,7]],ego:-3,f:1},re:[`${p.f} will love it. Not every ego in the room will.`]},
+      {k:'hard',t:[`"He can do even more. I will keep demanding it."`],fx:{p:[[p.id,prPers(p.id,3,-4,-6)]],b:1},re:[persOf(p)==='pro'?`${p.f} takes it as a compliment.`:`${p.f} expected a different answer.`]}]}
+   :{q:[`${pname(p)} scored ${c.tpts} and it still was not enough. Does he need more help?`,`Another big night from ${pname(p)} wasted. What is missing?`],
+   a:[{k:'hon',t:[`"Yes, and finding that help is my job."`],fx:{p:[[p.id,4]],b:-1,m:1},re:['The board read that as a request for money.']},
+      {k:'dip',t:[`"We win and lose together. He knows that."`],fx:{t:1},re:['Fair enough.']},
+      {k:'hard',t:[`"Scoring is not everything. We needed defense from everybody, him included."`],fx:{p:[[p.id,prPers(p.id,0,-5,-7)]],b:1},re:[`${p.f} hears it.`]}]};}},
+ low:{w:'post',ok:c=>c.low!=null&&c.lfga>=7&&P_(c.low),make:c=>{const p=P_(c.low);return {q:[`${pname(p)} went ${c.lline} from the field tonight. What happened?`,`A tough night for ${pname(p)}. What did you see from him?`,`${pname(p)} has been quiet. Is something wrong?`],
+   a:[{k:'prot',t:[`"Everybody has nights like that. I trust him completely."`,`"He will bounce back. I have no doubt."`],fx:{p:[[p.id,6]],b:-1},re:[`${p.f} will appreciate that.`]},
+      {k:'hard',t:[`"Not good enough, and he knows it."`,`"He has to give more. That is not a secret."`],fx:{p:[[p.id,prPers(p.id,-1,-7,-9)]],b:1,f:1},re:[persOf(p)==='pro'?`${p.f} nods: fair.`:persOf(p)==='ego'?`${p.f} will not forget that.`:`${p.f} is hurt.`]},
+      {k:'dodge',t:[`"I do not talk about individual players after a game."`],fx:{m:-1,t:1},re:['The journalist tries again with his eyes. You do not blink.']}]};}},
+ refs:{w:'post',ok:c=>!c.won&&c.ftd<=-7,make:c=>({q:[`They shot ${-c.ftd} more free throws than you. Did the referees decide this game?`,`Your players were furious with the officials. Do you share that?`],
+   a:[{k:'dip',t:[`"I will not talk about the referees. We lost because of us."`],fx:{b:1,t:1,m:1},re:['Classy. The league will like it.']},
+      {k:'dodge',t:[`"Look at the numbers and draw your own conclusions."`],fx:{f:2,m:1,fine:.4},re:['Clever, maybe too clever for the disciplinary committee.']},
+      {k:'prov',t:[`"Yes. What happened tonight was unacceptable."`],fx:{f:3,b:-3,t:1,fine:1},re:['The fans cheer you. The league will send a letter.']}]})},
+ margin:{w:'post',ok:c=>c.margin>=18,make:c=>c.won?{q:[`A ${c.margin}-point win. A statement?`,`That was a demolition. Did you expect this?`],
+   a:[{k:'dip',t:[`"Two points. Tomorrow we start again."`],fx:{b:1},re:['Humble.']},
+      {k:'conf',t:[`"This is who we are when we play together."`],fx:{t:2,f:2},re:['The fans love it.']},
+      {k:'hum',t:[`"Not really. I was hoping for thirty."`],fx:{f:1,m:2,rival:1},re:['Laughter. Their coach will not laugh.']}]}
+   :{q:[`A ${c.margin}-point defeat. Was that embarrassing?`,`What did you say to the players after that?`],
+   a:[{k:'hon',t:[`"Yes. It was embarrassing and I apologise to our fans."`],fx:{f:2,b:1,t:-1,m:2},re:['The fans respect the honesty.']},
+      {k:'prot',t:[`"One bad night does not define this team."`],fx:{t:2,f:-1},re:['The players needed that.']},
+      {k:'dodge',t:[`"What I said stays in the dressing room."`],fx:{t:1,m:-1},re:['Fair. The press wanted more.']}]}},
+ streak:{w:'post',ok:c=>c.ns<=-3||c.ns>=5,make:c=>c.ns<0?{q:[`That is ${-c.ns} defeats in a row. Are you still the right man for this job?`,`Do you still believe you are the right coach for this team?`],
+   a:[{k:'conf',t:[`"I have never been more sure of it."`],fx:{t:1,bet:[[1,2],[-1,-3]]},re:['Brave words. The next game will judge them.']},
+      {k:'hon',t:[`"That is for the board to decide. I will keep working."`],fx:{b:2,t:-1,m:1},re:['The board note your respect.']},
+      {k:'prot',t:[`"The players are fighting for each other and for me. I see it every day."`],fx:{t:3,b:-1},re:['The players will remember that.']}]}
+   :{q:[`${c.ns} wins in a row. Where does this end?`,`The team cannot stop winning. What is the secret?`],
+   a:[{k:'dip',t:[`"In the next game, hopefully with another win."`],fx:{b:1},re:['Classic.']},
+      {k:'conf',t:[`"Hopefully with a trophy."`],fx:{f:2,t:1,b:1},re:['The fans start to dream.']},
+      {k:'hum',t:[`"The secret is that I do not change my suit."`],fx:{f:1,m:2},re:['The room laughs.']}]}},
+ young:{w:'post',ok:c=>c.yid!=null&&P_(c.yid),make:c=>{const p=P_(c.yid);return {q:[`${pname(p)} played ${c.ymin} minutes again. When does he get his chance?`,`Fans want to see ${pname(p)}. Why is he not playing more?`],
+   a:[{k:'hard',t:[`"When he earns it in practice. Nothing is given here."`],fx:{p:[[p.id,-3]],b:1},re:[`${p.f} will work harder or sulk. We will see.`]},
+      {k:'conf',t:[`"Soon. He is very close."`],fx:{p:[[p.id,5]],f:1},re:['The fans will hold you to it.']},
+      {k:'dip',t:[`"He is ${p.age}. Be patient with him, I am."`],fx:{m:1},re:['Reasonable.']}]};}},
+ oppc2:{w:'post',ok:c=>!!c.hc&&c.margin<=8,make:c=>({q:c.won?[`${c.hc} said his team deserved more tonight. Your reaction?`]:[`${c.hc} said his team was the better side for forty minutes. Do you agree?`],
+   a:[{k:'dip',t:[`"He is entitled to his opinion. The scoreboard has its own."`,`"Respect to him and his team. It was a hard game."`],fx:{m:1,b:1},re:['Correct.']},
+      {k:'prov',t:[c.won?`"Then he should have won it."`:`"He can enjoy it. We see them again."`],fx:{f:2,t:1,rival:1},re:['That will be read in their locker room.']},
+      {k:'dodge',t:[`"I did not hear what he said, and I do not need to."`],fx:{m:-1},re:['Dry.']}]})},
+ genpre:{w:'x',ok:c=>c.type==='pre',make:c=>({q:[`How is the squad feeling before this one?`,`What kind of game do you expect against ${G.teams[c.opp]?G.teams[c.opp].name:'them'}?`,`Any doubts in your line-up?`],
+   a:[{k:'dip',t:[`"Good. We have prepared well and everybody is available who should be."`,`"A physical game. Whoever controls the rebounds will win it."`],fx:{b:1},re:['Nothing to write home about.']},
+      {k:'conf',t:[`"Confident. This group is hungry."`],fx:{t:1,f:1},re:['The players like it.']},
+      {k:'hum',t:[`"Ask me at the final buzzer."`],fx:{m:1},re:['A smile in the room.']}]})},
+ genpost:{w:'x',ok:c=>c.type==='post',make:c=>({q:c.won?[`What pleased you most tonight?`,`Where was the game won?`]:[`What went wrong tonight?`,`Where was the game lost?`],
+   a:c.won?[{k:'dip',t:[`"The defense. We were connected for forty minutes."`],fx:{t:1},re:['The players will like that.']},{k:'conf',t:[`"The character. This team never stops."`],fx:{t:1,f:1},re:['Fans enjoy it.']},{k:'hard',t:[`"Honestly? Not much. We were sloppy and still won."`],fx:{b:1,t:-1},re:['A demanding coach. The players heard it.']}]
+     :[{k:'hon',t:[`"That is on me. I did not find the right answers."`],fx:{t:2,b:-1,m:1},re:['The players respect it.']},{k:'hard',t:[`"Effort. Some players were not ready to fight."`],fx:{t:-3,b:2,f:1},re:['The board agree. The dressing room does not.']},{k:'dip',t:[`"Small details. We will look at the video and fix them."`],fx:{b:1},re:['Calm.']}]})},
+ tjob:{w:'topic',ok:c=>c.mj!=null&&G.teams[c.mj],make:c=>({q:[`Reports say ${G.teams[c.mj].name} want you. Will you still be here next week?`,`Is it true you have spoken to ${G.teams[c.mj].name}?`],
+   a:[{k:'conf',t:[`"I am fully committed to ${G.teams[G.user].name}."`],fx:{b:4,f:2,decline:1},re:['The board and fans love the loyalty. The other club withdraws.']},
+      {k:'hon',t:[`"It is flattering. My focus is here."`],fx:{b:-1},re:['Half an answer. The story will run.']},
+      {k:'dodge',t:[`"You never know in this business."`],fx:{b:-6,f:-3,t:-1},re:['It is in every headline. The board are not pleased.']}]})},
+ theat:{w:'topic',ok:c=>c.topic==='heat',make:c=>PRQ.job.make(c)},
+ tcon:{w:'topic',ok:c=>c.pid!=null&&P_(c.pid),make:c=>{const p=P_(c.pid);return {q:[`${pname(p)}'s contract ends this summer and other clubs are watching. Will he stay?`,`Is ${pname(p)} going to sign a new deal?`],
+   a:[{k:'conf',t:[`"${pname(p)} is our player and we want him to stay."`],fx:{p:[[p.id,6]],f:1,keep:1},re:['He likes hearing it. The fans will remember the promise.']},
+      {k:'hon',t:[`"Nobody is bigger than the club."`],fx:{p:[[p.id,-6]],b:2},re:['The board agree. He reads it as a sign he is not wanted.']},
+      {k:'dodge',t:[`"Contracts are discussed in private."`],fx:{m:-1},re:['Correct, and boring.']}]};}}};
+const PR_FOLLOW=[`"With respect, coach, that is not an answer."`,`"Can I push you on that?"`,`"So that is a no comment?"`];
+function prBuild(Q){const c=prCtx(Q),S=G.prSeen||(G.prSeen={}),w=c.type==='topic'?'topic':c.type;
+  let ids=Object.keys(PRQ).filter(k=>PRQ[k].w===w&&PRQ[k].ok(c));
+  const prio=['job','tjob','theat','tcon','derby','refs','streak'];ids.sort((a,b)=>(prio.includes(b)-prio.includes(a))||((S[a]||0)-(S[b]||0))+rf(-.6,.6));
+  const n=c.type==='topic'?Math.min(2,ids.length):Math.min(3,ids.length);ids=ids.slice(0,n);
+  // always at least one question (a generic one)
+  if(ids.length<2&&c.type!=='topic')ids.push(c.type==='post'?'genpost':'genpre');if(!ids.length)ids=['genpre'].filter(k=>PRQ[k].ok(c));
+  const J=shuffle(PR_J.slice());const qs=ids.map((id,i)=>{S[id]=(S[id]||0)+1;const M=PRQ[id].make(c);return {id,j:J[i],qv:rnd(0,M.q.length-1),av:M.a.map(a=>rnd(0,a.t.length-1)),ans:null};});
+  return {key:Q.key,type:c.type,c,qs,i:0,fx:{t:0,b:0,f:0,m:0},log:[],follow:null,over:false,qref:{type:Q.type,key:Q.key}};}
+function prStart(){const Q=pressNow();if(!Q)return null;if(G.prS&&G.prS.key===Q.key&&!G.prS.over)return G.prS;G.prS=prBuild(Q);const S=G.prS;if(!S.qs.length){prEnd(S);return S;}prAsk(S);save();return S;}
+function prAsk(S){const q=S.qs[S.i];if(!q)return;const M=PRQ[q.id].make(S.c),harsh=(G.mrel||0)<=-4;S.log.push({j:q.j,t:(harsh&&S.i===0?'Coach, quickly: ':'')+prPick(M.q,q.qv)});}
+function prApply(S,fx,q){const nb=(x,d)=>{if(!d)return;G[x]=clamp(G[x]+d,0,100);};const mk=1+(G.mrel||0)/25;
+  if(fx.t){teamMood(fx.t);S.fx.t+=fx.t;}if(fx.b){nb('board',fx.b);S.fx.b+=fx.b;}if(fx.f){const d=Math.round(fx.f*mk);nb('fans',d);S.fx.f+=d;}
+  if(fx.m){G.mrel=clamp((G.mrel||0)+fx.m,-10,10);S.fx.m+=fx.m;}
+  for(const [id,d] of fx.p||[]){const p=P_(id);if(p&&d){moodAdd(p,d);(S.fx.p=S.fx.p||{})[id]=((S.fx.p||{})[id]||0)+d;}}
+  if(fx.ego)for(const p of roster(G.user))if(persOf(p)==='ego'&&!(fx.p||[]).some(x=>x[0]===p.id))moodAdd(p,fx.ego);
+  if(fx.bet){const B=G.pressBet||{w:[0,0],l:[0,0]};G.pressBet={w:[B.w[0]+fx.bet[0][0],B.w[1]+fx.bet[0][1]],l:[B.l[0]+fx.bet[1][0],B.l[1]+fx.bet[1][1]]};S.bet=1;}
+  if(fx.rival&&S.c.opp!=null){G.rivalFire={opp:S.c.opp,d:G.day,s:G.season};S.rival=1;}
+  if(fx.leak&&G.plan&&G.plan.opp===S.c.opp)G.plan.leak=1;
+  if(fx.fine&&Math.random()<fx.fine){G.refFines=(G.refFines||0)+1;const fine=r10k(Math.max(G.fin.wageBudget*.002,5000)*G.refFines);G.fin.bal-=fine;G.fin.season.rel=(G.fin.season.rel||0)+fine;S.fine=(S.fine||0)+fine;}
+  if(fx.decline)for(const m of midJobs())m.done='Declined';
+  if(fx.keep&&S.c.pid!=null&&P_(S.c.pid))P_(S.c.pid).pressKeep=G.season;}
+function prAnswer(S,idx){if(!S||S.over)return;
+  if(S.follow){const F=S.follow;S.follow=null;const a=F.a[idx];if(!a)return;S.log.push({you:1,t:a.t});prApply(S,a.fx);S.log.push({sys:1,t:a.re});prNext(S);return;}
+  const q=S.qs[S.i],M=PRQ[q.id].make(S.c),a=M.a[idx];if(!a)return;q.ans=idx;S.log.push({you:1,t:prPick(a.t,q.av[idx]),tone:a.k});prApply(S,a.fx,q);S.log.push({sys:1,t:pick(a.re)});
+  // a dodge invites a follow-up when the press are not on your side
+  if(a.k==='dodge'&&(G.mrel||0)<=2&&Math.random()<.45){S.follow={a:[{t:`"It is the only answer you will get tonight."`,fx:{m:-2,t:1},re:'The journalist sits down. The others note the tone.'},{t:`"Fine. ${a.k==='dodge'&&q.id==='low'?'He had a bad night, and he knows it.':q.id==='plan'?'We have prepared something specific for them.':'Let me put it differently: we are focused on our own job.'}"`,fx:{m:1},re:'The journalist nods. Better.'}]};S.log.push({j:q.j,t:pick(PR_FOLLOW)});save();return;}
+  prNext(S);}
+function prNext(S){S.i++;if(S.i<S.qs.length){prAsk(S);save();return;}prEnd(S);}
+function prEnd(S,skipped){if(S.over)return;S.over=true;const R=S.qref;
+  if(R.type==='pre')G.pressDone=R.key;else if(R.type==='post')G.press=null;else{const T=G.ptop;if(T){T.n.push(R.key);T.cur=null;T.d=G.day;}}
+  if(skipped){G.mrel=clamp((G.mrel||0)-1,-10,10);if(R.type!=='topic')G.fans=clamp(G.fans-1,0,100);}
+  else S.log.push({sys:1,t:pick(['"Thank you, coach."','"That is all, thank you."','"Last question… no? Thank you, coach."'])});
+  if(S.rival&&S.c.opp!=null){const o=G.teams[S.c.opp],hc=hcName(o);if(hc)msg('Media',`${hc} responds`,`${hc} (${o.name}) was asked about your comments. "${pick(['We read it. We will answer on the court.','He talks a lot. Let us see what he says after the game.','Thank you for the motivation.','I do not need to say anything. My players heard it.'])}"`,'media');}
+  save();}
+function prSkip(){const Q=pressNow();if(!Q)return;const S=G.prS&&G.prS.key===Q.key?G.prS:prBuild(Q);G.prS=S;prEnd(S,true);}
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -1482,7 +1630,8 @@ class Match{
     this.crowd=h===G.user&&!this.neutral&&this.kind!=='pre'&&typeof crowdBonus==='function'?crowdBonus(h,a):0;
     this.chem=this.kind!=='pre'&&typeof chemBonus==='function'?{[h]:chemBonus(h),[a]:chemBonus(a)}:{};
     this.heat={};this.feed=null;this.rested={};if(this.kind!=='pre')matchCtx(this,h,a);
-    this.gp=[null,null];this.gpS=[null,null];this.gpW=[null,null];if(G.plan&&this.kind!=='pre'){for(let ui=0;ui<2;ui++){const me=this.s[ui].tid;if((me===G.user||me===this.ntU)&&G.plan.opp===this.s[1-ui].tid){this.gp[ui]=G.plan.k;this.gpS[ui]=G.plan.star;this.gpW[ui]=G.plan.weak;if(G.plan.k==='run')this.s[ui].fk=(this.s[ui].fk||1)*1.12;if(G.plan.k==='star')this.s[ui].fk=(this.s[ui].fk||1)*1.05;}}}
+    if(G.rivalFire&&G.rivalFire.s===G.season&&G.day-G.rivalFire.d<=12&&this.kind!=='pre')for(const s of this.s)if(s.tid===G.rivalFire.opp)s.adj=(s.adj||0)+.008;
+    this.gp=[null,null];this.gpS=[null,null];this.gpW=[null,null];if(G.plan&&this.kind!=='pre'){for(let ui=0;ui<2;ui++){const me=this.s[ui].tid;if((me===G.user||me===this.ntU)&&G.plan.opp===this.s[1-ui].tid){this.gp[ui]=G.plan.k;this.gpS[ui]=G.plan.star;this.gpW[ui]=G.plan.weak;if(G.plan.leak&&Math.random()<.5){this.gp[ui]=null;continue;}if(G.plan.k==='run')this.s[ui].fk=(this.s[ui].fk||1)*1.12;if(G.plan.k==='star')this.s[ui].fk=(this.s[ui].fk||1)*1.05;}}}
     this.run_=[0,0];this.play=[null,null];this.lastPlay=[null,null];this.foul=[false,false];this.manual=-1;
     if(this.log)this.add(-1,'period','Tip-off');
   }
@@ -5334,7 +5483,9 @@ function pressResult(r,won,me,op,wp){const f={h:r.h,a:r.a,kind:r.kind},opp=G.tea
   let why=null;if(pressBig(f))why=dn?`After the ${dn}`:`After the ${KINDN[r.kind]||'big game'}`;else if(r.kind!=='pre'&&margin>=30)why=won?`A ${margin}-point win`:`A ${margin}-point defeat`;else if(ns===-3||ns===-6)why=`${-ns} defeats in a row`;else if(ns===5||ns===10)why=`${ns} wins in a row`;
   G.pressG=(G.pressG||0)+1;if(!why||G.sacked)return;if(!pressBig(f)&&G.pressG<6)return;G.pressG=0;
   let top=null,tv=-99,low=null,lv=99;for(const p of me.ord){const b=me.box[p.id];if(b.sec<=0)continue;const v=pir(b);if(v>tv){tv=v;top=p;}if(b.sec>=900&&v<lv&&p.tid===G.user){lv=v;low=p;}}
-  G.press={type:'post',won,why,opp:opp.name,top:top&&top.tid===G.user?top.id:null,low:low?low.id:null,key:`post-${G.season}-${G.day}-${r.h}-${r.a}`};}
+  const tb=top?me.box[top.id]:null,lb=low?me.box[low.id]:null,ft=s=>Object.values(s.box).reduce((a,b)=>a+b.fta,0);
+  const yg=me.ord.filter(p=>p.tid===G.user&&p.age<=21&&p.pot>=78&&p.inj<=0&&me.box[p.id]&&me.box[p.id].sec<480).sort((a,b)=>b.pot-a.pot)[0];
+  G.press={type:'post',won,why,opp:opp.name,oppId:opp.id,top:top&&top.tid===G.user?top.id:null,tpts:tb?tb.pts:0,low:low?low.id:null,lline:lb?`${lb.fgm}/${lb.fga}`:'',lfga:lb?lb.fga:0,ftd:ft(me)-ft(op),margin,ns,derby:dn,yid:yg?yg.id:null,ymin:yg?Math.round(me.box[yg.id].sec/60):0,key:`post-${G.season}-${G.day}-${r.h}-${r.a}`};}
 function pressPost(){const P=G&&G.press;if(!P||G.sacked)return null;const T=P.top!=null?G.players[P.top]:null,L=P.low!=null?G.players[P.low]:null;
   if(P.won){const opts=[['team','"This was a team effort."','Team mood up.']];if(T)opts.push(['star',`"${pname(T)} was outstanding."`,'He loves it. Big egos in the room do not.']);opts.push(['ground','"We have won nothing yet."','Board pleased, the team less so.'],['fans','"This one is for our fans."','Fans up.']);
     return {...P,q:`${P.why}, beating ${P.opp}. What is your message?`,opts};}
