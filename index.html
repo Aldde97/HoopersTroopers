@@ -876,6 +876,15 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 .kpi b{display:block;font:800 27px/1.15 var(--fd);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pg1{max-width:1100px}
 @media(max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi b{font-size:22px}}
+
+/* ---- "i" explainers in card headers ---- */
+.inf{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;margin-left:10px;border-radius:50%;border:1.5px solid #ffffff59;color:#ffffffc0;font:italic 700 13px/1 Georgia,"Times New Roman",serif;text-transform:none;letter-spacing:0;cursor:pointer;vertical-align:3px;user-select:none}
+.inf:hover{border-color:var(--or);color:#fff}
+.inf-c{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.inf-p{display:none;padding:12px 22px 13px;background:var(--orS);border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.55;color:var(--tx)}
+.inf-p p+p{margin-top:8px}
+.inf-c:checked+.inf-p{display:block}
+.inf-c:focus-visible+.inf-p{display:block;outline:2px solid var(--or);outline-offset:-2px}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -905,4 +914,4 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=4" charset="utf-8"></script>
-<script src="ui.js?v=408" charset="utf-8"></script>
+<script src="ui.js?v=409" charset="utf-8"></script>

@@ -26,7 +26,20 @@ const ovb=o=>`<span class="ovr ${ovc(o)}">${o}</span>`;
 const form=f=>`<span class="fm">${f.map(x=>`<span class="${x}">${x}</span>`).join('')}</span>`;
 const ecol=e=>e>=80?'var(--g)':e>=60?'var(--y)':'var(--r)';
 const ebar=e=>`<span class="eb" title="Energy ${Math.round(e)}%${e<65?` \u00b7 injury risk \u00d7${fatigueRisk(e)}`:''}"><i style="width:${e}%;background:${ecol(e)}"></i></span>`;
-const card=(title,body,link)=>`<section class="card"><div class="ch"><h3>${title}</h3>${link||''}</div>${body}</section>`;
+// Long grey explainer paragraphs move out of the card body into a panel behind an "i" in the card header.
+let infN=0;
+function infSplit(body){if(typeof body!=='string'||!/class="(?:mut|cb mut|sec mut)"/.test(body))return [body,''];const out=[];
+  const b=body.replace(/<(p|div) class="(?:mut|cb mut|sec mut)"[^>]*>((?:(?!<div|<p[ >])[\s\S])*?)<\/\1>/g,(m,tg,t,off)=>{
+    if(/class="(neg|pos|pill|btn)|data-act|<input|<select|<button/.test(t))return m;
+    if(t.replace(/<[^>]+>/g,'').length<110)return m;
+    const pre=body.slice(Math.max(0,off-400),off),e=pre.lastIndexOf('class="empty"');if(e>=0&&pre.indexOf('</div>',e)<0)return m;
+    out.push(t);return '';});
+  if(!out.length)return [body,''];
+  const b2=b.replace(/<div class="(?:sec|cb)"[^>]*>\s*<\/div>/g,'');
+  if(!b2.replace(/<[^>]+>/g,'').trim()&&b2.indexOf('<svg')<0&&b2.indexOf('<img')<0&&b2.indexOf('<canvas')<0)return [body,''];
+  return [b2,out.map(t=>`<p>${t}</p>`).join('')];}
+const card=(title,body,link)=>{const [b,inf]=infSplit(body),id=inf?'inf'+(++infN):'';
+  return `<section class="card"><div class="ch"><h3>${title}${inf?`<label class="inf" for="${id}" title="How this works">i</label>`:''}</h3>${link||''}</div>${inf?`<input type="checkbox" class="inf-c" id="${id}" aria-label="Show how this works"><div class="inf-p">${inf}</div>`:''}${b}</section>`;};
 const lnk=(act,txt)=>`<button class="lnk" data-act="${act}">${txt} \u203a</button>`;
 const ht=cm=>(cm/100).toFixed(2)+' m';
 const status=p=>(p.tid===G.user&&G.captain===p.id?'<span class="pill k">C</span> ':'')+(p.rest&&p.tid===G.user?'<span class="pill b">Rest</span> ':'')+status0(p);
@@ -989,13 +1002,13 @@ function staffHTML(){
   // the user's own league: EuroLeague, NBA, BBL, ABA ...
   const me0=G.teams[G.user],mates=(me0.dom?(nlUser()&&userIsNL()?nlUser().ids.map(i=>G.teams[i]):G.teams.filter(t=>t.dom===me0.dom)):ELT()).filter(x=>x.id!==G.user),club=mates.some(x=>x.id===UI.staffClub)?UI.staffClub:mates[0].id,ct=G.teams[club];
   const ctStaff=(ct.staff||[]).slice().sort((a,b)=>RORDER.indexOf(a.role)-RORDER.indexOf(b.role)||b.o-a.o);
-  const sMine=`${card('Your staff',`<div class="cb g-2e" style="gap:0 28px">${kv('Training effect',pct(fx.train))}${kv('Injury risk',pct(fx.injury))}${kv('Transfer fee discount',Math.round(fx.neg*100)+'%')}${kv('Staff wages',eur(staffWages(G.user))+'/yr')}</div>${you}${grp('AC')}${grp('DOC')}${grp('TM')}${grp('SC')}`)}`;
+  const sMine=`${card('Your staff',`<div class="cb g-2e" style="gap:0 28px">${kv('Training effect',pct(fx.train))}${kv('Injury risk',pct(fx.injury))}${kv('Transfer fee discount',Math.round(fx.neg*100)+'%')}${kv('Staff wages',eur(staffWages(G.user))+'/yr')}</div>${you}${grp('AC')}${grp('DOC')}${grp('TM')}${grp('SC')}<p class="mut">Assistant coaches speed up player development after every game (best four count). Medical staff lower the injury risk and shorten injuries. A team manager negotiates lower transfer fees. A scout improves your scouting reports and sends you young talents to look at. Other clubs' head coaches give their teams a small boost in games, and clubs at the bottom of the table may sack their coach during the season.</p>`)}`;
   const sCourses=coursesCard(),sEx=exStaffCard();
   const sLeague=`${card('Staff around the league',`<div class="sec"><div class="seg">${mates.map(x=>`<button class="${x.id===club?'on':''}" data-act="staffclub:${x.id}">${x.short}</button>`).join('')}</div></div><div class="cb" style="display:flex;gap:12px;align-items:center;padding-block:4px 10px">${crest(ct)}<b class="c" style="font-size:20px;font-weight:800">${esc(ct.name)}</b></div>${ctStaff.map(x=>staffRow(x,'poach:'+ct.id)).join('')}`)}`;
   const sMarket=`${card('Staff market',`<div class="sec"><div class="seg">${[['HC','Head coaches'],['AC','Assistant coaches'],['DOC','Medical'],['TM','Team managers'],['SC','Scouts']].map(([k,l])=>`<button class="${fl===k?'on':''}" data-act="staffrole:${k}">${l}</button>`).join('')}</div><p class="mut" style="font-size:13px">Coaches and medical staff from last season who are without a club. You are the head coach, so former head coaches join you as assistant coaches. Signing fee: a quarter of one season's wage.</p></div><div style="max-height:900px;overflow-y:auto">${market.map(x=>staffRow(x,'hire')).join('')||'<div class="empty"><p class="mut">Nobody available.</p></div>'}</div>`)}`;
   const sHelp=`${card('How staff helps',`<div class="cb"><p class="mut" style="line-height:1.6">Assistant coaches speed up player development after every game (best four count). Medical staff lower the injury risk and shorten injuries. A team manager negotiates lower transfer fees. A scout improves your scouting reports and sends you young talents to look at. Other clubs' head coaches give their teams a small boost in games, and clubs at the bottom of the table may sack their coach during the season.</p></div>`)}`;
   const T=[['mine',`Your staff · ${mine.length}`],['market','Staff market'],...(sCourses?[['courses','Coaching courses']]:[]),['league','Around the league']],tab=T.some(x=>x[0]===UI.staffTab)?UI.staffTab:'mine';
-  return ptabs(T,tab,'stafftab')+(tab==='market'?pg2(sMarket,''):tab==='courses'?pg2(sCourses,''):tab==='league'?pg2(sLeague,''):pg2(sMine,sEx+sHelp));}
+  return ptabs(T,tab,'stafftab')+(tab==='market'?pg2(sMarket,''):tab==='courses'?pg2(sCourses,''):tab==='league'?pg2(sLeague,''):pg2(sMine,sEx));}
 
 /* ===================== Coaching courses ===================== */
 function coursesCard(){const C=G.coach;if(!C)return '';const cur=C.course;
