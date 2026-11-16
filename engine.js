@@ -601,6 +601,79 @@ function prEnd(S,skipped){if(S.over)return;S.over=true;const R=S.qref;
   if(S.rival&&S.c.opp!=null){const o=G.teams[S.c.opp],hc=hcName(o);if(hc)msg('Media',`${hc} responds`,`${hc} (${o.name}) was asked about your comments. "${pick(['We read it. We will answer on the court.','He talks a lot. Let us see what he says after the game.','Thank you for the motivation.','I do not need to say anything. My players heard it.'])}"`,'media');}
   save();}
 function prSkip(){const Q=pressNow();if(!Q)return;const S=G.prS&&G.prS.key===Q.key?G.prS:prBuild(Q);G.prS=S;prEnd(S,true);}
+
+/* ===================== NIL collective and revenue sharing (college) ===================== */
+// Since the House v. NCAA settlement (2025-26) schools may pay their players directly (revenue sharing, capped per school across all
+// sports) and booster-funded collectives pay NIL deals on top; rosters are limited to 15. Here the NIL budget of the user's program is
+// the athletic department's revenue share for men's basketball + the collective (sized by the program's standing and the boosters'
+// mood) + what boosters pledged after last season's run + gifts during the season. Every NIL deal the program commits (recruits,
+// portal transfers, raises to keep its own players) must fit in it. Boosters warm to statement wins and tournament runs and cool on
+// bad losses. In spring, after the NCAA Tournament, players who are thinking about the transfer portal come to the coach first.
+const NC_ROST=15;
+const NIL_WHO=['Hal Whitmore','Dana Ridgeway','The Calloway family','Russ Benton','Marcy Delgado','Tom Ashworth','Glen Okafor','Peggy Lindqvist','Walt Brennan','Cheryl Vance','The Pruitt family','Dale Sorensen'];
+const ncNilR=p=>r5k(clamp(20000*Math.exp((p.o*.72+(p.pot||p.o)*.28-55)/5.5),15000,2500000));
+const ncStars=p=>{const v=(p.pot||p.o);return v>=86?5:v>=78?4:v>=70?3:2;};
+const nilBase=t=>clamp(700000+((t.rep||60)-56)*160000,500000,7500000);
+const nilOn=()=>!!(typeof G!=='undefined'&&G&&G.teams&&nilEnsure());
+function nilEnsure(){const t=G&&G.teams&&G.teams[G.user];if(!t||!isCol(t))return null;if(!G.nil||G.nil.tid!==t.id){G.nil={tid:t.id,boost:50,pl:0,pln:0,gift:0,gifts:[],s:G.season};nilSet(true);}return G.nil;}
+function nilParts(bo){const t=G.teams[G.user],N=G.nil,B=nilBase(t);bo=bo==null?N.boost:bo;return {rs:r10k(B*.45),coll:r10k(B*.55*(.7+.6*bo/100)),pl:N.pl||0,gift:N.gift||0};}
+const nilSum=P=>P.rs+P.coll+P.pl+P.gift;
+function nilSet(first){let b=nilSum(nilParts());if(first){const bill=wageBill(G.user);if(b<bill*1.04){G.nil.pl+=r10k(bill*1.04-b);b=nilSum(nilParts());}}G.fin.wageBudget=b;}
+const nilBoostLbl=b=>b>=75?'Fired up':b>=58?'Generous':b>=42?'Steady':b>=25?'Restless':'Closing their wallets';
+// spring: talks are about next season, so room is next season's projected budget minus the deals of the players who return
+const nilSpring=()=>nilOn()&&G.nil.talk===G.season;
+const nilStays=p=>p.yrs>1&&!p.prospect&&!p.ncOut&&!p.loan&&!(p.nk&&p.nk.st==='go');
+function nilProj(){const N=G.nil,P=nilParts(50+(N.boost-50)*.7);return P.rs+P.coll+(N.pln||0);}
+const nilCommit=()=>roster(G.user).filter(nilStays).reduce((s,p)=>s+p.sal,0);
+const nilRoom=()=>nilSpring()?nilProj()-nilCommit():G.fin.wageBudget-wageBill(G.user);
+function nilGame(won,op){if(!nilOn()||!op||!isCol(op)||preOn())return;const N=G.nil,c=G.teams[G.user],pe=1/(1+Math.exp(-(strength(c.id)-strength(op.id))/6));
+  N.boost=clamp(N.boost+clamp(3.5*((won?1:0)-pe),-2.5,3),0,100);
+  if(won&&pe<.45&&op.rep>=76&&G.phase==='reg'&&(N.gifts||[]).length<3&&Math.random()<.45){const amt=r10k(nilBase(c)*rf(.025,.06)),who=pick(NIL_WHO);
+    N.gift=(N.gift||0)+amt;G.fin.wageBudget+=amt;G.fin.wfund=(G.fin.wfund||0)+r10k(amt*budLeft());(N.gifts=N.gifts||[]).push({d:dateStr(),who,amt,op:op.name});
+    msg('NIL Collective',`${who} add${/family/.test(who)?'':'s'} ${eur(amt)} after the ${op.name} win`,pick([`One of our biggest boosters called the collective the morning after the win over ${op.name}: ${eur(amt)} more for NIL deals this season. Nights like that are what keep the money coming.`,`After beating ${op.name}, ${who} made a gift of ${eur(amt)} to the collective. It is available for NIL deals right away.`]),'fin');}
+  const f=c.form.slice(-4).join('');if(!won&&f==='LLLL'&&N.sl!==G.season){N.sl=G.season;N.boost=clamp(N.boost-3,0,100);msg('NIL Collective','The boosters are getting restless',`Four losses in a row and the phones have gone quiet. Two of our donors asked the collective what the plan is. Nobody is pulling money yet, but next year's pledges depend on how this season ends.`,'fin');}}
+function nilConf(W){if(!nilOn()||!W.includes(G.user))return;const N=G.nil,x=r10k(nilBase(G.teams[G.user])*.04);N.boost=clamp(N.boost+5,0,100);N.pln=(N.pln||0)+x;
+  msg('NIL Collective','Conference champions: the boosters respond',`Cutting down the nets in the ${G.teams[G.user].grp} tournament was worth more than the trophy: our boosters pledged ${eur(x)} extra for next season's NIL budget.`,'fin');}
+function nilSeasonEnd(L){if(!nilOn())return;const N=G.nil,U=G.user,t=G.teams[U],B=nilBase(t),f=ncFinish(L,U);
+  const T={Champions:[15,.25],'Runner-up':[11,.16],'Final Four':[8,.1],'Elite Eight':[5,.06],'Sweet 16':[3,.035],'Round of 32':[1,.015]}[f];
+  const bo=T?T[0]:(t.rep>=72?-6:-2),x=T?r10k(B*T[1]):0;N.boost=clamp(N.boost+bo,0,100);N.pln=(N.pln||0)+x;
+  msg('NIL Collective',T?`${f}: next year's pledges`:'A season without the tournament',T?`${f==='Champions'?'National champions. The phones have not stopped ringing.':`Our run to the ${f} got the boosters talking.`} They pledged ${eur(x)} on top of next season's collective. Booster mood: ${nilBoostLbl(N.boost).toLowerCase()}.`:`We missed the NCAA Tournament${t.rep>=72?', and at a program like ours the boosters notice':''}. Pledges for next season are flat. Booster mood: ${nilBoostLbl(N.boost).toLowerCase()}.`,'fin');
+  nilTalks();}
+function nilRisk(p,k){const mk=ncNil(p),gp=p.st&&p.st.gp||0,mpg=gp?p.st.sec/60/gp:0,me=G.teams[G.user];let r=k>=9?.45:k>=5?.2:.06,why=null,sch=null;
+  if(p.sal<mk*.8){r+=.4*(1-p.sal/mk);why='money';}
+  if(k>=4&&gp>=5&&mpg<14){r+=.15;why=why||'minutes';}
+  if(k<=3&&p.o>=70&&Math.random()<.45){const S=shuffle(G.teams.filter(t=>isCol(t)&&t.id!==me.id&&(t.rep>=me.rep+4||(me.rep>=84&&t.rep>=80))))[0];if(S){sch=S.id;r+=.22;why='bigger';}}
+  if(!why&&k>=9){why='minutes';}
+  return {r:Math.min(.9,r),why,mk,sch,mpg};}
+function nilTalks(){const N=G.nil;if(N.talk===G.season)return;N.talk=G.season;const ps=roster(G.user).slice().sort((a,b)=>b.o-a.o),C=[];
+  ps.forEach((p,k)=>{if(!nilStays(p))return;const R=nilRisk(p,k);if(R.why&&R.r>=.2)C.push({p,R});});
+  for(const {p,R} of C.sort((a,b)=>b.p.o-a.p.o).slice(0,4)){const eg=persOf(p)==='ego'?1.1:1,mpg=Math.round(R.mpg);
+    const ask=r5k(eg*(R.why==='bigger'?Math.max(R.mk*rf(1.2,1.4),p.sal*1.4):R.why==='money'?Math.max(R.mk*rf(.95,1.1),p.sal*1.2):p.sal*1.2+10000));
+    p.nk={s:G.season,why:R.why,ask,sch:R.sch,r:R.r,st:'open'};const S=R.sch!=null?G.teams[R.sch]:null;
+    const body=R.why==='bigger'?pick([`Coach, I'll be straight with you. People around ${S.name} have been in touch with my family, and their collective is talking about ${eur(r5k(ask*1.1))}. I like it here. Get close to ${eur(ask)} and I'm not going anywhere.`,`Coach, ${S.name} want me. Nobody is supposed to talk to me before the portal opens, but everybody does. I don't want to leave, but ${eur(p.sal)} is a long way from what they're offering. ${eur(ask)} keeps me here.`])
+      :R.why==='money'?pick([`Coach, I've grown a lot this year and my NIL deal (${eur(p.sal)}) doesn't reflect it anymore. Other programs are telling my people I'm worth ${eur(r5k(R.mk))} on the open market. I want to stay. I need ${eur(ask)} next season.`,`Coach, my agent says I'm underpaid, and the numbers say he's right. I'd rather sort this out with you than in the portal. ${eur(ask)} and we're good.`])
+      :pick([`Coach, I played ${mpg} minutes a game this season. I want to play. If nothing changes I'm putting my name in the portal.`,`Coach, I respect you, but I came here to play, not to watch. ${mpg} minutes a game isn't enough. Tell me there's a role for me next year, or I'll look for one somewhere else.`]);
+    msg(pname(p),R.why==='minutes'?'I want to play':'Before the portal opens',body,'nilk',{pid:p.id});}
+  if(C.length)msg('Assistant Coach','Portal season',`The transfer portal opens after the tournament. ${C.length===1?'One of our players has':`${Math.min(4,C.length)} of our players have`} come to us first. Whatever you decide, next season's NIL budget is projected at ${eur(nilProj())} and ${eur(nilCommit())} is already committed to returning players.`,'staff');}
+function nilKeep(pid,k){const p=G.players[pid];if(!p||!p.nk||p.tid!==G.user||p.nk.st!=='open')return 'This is settled.';const n=p.nk,m=G.inbox.find(x=>x.type==='nilk'&&x.act&&x.act.pid===p.id&&!x.done);let t;
+  if(k==='pay'){const need=n.ask-p.sal,room=nilRoom();if(need>room)return `Not enough NIL room: the new deal needs ${eur(need)} more, and next season's projected room is ${eur(Math.max(0,room))}.`;
+    p.sal=n.ask;n.st='paid';moodAdd(p,8);t=`${pname(p)} signs a new NIL deal worth ${eur(n.ask)} and stays.`;if(m)m.done=`New deal: ${eur(n.ask)}`;}
+  else if(k==='role'){n.st='role';const ok=n.why==='minutes';moodAdd(p,ok?5:-2);t=ok?`${p.f} likes what he hears. He will very likely stay.`:`${p.f} nods, but it was never really about minutes. He may still go.`;if(m)m.done='Promised a bigger role';}
+  else{n.st='go';moodAdd(p,-3);t=`${pname(p)} will enter the transfer portal when it opens. His NIL money is free for next season.`;if(m)m.done='Let him go';}
+  save();return t;}
+function nilQ(p,k){const b=k>=9?.45:k>=5?.2:.06,n=p.nk;if(!nilOn()||!n||n.s<G.season-1)return b;
+  if(n.st==='paid')return 0;if(n.st==='go')return 1;if(n.st==='role')return n.r*(n.why==='minutes'?.35:.85);return Math.min(.95,n.r*1.25);}
+// a recruit the program cannot afford signs elsewhere
+function nilRec(p,mine){if(!nilOn()||wageBill(G.user)<=G.fin.wageBudget)return [p];
+  const T=G.teams.filter(t=>isCol(t)&&t.id!==G.user&&t.order.length<NC_ROST).sort((a,b)=>b.rep-a.rep),d=T[rnd(0,Math.min(7,T.length-1))];
+  leave(p);if(d){join(p,d);d.order=autoOrder(d.order);}else{G.fa=G.fa.filter(i=>i!==p.id);delete G.players[p.id];}(mine.lost=mine.lost||[]).push({n:pname(p),s:ncStars(p),sal:p.sal,to:d?d.name:'another school'});return [];}
+function nilSummer0(){const N=nilEnsure();if(!N)return;N.pl=N.pln||0;N.pln=0;N.gift=0;N.gifts=[];N.boost=Math.round(50+(N.boost-50)*.7);N.s=G.season;delete N.sl;nilSet();}
+function nilSummer1(mine){const U=G.user;
+  for(const t of G.teams.filter(isCol)){if(t.order.length<=NC_ROST)continue;const cut=roster(t.id).filter(p=>!p.loan&&p.rec!==G.season).sort((a,b)=>a.o-b.o).slice(0,t.order.length-NC_ROST);
+    for(const p of cut){if(t.id===U)(mine.cut=mine.cut||[]).push(pname(p));p.last=t.name;toFA(p);p.portal=G.season;p.elig=p.yrs;p.sal=ncNil(p);}t.order=autoOrder(t.order);}
+  for(const p of Object.values(G.players))if(p.nk)delete p.nk;
+  if(!nilOn())return;const N=G.nil,P=nilParts(),bill=wageBill(U),room=G.fin.wageBudget-bill,L=mine.lost||[];
+  msg('NIL Collective',`NIL budget for ${seasonStr()}: ${eur(G.fin.wageBudget)}`,`Revenue sharing from the athletic department: ${eur(P.rs)}. Collective: ${eur(P.coll)} (boosters: ${nilBoostLbl(N.boost).toLowerCase()}).${P.pl?` Pledges after last season: ${eur(P.pl)}.`:''} NIL deals committed: ${eur(bill)}, which leaves ${eur(Math.max(0,room))} for the transfer portal.${L.length?` We could not afford ${L.map(x=>`${x.n} (${'★'.repeat(x.s)}, asked ${eur(x.sal)}), who signed with ${x.to}`).join('; ')}.`:''}${mine.cut&&mine.cut.length?` NCAA roster limit (${NC_ROST}): ${mine.cut.join(', ')} lost their roster spot${mine.cut.length>1?'s':''} and entered the transfer portal.`:''}`,'fin');}
 const blank=()=>({gp:0,sec:0,pts:0,reb:0,ast:0,stl:0,blk:0,to:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0});
 const pir=s=>s.pts+s.reb+s.ast+s.stl+s.blk-(s.fga-s.fgm)-(s.fta-s.ftm)-s.to;
 const per=(s,k)=>s.gp?(k==='pir'?pir(s):k==='min'?s.sec/60:s[k])/s.gp:0;
@@ -878,10 +951,10 @@ function ncSelect(L){const auto=L.auto,rest=L.ids.filter(i=>!auto.includes(i)).s
 function ncNext(L,P,W){const o=(a,b)=>ncOrd(L,a,b),U=G.user,n=NCCONF().length;
   if(P.stage==='cq'){const S=[];for(let c=0;c<n;c++)S.push(o(W[4*c],W[4*c+1]),o(W[4*c+2],W[4*c+3]));L.po={stage:'cs',ser:domSeries(S,1)};return;}
   if(P.stage==='cs'){const S=[];for(let c=0;c<n;c++)S.push(o(W[2*c],W[2*c+1]));L.po={stage:'cf',ser:domSeries(S,1)};return;}
-  if(P.stage==='cf'){L.auto=W.slice();W.forEach((id,c)=>{if(id===U){G.board=clamp(G.board+3,0,100);msg('Club President',`${NCCONF()[c]} tournament champions!`,`We won the ${NCCONF()[c]} tournament and take the automatic bid to the NCAA Tournament.`,'board');}});news('Conference champions',NCCONF().map((c,i)=>`${c}: ${G.teams[W[i]].name}`).join(' · '));ncSelect(L);return;}
+  if(P.stage==='cf'){L.auto=W.slice();try{nilConf(W)}catch(e){}W.forEach((id,c)=>{if(id===U){G.board=clamp(G.board+3,0,100);msg('Club President',`${NCCONF()[c]} tournament champions!`,`We won the ${NCCONF()[c]} tournament and take the automatic bid to the NCAA Tournament.`,'board');}});news('Conference champions',NCCONF().map((c,i)=>`${c}: ${G.teams[W[i]].name}`).join(' · '));ncSelect(L);return;}
   if(P.stage==='r32'||P.stage==='s16'||P.stage==='e8'||P.stage==='f4'){const nx={r32:'s16',s16:'e8',e8:'f4',f4:'fin'}[P.stage],S=[];for(let i=0;i<W.length;i+=2)S.push(o(W[i],W[i+1]));L.po={stage:nx,ser:domSeries(S,1)};
     if(nx==='f4')news('Final Four',`${W.map(i=>`${G.teams[i].name} (${NCREG[L.seed[i].r]})`).join(', ')} reach the Final Four.`);return;}
-  L.champ=W[0];L.phase='done';L.down=[];
+  L.champ=W[0];L.phase='done';L.down=[];try{nilSeasonEnd(L)}catch(e){}
   if(L.champ===U){G.board=clamp(G.board+8,0,100);msg('Club President','National champions!',`We won the ${G.season+1} NCAA Tournament. One shining moment for the whole school.`,'board');}
   news(`${G.teams[L.champ].name}: national champions`,`${G.teams[L.champ].name} won the ${seasonStr()} NCAA Tournament.`);}
 function ncRegText(L,U){const g=G.teams[U].grp,i=(L.final[g]||[]).indexOf(U),c=ncRec(L,U);return `${c[0]}–${c[1]} in conference play. ${i<8?`We play the ${g} tournament as the No. ${i+1} seed.`:'We missed the conference tournament.'}`;}
@@ -903,20 +976,20 @@ function ncGrad(p,left){const t=G.teams[p.tid];if(p.tid===G.user)left.push(pname
   if(p.o>=55&&p.age<=25){toFA(p);delete p.portal;p.yrs=0;p.sal=salaryFor(p);if(p.o>=72)news(`${pname(p)} turns pro`,`${pname(p)} (OVR ${p.o}) leaves ${t?t.name:'college'} and is a free agent.`);return;}
   leave(p);G.fa=G.fa.filter(i=>i!==p.id);delete G.players[p.id];}
 function ncRecruit(t,o,pot){const nat=Math.random()<.88?'USA':pick(['CAN','AUS','FRA','NGR','SRB','GER','LTU','ESP','SEN','GBR']);let p;
-  for(let i=0;i<8;i++){p=genPlayer(o,pick(POS),nat,18);const nm=pname(p);if(i===7||(!window.PHOTOS[nm]&&!Object.values(G.players).some(q=>q!==p&&q.f===p.f&&q.l===p.l)))break;delete G.players[p.id];}p.pot=clamp(pot,p.o,96);p.yrs=4;p.sal=ncNil(p);p.rec=G.season;join(p,t);return p;}
-function ncaaOffseason(){const L=G.nl&&G.nl.NCAA;if(!L)return;const U=G.user,T=G.teams.filter(isCol),mine={out:[],rec:[]};
+  for(let i=0;i<8;i++){p=genPlayer(o,pick(POS),nat,18);const nm=pname(p);if(i===7||(!window.PHOTOS[nm]&&!Object.values(G.players).some(q=>q!==p&&q.f===p.f&&q.l===p.l)))break;delete G.players[p.id];}p.pot=clamp(pot,p.o,96);p.yrs=4;p.sal=ncNilR(p);p.rec=G.season;join(p,t);return p;}
+function ncaaOffseason(){const L=G.nl&&G.nl.NCAA;if(!L)return;const U=G.user,T=G.teams.filter(isCol),mine={out:[],rec:[]};try{nilSummer0()}catch(e){}
   for(const id of G.fa.slice()){const p=G.players[id];if(!p||!p.portal||p.portal>=G.season)continue;delete p.portal;if(p.o<52){G.fa=G.fa.filter(i=>i!==id);delete G.players[id];}else p.sal=salaryFor(p);}
-  for(const t of T){const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);ps.forEach((p,k)=>{if(p.loan||p.yrs<1)return;const q=k>=9?.45:k>=5?.2:.06;if(Math.random()>q)return;if(t.id===U)mine.out.push(pname(p));toFA(p);p.portal=G.season;p.elig=p.yrs;p.sal=ncNil(p);});}
+  for(const t of T){const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);ps.forEach((p,k)=>{if(p.loan||p.yrs<1)return;const q=t.id===U?nilQ(p,k):k>=9?.45:k>=5?.2:.06;if(Math.random()>q)return;if(t.id===U)mine.out.push(pname(p));toFA(p);p.portal=G.season;p.elig=p.yrs;p.sal=ncNil(p);});}
   const pool=()=>G.fa.map(i=>G.players[i]).filter(p=>p&&p.portal===G.season).sort((a,b)=>b.o-a.o);
   for(const t of T.filter(t=>t.id!==U).sort((a,b)=>b.rep-a.rep)){const lv=teamLevel(t);let k=0;while(t.order.length<11&&k++<1){const P=pool().filter(p=>p.o<=lv+3);if(!P.length)break;const p=P[Math.min(P.length-1,rnd(0,2))];G.fa=G.fa.filter(i=>i!==p.id);delete p.portal;p.sal=ncNil(p);join(p,t);markNew(p,t);if(p.o>=72)news(`${pname(p)} transfers to ${t.name}`,`${pname(p)} (OVR ${p.o}) leaves ${p.last||'his school'} through the transfer portal and joins ${t.name}.`);}}
   const stars=T.slice().sort((a,b)=>b.rep**4*Math.random()-a.rep**4*Math.random()).slice(0,25);
   for(const t of T){const want=t.id===U?12:13+(Math.random()<.4?1:0);let n=0;
-    if(stars.includes(t)){mine.rec.push(...(t.id===U?[ncRecruit(t,rnd(66,72),rnd(86,95))]:[]));if(t.id!==U)ncRecruit(t,rnd(66,72),rnd(86,95));n++;}
-    while(t.order.length<want||n<2){if(t.order.length>=15)break;const o=clamp(Math.round(54+(t.rep-60)*.3+rf(-3,4)),48,68),p=ncRecruit(t,o,o+rnd(12,24));if(t.id===U)mine.rec.push(p);n++;}
+    if(stars.includes(t)){mine.rec.push(...(t.id===U?nilRec(ncRecruit(t,rnd(66,72),rnd(86,95)),mine):[]));if(t.id!==U)ncRecruit(t,rnd(66,72),rnd(86,95));n++;}
+    while(t.order.length<want||n<2){if(t.order.length>=15)break;const o=t.id===U&&(mine.lost||[]).length>=2?rnd(47,52):clamp(Math.round(54+(t.rep-60)*.3+rf(-3,4)),48,68),p=ncRecruit(t,o,o+rnd(12,24));if(t.id===U){mine.rec.push(...nilRec(p,mine));if((mine.lost||[]).length>=7)break;}n++;}
     t.order=autoOrder(t.order);}
   const ld=pool().slice(0,5);if(ld.length)news('Transfer portal',`Still in the portal: ${ld.map(p=>`${pname(p)} (OVR ${p.o}, from ${p.last||'?'})`).join(', ')}.`);
   if(isCol(G.teams[U])){if(mine.out.length)msg('Assistant Coach','Players entered the transfer portal',`${mine.out.join(', ')} entered the transfer portal and left the program.`,'staff');
-    msg('Assistant Coach','Recruiting class signed',`${mine.rec.length} freshmen join us: ${mine.rec.map(p=>`${pname(p)} (${p.pos}, OVR ${p.o}, POT ${p.pot})`).join(', ')}. Players in the transfer portal can still be signed in the Transfers tab (filter: transfer portal).`,'staff');}}
+    msg('Assistant Coach','Recruiting class signed',`${mine.rec.length} freshmen join us: ${mine.rec.map(p=>`${pname(p)} (${p.pos}, OVR ${p.o}, POT ${p.pot})`).join(', ')}. Players in the transfer portal can still be signed in the Transfers tab (filter: transfer portal).`,'staff');}try{nilSummer1(mine)}catch(e){}}
 // the draft: college players are the main pool; projected entrants are on the board from the start of the season
 function ncWatch(D){if(!G.nl||!G.nl.NCAA)return;const RL=typeof eeReal==='function'?eeReal(D):{};
   for(const p of Object.values(G.players)){if(p.tid==null||!isCol(G.teams[p.tid])||p.prospect||p.nbaR||(window.NBA_DRAFTED||[]).includes(eeNorm(pname(p))))continue;const s=prospectScore(p);
@@ -2867,7 +2940,7 @@ function userResult(m,r){
   const prK=1-.1*sk('pr'),nk=isNBA(G.teams[G.user])&&(r.kind==='nl'||r.kind==='nlpo')?(r.kind==='nl'?.4:.7):1;const dbyName=derbyOf(r.h,r.a),dbyK=dbyName?2:1;G.board=clamp(G.board+(won?(wp<.4?3:1.5):-(wp>.6?3:1.5)*prK)*dk*nk*dbyK,0,100);
   G.fans=clamp(G.fans+(won?2:-2.5*prK)*dk*nk*dbyK,0,100);
   derbyDone(r,won,G.teams[op.tid]);
-  ultiResult(won);try{crepGame(won,G.teams[op.tid]);}catch(e){}
+  ultiResult(won);try{crepGame(won,G.teams[op.tid]);}catch(e){}try{nilGame(won,G.teams[op.tid]);}catch(e){}
   roleMinutes(me);
   G.sLost=(G.sLost||0)+roster(G.user).filter(p=>p.inj>0).length;
   fanResult(r,won,me.pts-op.pts,ui===0&&!m.neutral);roomResult(r,won);
@@ -3241,7 +3314,7 @@ function newSeason(){
   lrefEnsure();{G.lnow={};const by={};for(const t of G.teams){if(!t.order||t.order.length<8||t.dom==='GONE'||t.dom==='FOUND')continue;(by[t.dom||'EL']=by[t.dom||'EL']||[]).push(teamLevel(t));}for(const c in by)G.lnow[c]=+avg(by[c]).toFixed(1);}if(G.staffFA&&G.staffFA.length>140){G.staffFA.sort((a,b)=>(b.o||0)-(a.o||0));G.staffFA.length=140;}slimPlayers();ensureStaff();for(const t of G.teams)for(const x of t.staff||[]){x.age++;if(t.dom)continue;x.yrs--;if(x.yrs<=0)x.yrs=rnd(1,3);}for(const x of G.staffFA)x.age++;
   G.round=0;G.phase='reg';G.day=0;G.po=null;G.res=[];G.lastResults=null;G.lastGame=null;G.uRes={};G.listed=[];
   try{elSwap();}catch(e){}G.schedule=genSchedule(ELT().map(t=>t.id));G.obj=objective();try{summerCoaches();}catch(e){}nlApplyMoves();prMarket();try{dfinBook(.5);dfinSummer();}catch(e){}try{aiTransfers('summer');}catch(e){}domInit();dom2Init();klsInit();bihInit();nlInitAll();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();try{cupDraw();}catch(e){G.cupX=null;}ecInit();bclInit();fecInit();if(userIsNL()){G.obj='dom';G.leg='nl';}if(userIsCup()){G.obj='dom';G.leg=userCup()||'ec';}if(userIsDom()){G.obj='dom';G.leg='dom';}if(userIsKls()){G.obj='dom';G.leg='kls';}if(userIsBih()){G.obj='dom';G.leg='bih';}if(userIs2()){G.obj='dom';G.leg='dom2';}
-  if(G.fin.wfund){G.fin.bal+=G.fin.wfund;G.fin.wfund=0;}if(G.fin.wconv){G.fin.wageBudget-=G.fin.wconv;G.fin.wconv=0;}G.fin.wageBudget=Math.max(G.fin.wageBudget,Math.round(wageBill(G.user)*1.02/1e5)*1e5);nbaFinanceSync();
+  if(G.fin.wfund){G.fin.bal+=G.fin.wfund;G.fin.wfund=0;}if(G.fin.wconv){G.fin.wageBudget-=G.fin.wconv;G.fin.wconv=0;}if(nilOn())G.fin.wageBudget=nilSum(nilParts());else G.fin.wageBudget=Math.max(G.fin.wageBudget,Math.round(wageBill(G.user)*1.02/1e5)*1e5);nbaFinanceSync();
   const bo=G.fin.bailout||0,cut=bo?bailoutCut(bo):0;
   if(cut){G.fin.wageBudget=Math.round(G.fin.wageBudget*(1-cut)/1e5)*1e5;ensureSponsors();G.spons.tv=r10k(G.spons.tv*(1-cut));syncSponsor();G.fin.bailout=0;
     const over=wageBill(G.user)-G.fin.wageBudget;
@@ -6382,6 +6455,7 @@ function nbaRoute(sal,tid,p){tid=tid==null?G.user:tid;const t=G.teams[tid],P=nba
 function canSign(p,fee,sal){
   {const cl=colLock(p);if(cl)return cl;}
   const n=G.teams[G.user].order.length;
+  if(isCol(G.teams[G.user])&&n>=NC_ROST)return `NCAA roster limit: ${NC_ROST} players. Release a player first.`;
   if(n>=20)return 'Your roster is full (20 players). Release or sell a player first.';
   if(userNBA()){if(fee>G.fin.bal)return `Not enough money for the buy-out. You have ${eur(G.fin.bal)}.`;const r=nbaRoute(sal,G.user,p);if(!r.ok)return r.why;if(G.phase!=='reg'&&!(G.nl.NBA&&G.nl.NBA.phase==='reg'))return 'The market is closed.';return null;}
   {const FR=ruleOfTeam(G.teams[G.user]);if(FR&&FR.reg&&isForeign(p,FR)&&forCount(G.user,FR)>=FR.reg)return `League rule: at most ${FR.reg} foreign players can be registered.`;}
