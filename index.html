@@ -1054,6 +1054,46 @@ body.mfocus .main .inner{max-width:1500px}
 .nm-b2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .nm-b2 .btn.p{grid-column:1/-1;min-height:50px;font-size:19px}
 @media(max-width:560px){.vs2{padding-inline:12px;gap:0 6px}.vs-cr{height:84px}.vs2 .vs-cr .crest{height:80px;max-width:88px}.vs-mid{height:84px;min-width:74px}.vs-t{font-size:28px}.vs2 .side h4{font-size:18px}.nfo{grid-template-columns:minmax(0,1fr)}.nfo>div:nth-child(even):not(.w){padding-left:0;border-left:0}}
+
+/* ---- next match: facts as pictures ---- */
+.nm-stk{display:flex;align-items:center;gap:8px;margin:12px 22px 0;padding:8px 12px;border-radius:4px;background:var(--soft);font-size:13.5px;font-weight:600;color:var(--tx)}
+.nm-stk svg{width:17px;height:17px;flex:none;color:var(--or)}
+.nm-stk span{min-width:0}
+.nmt{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));grid-auto-flow:column;gap:8px;margin:10px 22px 0}
+.nt{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px 10px;border:1px solid var(--line);border-radius:6px;text-align:center;min-width:0}
+.nt-i{width:30px;height:30px;border-radius:50%;background:var(--orS);color:var(--or);display:flex;align-items:center;justify-content:center}
+.nt-i svg{width:17px;height:17px}
+.nt-v{min-height:34px;display:flex;align-items:center;justify-content:center;gap:8px}
+.nt-v b{font:800 26px/1 var(--fd);letter-spacing:.01em}
+.nt-q{color:var(--mut)}
+.nt-r{font:normal 800 13px/1 var(--fd);width:22px;height:22px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#fff}
+.nt-r.w{background:var(--g)}.nt-r.l{background:var(--r)}
+.nt small{font:600 12.5px/1.25 var(--fb);color:var(--mut)}
+.nt-bars{display:inline-flex;align-items:flex-end;gap:4px;height:28px}
+.nt-bars i{width:7px;border-radius:2px;background:var(--line)}
+.nt-bars i.on{background:var(--or)}
+.nt-rv{flex-direction:column;gap:5px!important}
+.nt-rt{display:inline-flex;align-items:center;gap:6px}
+.nt-rt .mini{width:18px;height:18px;margin:0}
+.nt-bat{display:inline-flex;gap:2px;padding:2px;border:1.5px solid var(--mut);border-radius:3px;position:relative}
+.nt-bat::after{content:"";position:absolute;right:-4px;top:3px;bottom:3px;width:2px;background:var(--mut);border-radius:0 1px 1px 0}
+.nt-bat i{width:7px;height:9px;border-radius:1px;background:var(--line)}
+.nt-pl svg{width:14px;height:14px;color:var(--mut);display:block}
+.nm-sec{margin:14px 22px 0}
+.nm-sec>small{display:block;font:700 11.5px var(--fd);letter-spacing:.13em;text-transform:uppercase;color:var(--mut);margin-bottom:8px}
+.nm-five{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.nm-p{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;padding:2px 0}
+.nm-p .avatar{width:48px;height:48px;box-shadow:0 0 0 2px var(--line);font-size:18px}
+.nm-p:hover .avatar{box-shadow:0 0 0 2px var(--or)}
+.nm-p em{font:normal 800 10.5px/1 var(--fd);letter-spacing:.08em;background:var(--ink);color:#fff;border-radius:2px;padding:2px 5px;margin-top:-9px;position:relative}
+.nm-p b{font:600 12.5px var(--fb);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm-sty{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nm-sty span{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;border-radius:6px;background:var(--soft);text-align:center;min-width:0}
+.nm-sty svg{width:20px;height:20px;color:var(--or);margin-bottom:2px}
+.nm-sty b{font:800 16px/1.1 var(--fd);letter-spacing:.04em;text-transform:uppercase}
+.nm-sty i{font:500 12px var(--fb);font-style:normal;color:var(--mut)}
+.nm-b2{margin-top:4px}
+@media(max-width:560px){.nmt,.nm-stk,.nm-sec{margin-inline:12px}.nm-p .avatar{width:42px;height:42px}.nt-v b{font-size:22px}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1083,4 +1123,4 @@ body.mfocus .main .inner{max-width:1500px}
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=4" charset="utf-8"></script>
-<script src="ui.js?v=413" charset="utf-8"></script>
+<script src="ui.js?v=414" charset="utf-8"></script>
