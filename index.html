@@ -1030,6 +1030,30 @@ body.mfocus .main .inner{max-width:1500px}
 @keyframes mxTr{50%{transform:translateY(-8px) rotate(-2deg)}}
 @keyframes mxCf{0%{transform:translateY(-5vh) rotate(0)}100%{transform:translateY(110vh) rotate(540deg)}}
 @media(prefers-reduced-motion:reduce){.mx-cf{display:none}}
+
+/* ---- next match: calmer versus block and facts ---- */
+.vs2{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:start;gap:0 14px;padding:18px 22px 6px}
+.vs-s{display:flex;flex-direction:column;align-items:center;gap:0}
+.vs-cr{height:104px;width:100%;display:flex;align-items:center;justify-content:center}
+.vs2 .vs-cr .crest{height:100px;width:auto;max-width:112px;object-fit:contain}
+.vs2 .side h4{font:800 22px/1.08 var(--fd);letter-spacing:.02em;margin-top:12px;min-height:2.16em;display:flex;align-items:flex-start;justify-content:center;text-wrap:balance}
+.vs2.vs-1l .side h4{min-height:0}
+.vs2 .vs-m{font:500 14.5px var(--fb);color:var(--mut);letter-spacing:0;text-transform:none;margin:2px 0 10px}
+.vs2 .vs-m b{color:var(--tx);font-weight:700}
+.vs-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:104px;min-width:92px}
+.vs-vs{font:italic 800 15px var(--fd);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.vs-t{font:800 36px/1 var(--fd);letter-spacing:.02em}
+.vs-d{font:600 14px var(--fb);color:var(--mut);white-space:nowrap}
+.vs-ven{text-align:center;font:500 13.5px var(--fb);color:var(--mut);padding:0 22px 16px}
+.nfo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:14px 22px 0;border-top:1px solid var(--line)}
+.nfo>div{padding:11px 14px 11px 0;border-bottom:1px solid var(--line);min-width:0}
+.nfo>div:nth-child(even):not(.w){padding-left:14px;border-left:1px solid var(--line)}
+.nfo>.w{grid-column:1/-1}
+.nfo small{display:block;font:700 11.5px var(--fd);letter-spacing:.13em;text-transform:uppercase;color:var(--mut);margin-bottom:3px}
+.nfo span{display:block;font-size:14.5px;font-weight:600;line-height:1.4}
+.nm-b2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nm-b2 .btn.p{grid-column:1/-1;min-height:50px;font-size:19px}
+@media(max-width:560px){.vs2{padding-inline:12px;gap:0 6px}.vs-cr{height:84px}.vs2 .vs-cr .crest{height:80px;max-width:88px}.vs-mid{height:84px;min-width:74px}.vs-t{font-size:28px}.vs2 .side h4{font-size:18px}.nfo{grid-template-columns:minmax(0,1fr)}.nfo>div:nth-child(even):not(.w){padding-left:0;border-left:0}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1059,4 +1083,4 @@ body.mfocus .main .inner{max-width:1500px}
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=4" charset="utf-8"></script>
-<script src="ui.js?v=412" charset="utf-8"></script>
+<script src="ui.js?v=413" charset="utf-8"></script>

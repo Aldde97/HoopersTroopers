@@ -278,10 +278,11 @@ const fxRec=(f,t)=>isFecK(f.kind)?(r=>`${r[0]}\u2013${r[1]}`)(fecRec(t.id,f.st==
 const clubLg=t=>!t.dom?'EuroLeague':t.dom==='ABA'?'ABA League':t.dom==='ABA2'?'ABA League 2':t.dom==='KLS'?'KLS':t.dom==='BIH'?'Liga BiH':NLCFG[t.dom]?(NLCFG[t.dom].short||NLCFG[t.dom].name):'European';
 const rankTxt=(f,id)=>{const r=fxRank(f,id);return r?`${ordn(r)} (${fxRec(f,G.teams[id])})`:`${clubLg(G.teams[id])} club, seeded directly`;};
 const compName=f=>f.kind==='pre'?(f.pre&&f.pre.t[0]==='t'&&preT()?preT().name:f.pre&&f.pre.t==='nba'?'NBA Preseason':'Pre-season'):isFecK(f.kind)?'FIBA Europe Cup':isBclK(f.kind)?'Basketball Champions League':isEcK(f.kind)?'BKT EuroCup':isNlK(f.kind)?NLCFG[f.lg].name:isBihK(f.kind)?'Prvenstvo BiH':isKlsK(f.kind)?'Meridianbet KLS':isD2K(f.kind)?'ABA League 2':isDomK(f.kind)?'AdmiralBet ABA League':'Turkish Airlines Euroleague';
-function versusHTML(f){const h=G.teams[f.h],a=G.teams[f.a];
-  return `<div class="versus"><div class="side click" data-act="club:${h.id}">${crest(h)}<h4>${esc(h.name)}</h4><p>${h.city} \u00b7 ${fxRank(f,h.id)?ordn(fxRank(f,h.id)):clubLg(h)+' club'}</p>${form(h.form)}</div>
-  <div><div class="vsb">VS</div><div class="ko">${dateStr()}<br>20:30</div><div class="ven">${f.neutral?'Final Four \u00b7 neutral venue':`${esc(h.arena)} \u00b7 ${h.cap.toLocaleString('en-GB')} seats`}</div></div>
-  <div class="side click" data-act="club:${a.id}">${crest(a)}<h4>${esc(a.name)}</h4><p>${a.city} \u00b7 ${fxRank(f,a.id)?ordn(fxRank(f,a.id)):clubLg(a)+' club'}</p>${form(a.form)}</div></div>`;}
+function versusHTML(f){const h=G.teams[f.h],a=G.teams[f.a],pre=f.kind==='pre',d=gdate();
+  const meta=t=>{const r=!pre&&fxRank(f,t.id);return r?`<b>${ordn(r)}</b> · ${fxRec(f,t)}`:pre?esc(t.city):`${clubLg(t)} club`;};
+  const side=t=>`<div class="side click vs-s" data-act="club:${t.id}"><span class="vs-cr">${crest(t)}</span><h4>${esc(t.name)}</h4><p class="vs-m">${meta(t)}</p>${form(t.form)}</div>`;
+  return `<div class="versus vs2${Math.max(h.name.length,a.name.length)<=12?' vs-1l':''}">${side(h)}<div class="vs-mid"><span class="vs-vs">vs</span><b class="vs-t">20:30</b><span class="vs-d">${d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</span></div>${side(a)}</div>
+  <div class="vs-ven">${f.neutral?'Neutral venue':`${esc(h.arena)} · ${h.cap.toLocaleString('en-GB')} seats`}</div>`;}
 function probHTML(f){const h=G.teams[f.h],a=G.teams[f.a],wp=winProb(f.h,f.a,f.neutral),hp=Math.round(wp*100);
   return `<div class="prob"><i style="width:${hp}%;background:${lum(h.c1)>.85?h.c2:h.c1}"></i><i style="width:${100-hp}%;background:${lum(a.c1)>.85?a.c2:a.c1}"></i></div><div class="probl"><span>${h.short} ${hp}%</span><span class="mut">Win probability</span><span>${100-hp}% ${a.short}</span></div>`;}
 function nextMatchCard(){
@@ -294,10 +295,11 @@ function nextMatchCard(){
   const opp=G.teams[f.h===G.user?f.a:f.h],five=roster(G.user).filter(p=>p.inj<=0).slice(0,5).map(p=>p.l).join(' \u00b7 ');
   return card('Next match',`<div class="nm-top"><div class="comp">${compName(f)}<span>${kindLine(f)}</span></div><span class="tag">${derbyOf(f.h,f.a)?'DERBY \u00b7 ':''}${f.h===G.user&&!f.neutral?'Home':f.neutral?'Neutral':'Away'}</span></div>${derbyOf(f.h,f.a)&&f.kind!=='pre'?derbyBar(f):''}
   ${versusHTML(f)}${probHTML(f)}
-  <div class="info"><div><b>Table</b><span>${G.teams[f.h].short} ${rankTxt(f,f.h)} \u00b7 ${G.teams[f.a].short} ${rankTxt(f,f.a)}</span></div>
-  <div><b>Head to head</b><span>${h2hLine(f.h,f.a,f.kind)}</span></div><div><b>Context</b><span>${fxContext(f)}</span></div>
-  ${f.h===G.user&&!f.neutral&&f.kind!=='pre'?`<div><b>Crowd</b><span>${crowdLabel(atmosphere(f.h,f.a))} \u00b7 ${atmosphere(f.h,f.a)}/100</span></div>`:''}<div><b>Starting five</b><span>${esc(five)}</span></div>${(c=>c?`<div><b>Schedule</b><span>${G.teams[f.h].short}: ${ctxLine(c[0])} \u00b7 ${G.teams[f.a].short}: ${ctxLine(c[1])}</span></div>`:'')(fxCtx(f))}<div><b>Scouting</b><span>${opp.short}${hcName(opp)?` (${esc(hcName(opp))})`:''}: ${tacLine(aiStyle(opp))}</span></div></div>
-  <div class="nm-btns btns"><button class="btn p" data-act="continue">Play match</button><button class="btn" data-act="tab:tactics">Set tactics</button><button class="btn" data-act="tab:squad">Rotation</button></div>`,lnk('tab:comp','Schedule'));}
+  <div class="nfo">${f.kind==='pre'?'':`<div><small>Head to head</small><span>${h2hLine(f.h,f.a,f.kind)}</span></div><div><small>What is at stake</small><span>${fxContext(f)}</span></div>`}
+  ${f.h===G.user&&!f.neutral&&f.kind!=='pre'?`<div><small>Crowd</small><span>${crowdLabel(atmosphere(f.h,f.a))} · ${atmosphere(f.h,f.a)}/100</span></div>`:''}${(c=>c?`<div><small>Rest</small><span>${G.teams[f.h].short}: ${ctxLine(c[0])}<br>${G.teams[f.a].short}: ${ctxLine(c[1])}</span></div>`:'')(fxCtx(f))}
+  <div class="w"><small>Your starting five</small><span>${esc(five)}</span></div>
+  <div class="w"><small>${esc(opp.name)} play${hcName(opp)?` · coach ${esc(hcName(opp))}`:''}</small><span>${tacLine(aiStyle(opp)).replace(/-/g,'\u2011')}</span></div></div>
+  <div class="nm-btns nm-b2"><button class="btn p" data-act="continue">Play match</button><button class="btn" data-act="tab:tactics">Set tactics</button><button class="btn" data-act="tab:squad">Rotation</button></div>`,lnk('tab:comp','Schedule'));}
 function fixturesCard(){
   const U=G.user,UL=nlUser(),past=G.res.concat(G.dom?G.dom.res:[],G.bih?G.bih.res:[],UL?UL.res:[],G.ec?G.ec.res:[],G.bcl?G.bcl.res:[],G.fec?G.fec.res:[]).filter(r=>r[0]===U||r[1]===U).sort((x,y)=>(x[5]||0)-(y[5]||0)).slice(-2),items=[];
   for(const r of past){const home=r[0]===U,opp=G.teams[home?r[1]:r[0]],won=(home?r[2]>r[3]:r[3]>r[2]);items.push(`<div><small>${isNlK(r[4])&&UL?`${NLCFG[UL.code].short}${r[4]==='nlpo'?' Playoffs':''}`:KINDN[r[4]]}</small><b>${esc(opp.name)}</b><span>${home?'H':'A'} \u00b7 ${r[2]}\u2013${r[3]}</span><em class="res ${won?'W':'L'}" style="font-style:normal;background:${won?'var(--g)':'var(--r)'}">${won?'W':'L'}</em></div>`);}
