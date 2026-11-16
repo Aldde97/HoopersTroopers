@@ -885,6 +885,49 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 .inf-p p+p{margin-top:8px}
 .inf-c:checked+.inf-p{display:block}
 .inf-c:focus-visible+.inf-p{display:block;outline:2px solid var(--or);outline-offset:-2px}
+
+/* ---- phone tables ---- */
+.hx{display:none!important}
+.twx td:first-child,.twx th:first-child{position:sticky;left:0;z-index:1;background:var(--card);box-shadow:6px 0 8px -6px #00000026}
+.twx tr.me td:first-child{background:var(--orS)}
+@media(max-width:700px){
+  th{padding:9px 5px 7px;font-size:12px;letter-spacing:.05em}
+  td{padding:6px 5px}
+  td.rk{width:30px;font-size:15.5px}
+  /* transfer lists become cards */
+  .trx{overflow:visible}
+  .trx table,.trx tbody{display:block}
+  .trx thead{display:block;border-bottom:2px solid var(--ink)}
+  .trx thead tr{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 12px}
+  .trx thead th{display:none;padding:0;border:0;background:none}
+  .trx thead th:has(.trx-s){display:block;flex:none}
+  .trx .trx-s{width:auto!important;padding:6px 10px;border:1px solid var(--line);border-radius:3px;background:var(--soft);color:var(--tx);font-size:12px}
+  .trx th.on .trx-s{background:var(--ink);border-color:var(--ink);color:var(--inkT);box-shadow:inset 0 -3px var(--or)}
+  .trx tbody tr{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:3px 10px;align-items:center;padding:11px 12px;border-bottom:1px solid var(--line)}
+  .trx td{display:block;padding:0;border:0;height:auto;min-width:0;font-size:13.5px}
+  .trx td.hm{display:none}
+  .trx td:nth-child(1){grid-area:1/1/2/4}
+  .trx td:nth-child(6){grid-area:1/4/2/5;justify-self:end}
+  .trx td:nth-child(2){grid-area:2/1/3/2;font-weight:700;color:var(--mut)}
+  .trx td:nth-child(3){grid-area:2/2/3/3;color:var(--mut)}
+  .trx td:nth-child(3)::after{content:" yrs"}
+  .trx td:nth-child(5){grid-area:2/3/3/5;overflow:hidden;text-overflow:ellipsis;color:var(--mut);text-align:left}
+  .trx td:nth-child(8),.trx td:nth-child(9){text-align:left;white-space:nowrap;font-weight:700;margin-top:5px}
+  .trx td:nth-child(8)::before,.trx td:nth-child(9)::before,.trl td:nth-child(10)::before{display:block;font:700 10.5px var(--fd);letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+  .trx:not(.trl) td:nth-child(8){grid-area:3/1/4/3}
+  .trx:not(.trl) td:nth-child(8)::before{content:"Fee"}
+  .trx:not(.trl) td:nth-child(9){grid-area:3/3/4/4}
+  .trx:not(.trl) td:nth-child(9)::before{content:"Wage"}
+  .trx:not(.trl) td:nth-child(10){grid-area:3/4/4/5;justify-self:end;margin-top:5px}
+  .trl td:nth-child(8){grid-area:3/1/4/5;white-space:normal;font-weight:400}
+  .trl td:nth-child(9){grid-area:4/1/5/3}
+  .trl td:nth-child(9)::before{content:"Their wage terms"}
+  .trl td:nth-child(10){grid-area:4/3/5/4;text-align:left;font-weight:700;margin-top:5px}
+  .trl td:nth-child(10)::before{content:"Loan fee"}
+  .trl td:nth-child(11){grid-area:4/4/5/5;justify-self:end;margin-top:5px}
+  .trx-n .avatar{width:38px!important;height:38px!important}
+  .trx-n b{font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -914,4 +957,4 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=4" charset="utf-8"></script>
-<script src="ui.js?v=409" charset="utf-8"></script>
+<script src="ui.js?v=410" charset="utf-8"></script>
