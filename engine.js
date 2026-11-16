@@ -72,7 +72,7 @@ const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()
 function wpick(arr,w){const ws=arr.map(w);let t=ws.reduce((a,b)=>a+b,0)*Math.random();for(let i=0;i<arr.length;i++){t-=ws[i];if(t<=0)return arr[i];}return arr[arr.length-1];}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // money is shown in dollars while the user runs an NBA club (NBA salaries, cap and revenue are real dollar figures), else in euros
-const CUR=()=>(typeof G!=='undefined'&&G&&G.teams&&G.teams[G.user]&&(isNBA(G.teams[G.user])||G.teams[G.user].dom==='NCAA'))?'$':'\u20ac';
+const CUR=()=>(typeof BMSET!=='undefined'&&BMSET.cur)||((typeof G!=='undefined'&&G&&G.teams&&G.teams[G.user]&&(isNBA(G.teams[G.user])||G.teams[G.user].dom==='NCAA'))?'$':'\u20ac');
 function eur(n){const s=n<0?'\u2212':'';n=Math.abs(n);return s+CUR()+' '+(n>=1e6?(n/1e6).toFixed(n>=1e7?1:2)+'M':n>=1e3?Math.round(n/1e3)+'K':Math.round(n));}
 const r10k=n=>Math.round(n/1e4)*1e4, r5k=n=>Math.round(n/5e3)*5e3;
 const ordn=n=>n+((n%100>=11&&n%100<=13)?'th':(['th','st','nd','rd'][n%10]||'th'));
