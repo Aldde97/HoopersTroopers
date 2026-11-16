@@ -840,6 +840,29 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 .trx-pg span{font:600 13.5px var(--fb);color:var(--mut)}
 .trx-pg .btns{align-items:center}
 @media(max-width:700px){.trx .hm{display:none}.trx-n .avatar{width:28px;height:28px}}
+
+/* ---- home: to do ---- */
+.todo{margin-bottom:20px;background:var(--ink);border-radius:12px;padding:14px 16px 16px;box-shadow:0 8px 24px #0000002e}
+.todo>header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;color:var(--inkT)}
+.todo>header b{font:800 20px/1 var(--fd);letter-spacing:.08em;text-transform:uppercase}
+.todo>header em{font-style:normal;min-width:24px;height:22px;padding:0 7px;border-radius:11px;background:var(--or);color:#fff;font:700 13px var(--fb);display:inline-flex;align-items:center;justify-content:center}
+.todo>header span{font:500 13.5px var(--fb);color:var(--inkM)}
+.todo-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:10px}
+.todo-g>section{margin:0;box-shadow:none;min-height:64px}
+.todo-g>.ct-c{background:#23272e}
+.todo-mic{width:38px;height:38px;flex:none;border-radius:50%;background:var(--or);color:#fff;display:flex;align-items:center;justify-content:center}
+.todo-mic svg{width:20px;height:20px}
+.todo-g:not(.all)>section:nth-child(n+7){display:none}
+.todo-more{display:none;margin-top:10px;width:100%;height:38px;border-radius:8px;background:#ffffff0f;color:var(--inkT);font:700 13.5px var(--fd);letter-spacing:.1em;text-transform:uppercase}
+.todo-more:hover{background:#ffffff1a}
+.todo-more.d{display:block}
+@media(max-width:900px){.todo-g:not(.all)>section:nth-child(n+4){display:none}.todo-more{display:block}}
+/* ---- inbox ---- */
+.ib-cats{padding-block:10px}
+.ib-cats .seg em{font-style:normal;margin-left:4px;min-width:18px;height:17px;padding:0 5px;border-radius:9px;background:var(--ink3);color:#fff;font:700 11px var(--fb);display:inline-flex;align-items:center;justify-content:center;vertical-align:1px}
+.ib-cats .seg em.t{background:var(--or)}
+.ib-list{max-height:max(420px,calc(100vh - 250px));overflow-y:auto}
+.ib-do{font:normal 700 11px var(--fd);letter-spacing:.12em;text-transform:uppercase;color:var(--or);border:1.5px solid var(--or);border-radius:3px;padding:2px 6px;margin-left:auto;flex:none}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -869,4 +892,4 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=4" charset="utf-8"></script>
-<script src="ui.js?v=406" charset="utf-8"></script>
+<script src="ui.js?v=407" charset="utf-8"></script>
