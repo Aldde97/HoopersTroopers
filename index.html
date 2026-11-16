@@ -780,6 +780,52 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
   .more-b.on{background:#ff6b0024;color:#fff;box-shadow:inset 3px 0 var(--or)}.more-b.on svg{color:var(--or)}
   .more-b em{font-style:normal;margin-left:auto;min-width:20px;height:19px;padding:0 5px;border-radius:10px;background:var(--r);color:#fff;font:700 11px var(--fb);display:inline-flex;align-items:center;justify-content:center}
 }
+
+/* ---- top bar ---- */
+.topb{position:sticky;top:0;z-index:50;display:flex;align-items:stretch;height:64px;background:var(--ink);color:var(--inkT);border-bottom:3px solid var(--or);box-shadow:0 4px 14px #0003}
+.topb-id{display:flex;align-items:center;gap:12px;flex:none;min-width:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;background:linear-gradient(90deg,#20242a,var(--ink))}
+.topb-id .crest{width:38px;height:48px;flex:none;filter:drop-shadow(0 3px 5px #0009)}
+.topb-fl{display:flex;flex:none}.topb-fl img,.topb-fl svg{width:44px!important;height:33px!important;border-radius:3px;box-shadow:0 3px 8px #0007}
+.topb-nm{min-width:0;max-width:230px}
+.topb-nm b{display:block;font:800 21px/1.05 var(--fd);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topb-nm small{display:block;font:600 12.5px var(--fb);color:#aeb4bc;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topb-rg{display:flex;gap:4px;margin-left:4px}
+.topb-r{position:relative;width:42px;display:flex;flex-direction:column;align-items:center}
+.topb-r svg{width:34px;height:34px;transform:rotate(-90deg)}
+.topb-r circle{fill:none;stroke-width:3.4}.topb-r .bg{stroke:#ffffff1f}.topb-r .fg{stroke-linecap:round}
+.topb-r b{position:absolute;left:0;top:0;width:100%;height:34px;display:flex;align-items:center;justify-content:center;font:700 13.5px var(--fd)}
+.topb-r small{font:700 9.5px/1 var(--fd);letter-spacing:.1em;text-transform:uppercase;color:var(--inkM);margin-top:2px}
+.topb .hmid{padding:0 18px;gap:20px;background:none;border-left:1px solid #ffffff14;scrollbar-width:none}
+.topb .date b{font-size:20px}
+.topb .date span{font-size:12.5px}
+.topb .hstat{padding-left:16px}
+.topb .hstat small{font-size:10.5px;letter-spacing:.16em}
+.topb .hstat b{font-size:19px}
+.topb-tl{display:flex;align-items:center;gap:2px;padding:0 8px;flex:none}
+.topb-b{height:46px;min-width:44px;padding:0 8px;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:7px;color:#cfd4da}
+.topb-b:hover{background:#ffffff10;color:#fff}
+.topb-b>svg{width:22px;height:22px}
+.topb-sw .crest{width:24px;height:30px}.topb-sw img,.topb-sw>svg{max-height:22px;width:auto!important}
+.topb-sw span{font:700 13px var(--fd);letter-spacing:.1em;text-transform:uppercase}
+.topb-b:focus-visible{outline:2px solid var(--or);outline-offset:-2px}
+.topb .cont{width:auto;min-width:210px;padding:0 max(22px,env(safe-area-inset-right,0px)) 0 40px;font-size:23px;clip-path:polygon(18px 0,100% 0,100% 100%,0 100%)}
+.topb .cont svg{width:18px;height:18px}
+.snav{top:64px;height:calc(100vh - 64px);border-top:0}
+@media(max-width:1440px){.topb-nm small{display:none}.topb-nm{max-width:180px}}
+@media(max-width:1279px){.topb .hstat~.hstat~.hstat{display:none}.topb-sw span{display:none}.topb .cont{min-width:170px;font-size:20px}}
+@media(max-width:1100px){.topb .hstat~.hstat{display:none}.topb-nm{max-width:140px}}
+@media(max-width:900px){
+  .topb{position:relative;height:auto;flex-wrap:wrap}
+  .topb-id{flex:1 1 0;height:60px;padding-right:4px}
+  .topb-nm{flex:1;max-width:none}
+  .topb-rg{margin-left:auto}
+  .topb-tl [data-act=savegame]{display:none}
+  .topb-tl{padding:0 max(8px,env(safe-area-inset-right,0px)) 0 0}
+  .topb .hmid{order:3;width:100%;flex:none;height:46px;border-left:0;border-top:1px solid #ffffff14;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px}
+  .topb .hstat~.hstat{display:block}.topb .hstat~.hstat~.hstat{display:block}
+  .topb .cont{display:none}
+}
+@media(max-width:420px){.topb-r{width:36px}.topb-r svg{width:30px;height:30px}.topb-r b{height:30px;font-size:12px}.topb-id .crest{width:32px;height:40px}.topb-nm b{font-size:18px}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -809,4 +855,4 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=4" charset="utf-8"></script>
-<script src="ui.js?v=404" charset="utf-8"></script>
+<script src="ui.js?v=405" charset="utf-8"></script>

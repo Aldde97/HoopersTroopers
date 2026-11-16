@@ -44,13 +44,25 @@ function toast(t){const el=document.getElementById('toast');el.textContent=t;el.
 
 /* ===================== Frame ===================== */
 function contLabel(){if(typeof ntPend==='function'&&ntPend())return ntPend().camp?'Camp':ntPend().tour?'Tournament':'Int. window';if(nbaFAOpen())return `Free agency \u00b7 day ${G.nfa.day+1}`;if(UI.view==='match'&&UI.match&&!UI.match.m.done)return 'Live';if(seasonOver())return 'Review';if(UI.view==='prematch'&&userFx())return 'Play live';return userFx()?'Play match':'Continue';}
+/* one top bar: identity + rings, date and key numbers, tools, continue */
+function clubMorale(){const t=G.teams[G.user],rs=roster(G.user);return clamp((50+t.form.filter(x=>x==='W').length*10-t.form.filter(x=>x==='L').length*6+(rs.length?rs.reduce((s,p)=>s+moodOf(p),0)/rs.length:60))/2,10,100);}
+function topbRing(l,v,full){v=Math.round(clamp(v||0,0,100));const C=2*Math.PI*15,col=v<35?'var(--r)':v>=70?'#5fe08f':'var(--or)';
+  return `<div class="topb-r" title="${full||l}: ${v}%" role="img" aria-label="${full||l} ${v} percent"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" class="bg"/><circle cx="18" cy="18" r="15" class="fg" style="stroke:${col};stroke-dasharray:${(C*v/100).toFixed(1)} ${C.toFixed(1)}"/></svg><b>${v}</b><small>${l}</small></div>`;}
+function topbId(){const nt=typeof ntMode==='function'&&ntMode();let mark,name,sub,R;
+  if(nt){const J=G.nt.job,c=J.c;mark=`<span class="topb-fl">${ntFlag(c,40)}</span>`;name=esc(ntName(c));sub=`${esc(G.mgr)} · National team head coach`;R=[['Trust',J.trust==null?60:J.trust,'Federation trust'],['Fans',J.fans==null?60:J.fans,'Fans'],['Chem',ntChem(),'Chemistry']];}
+  else{const t=G.teams[G.user];mark=crest(t,'dk');name=esc(clubDisplayName(t));sub=`${esc(G.mgr)} · Head Coach`;R=[['Board',G.board,'Board confidence'],['Fans',G.fans,'Fans'],['Morale',clubMorale(),'Team morale']];}
+  return `<div class="topb-id">${mark}<div class="topb-nm"><b title="${name}">${name}</b><small>${sub}</small></div><div class="topb-rg">${R.map(r=>topbRing(...r)).join('')}</div></div>`;}
+function topbTools(){const nt=typeof ntMode==='function'&&ntMode(),J=G&&G.nt&&G.nt.job;let sw='';
+  if(nt)sw=`<button class="topb-b topb-sw" data-act="ntmode" title="Back to club">${crest(G.teams[G.user])}<span>Club</span></button>`;
+  else if(J)sw=`<button class="topb-b topb-sw" data-act="ntmode" title="National team">${ntFlag(J.c,30)}<span>Nat. team</span></button>`;
+  return `<div class="topb-tl">${sw}<button class="topb-b" data-act="savegame" title="Save game" aria-label="Save game">${IC.save}</button></div>`;}
 function headerHTML(){const t=G.teams[G.user],room=G.fin.wageBudget-wageBill(G.user),live=UI.view==='match'&&UI.match&&!UI.match.m.done;
-  return `<header class="hdr"><div class="brand"><div class="t1">BASKETBALL MANAGER</div><div class="t2">EUROLEAGUE <small>${G.season+1}</small></div></div><div class="stripe"></div>
+  return `<header class="topb">${topbId()}
   <div class="hmid"><div class="date"><b>${dateStr()}</b><span>${stepLabel()} \u00b7 ${seasonStr()}</span></div>
   <div class="hstat"><small>${userIsCup()&&cupUser()?`${cupUser().short} \u00b7 Group ${cupUser().grp}`:userIsNL()&&nlUser()?`${NLCFG[nlUser().code].short}${nlUser().groups?` \u00b7 ${t.grp}`:''}`:userIsKls()?(G.kls&&G.kls.po?'KLS \u00b7 Super League':'KLS \u00b7 First League'):userIsBih()?(G.bih&&G.bih.po&&(G.bih.seeds||[]).includes(G.user)?'BiH \u00b7 Play-off':'BiH \u00b7 Liga 14'):userIs2()?`ABA 2 \u00b7 Group ${dom2GroupOf(G.user)}`:userIsDom()?`ABA \u00b7 ${(domTableOf(G.user)||{name:'League'}).name}`:'Euroleague'}</small><b>${ordn(userIsDom()&&G.dom.top8&&!G.dom.top8.includes(G.user)?userRank()-8:userRank())} \u00b7 ${userIsCup()&&cupUser()?cupUser().rec.slice(0,2).join('\u2013'):userIsNL()&&nlUser()?nlRec(nlUser(),G.user).slice(0,2).join('\u2013'):userIsKls()?`${t.kw||0}\u2013${t.kl||0}`:userIsBih()?`${t.bw||0}\u2013${t.bl||0}`:userNotEL()?`${t.dw}\u2013${t.dl}`:`${t.w}\u2013${t.l}`}</b></div>
   <div class="hstat"><small>${userNBA()?'Club cash':'Transfer budget'}</small><b class="${G.fin.bal>=0?'pos':'neg'}">${eur(G.fin.bal)}</b></div>
   <div class="hstat"><small>${isCol(G.teams[G.user])?'NIL room':'Wage room'}</small><b class="${room>=0?'':'neg'}">${eur(room)}</b></div></div>
-  <button class="cont" data-act="continue" ${live?'disabled':''}>${contLabel()}${IC.arrow}</button></header>`;}
+  ${topbTools()}<button class="cont" data-act="continue" ${live?'disabled':''}>${contLabel()}${IC.arrow}</button></header>`;}
 function clubHTML(){const t=G.teams[G.user],unread=G.inbox.filter(m=>!m.read).length,inj=roster(G.user).filter(p=>p.inj>0).length;
   const rs=roster(G.user),morale=clamp((50+t.form.filter(x=>x==='W').length*10-t.form.filter(x=>x==='L').length*6+(rs.length?rs.reduce((s,p)=>s+moodOf(p),0)/rs.length:60))/2,10,100);
   return `<div class="club gut">${crest(t,'dk')}<div><h2>${esc(clubDisplayName(t))}</h2><div class="who"><span>${esc(G.mgr)} \u00b7 Head Coach</span></div></div>
@@ -106,7 +118,7 @@ function render0(){
   else if(UI.view==='season'&&seasonOver())body=seasonHTML();
   else if(ntMode()){UI.view='main';if(!NT_TABS.some(x=>x[0]===UI.tab))UI.tab='home';if(UI.tab==='comp')UI.comp='nt';body=({home:ntModeHome,squad:()=>ntPend()?(ntPend().camp?ntCampPanel():ntRotHTML()):ntMyHTML(),tactics:ntTacHTML,training:ntCampHTML,staff:ntStaffHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
   else{UI.view='main';body=({home:homeHTML,squad:squadHTML,medical:medicalHTML,tactics:tacticsHTML,training:trainingHTML,staff:staffHTML,transfers:transfersHTML,finances:financesHTML,club:clubTabHTML,business:businessHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
-  app.innerHTML=headerHTML()+clubHTML()+`<div class="shell">`+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. The demo jumps straight to the event, so the club side still shows a day in November; in a real career tournaments are played in the summer, before the club pre-season. Open the game without the <code>#nt-…</code> ending to return to your own career.</div>':''}${body}</div></main></div>`+bnavHTML()+modalHTML();try{ntTheme();}catch(e){}
+  app.innerHTML=headerHTML()+`<div class="shell">`+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. The demo jumps straight to the event, so the club side still shows a day in November; in a real career tournaments are played in the summer, before the club pre-season. Open the game without the <code>#nt-…</code> ending to return to your own career.</div>':''}${body}</div></main></div>`+bnavHTML()+modalHTML();try{ntTheme();}catch(e){}
   if(UI.view==='match')updMatch();
   if(UI.view==='main'&&UI.tab==='club'&&window.arena3dMount)arena3dMount();
 }
@@ -1768,11 +1780,11 @@ const ntMode=()=>!!(G&&G.nt&&G.nt.job&&(UI.ntv===true||(UI.ntv!==false&&typeof n
 const NT_TABS=[['home','Home'],['squad','Squad'],['tactics','Tactics'],['training','Training camp'],['staff','Staff'],['comp','Competitions'],['inbox','Inbox']];
 function ntHeaderHTML(){const J=G.nt.job,c=J.c,C=G.nt.cyc,E=ntNextEvent(),grp=Object.keys(ntGrpAll(C)).find(k=>ntGrpAll(C)[k].includes(c)),rk=grp?ntSort(ntGrpAll(C)[grp],C.tab).indexOf(c)+1:0,rec=ntRec(C.tab,c),live=UI.view==='match'&&UI.match&&!UI.match.m.done;
   const w=ntPend(),g=w?ntUserPair(w,w.dd||0):null,opp=g?(g[0]===c?g[1]:g[0]):null;
-  return `<header class="hdr"><div class="brand"><div class="t1">BASKETBALL MANAGER</div><div class="t2">NATIONAL TEAM <small>${c}</small></div></div><div class="stripe"></div>
+  return `<header class="topb">${topbId()}
   <div class="hmid"><div class="date"><b>${dateStr(w?ntWDate(w,w.dd||0):undefined)}</b><span>${w&&(w.tour||w.camp)?esc(w.camp?'Camp · '+(NT_KN[(G.nt.camp.args||[])[0]]||'')+' '+w.yr:ntShort(w)):w&&w.day<0?esc(w.lbl):E?esc(E.lbl):'National team'}${opp?` · ${w.tour||w.camp?esc(ntRl(w,w.dd||0,c)):`game ${(w.dd||0)+1}`} vs ${esc(ntName(opp))}`:w&&w.camp?' · final cuts':` · ${ntInPQ(C,c)?'Pre-Qualifiers':(C.kind==='EB'?'EuroBasket':'World Cup')+' Qualifiers'}`}</span></div>
   <div class="hstat">${w&&(w.tour||w.camp)?(()=>{const r=w.res.filter(x=>x[0]===c||x[1]===c),v=r.filter(x=>(x[0]===c)===(x[2]>x[3])).length;return `<small>${esc(ntShort(w))}</small><b>${v}–${r.length-v}</b>`;})():`<small>Group ${grp||'–'}</small><b>${rk?ordn(rk):'–'} · ${rec.w}–${rec.l}</b>`}</div>
 </div>
-  <button class="cont" data-act="continue" ${live?'disabled':''}>${contLabel()}${IC.arrow}</button></header>`;}
+  ${topbTools()}<button class="cont" data-act="continue" ${live?'disabled':''}>${contLabel()}${IC.arrow}</button></header>`;}
 function ntClubHTML(){const J=G.nt.job,c=J.c,unread=G.inbox.filter(m=>!m.read&&m.type==='nt').length,club=G.teams[G.user];
   return `<div class="club gut"><span class="ntc-fl">${ntFlag(c,72)}</span><div><h2>${esc(ntName(c))}</h2><div class="who"><span>${esc(G.mgr)} · National team head coach</span></div></div>
   <div class="meters">${[['Federation trust',J.trust==null?60:J.trust],['Fans',J.fans==null?60:J.fans],['Chemistry',ntChem()]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
