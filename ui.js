@@ -87,8 +87,8 @@ function navGroups(){const nt=typeof ntMode==='function'&&ntMode(),on=k=>UI.view
     ['Club',[['staff','Staff','tab:staff',on('staff'),0],['finances','Finances','tab:finances',on('finances'),0],['business','Business','tab:business',on('business'),0],['club','Club','tab:club',on('club'),0]]],
     ['Market',[['transfers','Transfers','tab:transfers',on('transfers')&&!scOn,0],['scout','Scouting','navgo:scout',scOn,0]]],
     ['World',[['comp','Competitions','navgo:comp',on('comp')&&!lgOn,0],['league','League','navgo:league',lgOn,0]]]];}
-const navBtn=([k,l,a,o,n],cls)=>`<button class="${cls}${o?' on':''}" data-act="${a}"${o?' aria-current="page"':''}>${nIc(k)}<span>${l}</span>${n?`<em${k==='medical'?' class="o"':''}>${n}</em>`:''}</button>`;
-function navHTML(){return `<aside class="side" aria-label="Main">${navGroups().map(([g,L])=>`<div class="side-g">${g?`<h6>${g}</h6>`:''}${L.map(x=>navBtn(x,'side-b')).join('')}</div>`).join('')}</aside>`;}
+const navBtn=([k,l,a,o,n],cls)=>`<button class="${cls}${o?' on':''}" data-act="${a}" title="${l}"${o?' aria-current="page"':''}>${nIc(k)}<span>${l}</span>${n?`<em${k==='medical'?' class="o"':''}>${n}</em>`:''}</button>`;
+function navHTML(){return `<aside class="snav" aria-label="Main">${navGroups().map(([g,L])=>`<div class="snav-g">${g?`<h6>${g}</h6>`:''}${L.map(x=>navBtn(x,'snav-b')).join('')}</div>`).join('')}</aside>`;}
 function bnavHTML(){const all=navGroups().flatMap(g=>g[1]),f=k=>all.find(x=>x[0]===k),live=UI.view==='match'&&UI.match&&!UI.match.m.done,
     pick=['home','squad',null,typeof ntMode==='function'&&ntMode()?'comp':'transfers'].map(k=>k&&f(k)),shown=pick.filter(Boolean).map(x=>x[0]),
     moreOn=!UI.more&&all.some(x=>x[3]&&!shown.includes(x[0])),moreN=all.filter(x=>!shown.includes(x[0])).reduce((s,x)=>s+(x[0]==='inbox'?x[4]:0),0);
