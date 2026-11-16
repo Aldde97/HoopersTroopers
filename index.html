@@ -863,6 +863,19 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 .ib-cats .seg em.t{background:var(--or)}
 .ib-list{max-height:max(420px,calc(100vh - 250px));overflow-y:auto}
 .ib-do{font:normal 700 11px var(--fd);letter-spacing:.12em;text-transform:uppercase;color:var(--or);border:1.5px solid var(--or);border-radius:3px;padding:2px 6px;margin-left:auto;flex:none}
+
+/* ---- page tabs and key numbers ---- */
+.ptabs{display:flex;gap:2px;margin-bottom:16px;border-bottom:2px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.ptabs button{flex:none;padding:10px 16px 9px;font:700 16.5px var(--fd);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
+.ptabs button:hover{color:var(--tx)}
+.ptabs button.on{color:var(--tx);border-bottom-color:var(--or)}
+.ptabs button:focus-visible{outline:2px solid var(--or);outline-offset:-2px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border-left:4px solid var(--or);border-radius:3px;padding:12px 16px;box-shadow:0 1px 3px #0000001a;min-width:0}
+.kpi small{display:block;font:700 11.5px var(--fd);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.kpi b{display:block;font:800 27px/1.15 var(--fd);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg1{max-width:1100px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi b{font-size:22px}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -892,4 +905,4 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=4" charset="utf-8"></script>
-<script src="ui.js?v=407" charset="utf-8"></script>
+<script src="ui.js?v=408" charset="utf-8"></script>
