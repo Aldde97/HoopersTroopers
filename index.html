@@ -731,6 +731,47 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 .nil-k{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}.nil-k small{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}.nil-k b{font:800 18px var(--fd)}
 .nil-bo{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px}.nil-bo span{color:var(--mut)}.nil-p{font-size:13px;margin:8px 0 0}
 .nil-r{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}.nil-a{width:40px;height:40px;flex:none}.nil-t{min-width:0;flex:1}.nil-t b{cursor:pointer}.nil-t .btns{display:flex;flex-wrap:wrap;gap:6px}.nil-t .btns .btn{width:auto;flex:0 0 auto;padding-inline:12px}.nil-t small{display:block;color:var(--mut);font-size:12.5px;margin:2px 0 6px}
+
+/* ---- side navigation ---- */
+.shell{display:grid;grid-template-columns:228px minmax(0,1fr);align-items:start}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;scrollbar-width:thin;background:var(--ink);border-right:1px solid #ffffff10;border-top:4px solid var(--or);padding-block:12px 24px;display:flex;flex-direction:column;gap:6px}
+.side-g{display:flex;flex-direction:column}
+.side-g+.side-g{border-top:1px solid #ffffff0d;padding-top:6px}
+.side h6{text-align:left;font:700 11.5px var(--fd);letter-spacing:.18em;text-transform:uppercase;color:var(--inkM);padding:8px 22px 4px;margin:0}
+.side-b{position:relative;display:flex;align-items:center;gap:13px;height:42px;padding:0 18px 0 20px;color:#d7dbe0;font:700 16.5px var(--fd);letter-spacing:.07em;text-transform:uppercase;text-align:left;border-left:3px solid transparent}
+.side-b svg{width:20px;height:20px;flex:none;opacity:.8}
+.side-b:hover{background:#ffffff0a;color:#fff}
+.side-b.on{background:linear-gradient(90deg,#ff6b0026,#ff6b0008);border-left-color:var(--or);color:#fff}
+.side-b.on svg{color:var(--or);opacity:1}
+.side-b em,.bn em{font-style:normal;margin-left:auto;min-width:22px;height:20px;padding:0 6px;border-radius:10px;background:var(--r);color:#fff;font:700 11.5px var(--fb);display:inline-flex;align-items:center;justify-content:center}
+.side-b em.o,.bn em.o,.more-b em.o{background:var(--or)}
+.side-b:focus-visible,.bn:focus-visible,.more-b:focus-visible{outline:2px solid var(--or);outline-offset:-2px}
+.bnav,.more,.more-bg{display:none}
+@media(max-width:900px){
+  .shell{display:block}
+  .side{display:none}
+  .hdr .cont{display:none}
+  .club .icons [data-act=savegame]{display:none}
+  .main{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  #toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .bnav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--ink);border-top:1px solid #ffffff18;box-shadow:0 -6px 20px #0005;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .bn{position:relative;height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#aeb4bc;min-width:0}
+  .bn svg{width:23px;height:23px}
+  .bn span{font:700 11.5px var(--fd);letter-spacing:.08em;text-transform:uppercase;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+  .bn.on{color:#fff}.bn.on svg{color:var(--or)}
+  .bn em{position:absolute;top:6px;left:calc(50% + 6px);margin:0;min-width:18px;height:17px;font-size:10.5px;padding:0 4px;border:2px solid var(--ink)}
+  .bn-m{background:linear-gradient(var(--or2),var(--or));color:#fff;margin:-10px 4px 6px;height:66px;border-radius:6px;box-shadow:0 4px 14px #ff6b0055}
+  .bn-m svg{color:#fff!important}.bn-m[disabled]{opacity:.55}
+  .more-bg{display:block;position:fixed;inset:0;z-index:58;background:#0008}
+  .more{display:flex;flex-direction:column;gap:12px;position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom,0px));z-index:59;max-height:calc(100vh - 140px);overflow-y:auto;background:var(--ink2);color:var(--inkT);border-radius:12px 12px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) 18px max(16px,env(safe-area-inset-left,0px));box-shadow:0 -10px 30px #0007}
+  .more h6{text-align:left;font:700 11.5px var(--fd);letter-spacing:.18em;text-transform:uppercase;color:var(--inkM);margin:0 0 6px}
+  .more-l{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .more-b{position:relative;display:flex;align-items:center;gap:10px;height:46px;padding:0 12px;border-radius:6px;background:#ffffff0a;color:#e3e6ea;font:700 15.5px var(--fd);letter-spacing:.06em;text-transform:uppercase;text-align:left;min-width:0}
+  .more-b span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .more-b svg{width:19px;height:19px;flex:none}
+  .more-b.on{background:#ff6b0024;color:#fff;box-shadow:inset 3px 0 var(--or)}.more-b.on svg{color:var(--or)}
+  .more-b em{font-style:normal;margin-left:auto;min-width:20px;height:19px;padding:0 5px;border-radius:10px;background:var(--r);color:#fff;font:700 11px var(--fb);display:inline-flex;align-items:center;justify-content:center}
+}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -760,4 +801,4 @@ body.ntt .nav button.on{background:var(--or)!important}body.ntt .cont{background
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=4" charset="utf-8"></script>
-<script src="ui.js?v=403" charset="utf-8"></script>
+<script src="ui.js?v=404" charset="utf-8"></script>

@@ -55,13 +55,45 @@ function clubHTML(){const t=G.teams[G.user],unread=G.inbox.filter(m=>!m.read).le
   const rs=roster(G.user),morale=clamp((50+t.form.filter(x=>x==='W').length*10-t.form.filter(x=>x==='L').length*6+(rs.length?rs.reduce((s,p)=>s+moodOf(p),0)/rs.length:60))/2,10,100);
   return `<div class="club gut">${crest(t,'dk')}<div><h2>${esc(clubDisplayName(t))}</h2><div class="who"><span>${esc(G.mgr)} \u00b7 Head Coach</span></div></div>
   <div class="meters">${[['Board',G.board],['Fans',G.fans],['Morale',morale]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
-  <div class="icons"><button class="ic" data-act="tab:inbox">${IC.inbox}<span>Inbox</span>${unread?`<em>${unread}</em>`:''}</button>
-  <button class="ic" data-act="tab:medical">${IC.med}<span>Medical</span>${inj?`<em class="o">${inj}</em>`:''}</button>
-  <button class="ic" data-act="tab:transfers">${IC.scout}<span>Scouting</span></button>
-  <button class="ic" data-act="tab:comp">${IC.ball}<span>League</span></button>
-  <button class="ic" data-act="savegame">${IC.save}<span>Save</span></button></div></div>`;}
+  <div class="icons"><button class="ic" data-act="savegame">${IC.save}<span>Save</span></button></div></div>`;}
 const TABS=[['home','Home'],['squad','Squad'],['tactics','Tactics'],['training','Training'],['staff','Staff'],['transfers','Transfers'],['finances','Finances'],['club','Club'],['business','Business'],['comp','Competitions'],['inbox','Inbox']];
-function navHTML(){const unread=G.inbox.filter(m=>!m.read).length;return `<nav class="navw" aria-label="Main"><div class="nav">${TABS.map(([k,l])=>`<button class="${UI.view==='main'&&UI.tab===k?'on':''}" data-act="tab:${k}">${l}${k==='inbox'&&unread?`<em>${unread}</em>`:''}</button>`).join('')}</div></nav>`;}
+const NI={
+  home:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',
+  inbox:'<path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/>',
+  squad:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><path d="M16 5.2a3 3 0 010 5.6M18 14.4c1.9.8 3 2.9 3 5.6"/>',
+  tactics:'<path d="M4 4h16v16H4z"/><path d="M8 8l3 3M11 8l-3 3"/><circle cx="15.5" cy="15.5" r="2.2"/><path d="M10 15c1.5 0 2.5-1 3-2.5" stroke-dasharray="1.6 1.8"/>',
+  training:'<path d="M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12"/>',
+  medical:'<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
+  staff:'<circle cx="12" cy="7.5" r="3.5"/><path d="M5 21c0-4 3-7 7-7s7 3 7 7"/><path d="M12 14l-1.5 3 1.5 4 1.5-4z"/>',
+  finances:'<path d="M17.5 6.5A7 7 0 1017.5 17.5"/><path d="M4 10h9M4 14h9"/>',
+  club:'<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/>',
+  business:'<path d="M3 8h18v12H3z"/><path d="M9 8V5h6v3M3 13h18"/>',
+  transfers:'<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>',
+  scout:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>',
+  comp:'<path d="M7 4h10v5a5 5 0 01-10 0z"/><path d="M7 6H4c0 3 1.5 4.5 3.5 4.5M17 6h3c0 3-1.5 4.5-3.5 4.5M12 14v3M8 21h8M9.5 17h5v4h-5z"/>',
+  league:'<path d="M5 5h14M5 10h14M5 15h14M5 20h9"/>',
+  match:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6c3.5 3 3.5 9.8 0 12.8M18.4 5.6c-3.5 3-3.5 9.8 0 12.8M3 12h18"/>',
+  more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  save:'<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/>',
+};
+const nIc=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NI[k]||NI.more}</svg>`;
+function myLeagueKey(){try{const L=compList().filter(x=>x.me&&x.k!=='nt'&&x.k!=='pok');const d=L.find(x=>x.g>0)||L[0];return d?d.k:null;}catch(e){return null;}}
+// one source for sidebar, bottom bar and More sheet: [key, label, act, isOn, badge]
+function navGroups(){const nt=typeof ntMode==='function'&&ntMode(),on=k=>UI.view==='main'&&UI.tab===k;
+  if(nt){const un=G.inbox.filter(m=>!m.read&&m.type==='nt').length;return [[null,NT_TABS.map(([k,l])=>[k==='training'?'training':k,k==='squad'?(ntPend()?'Squad':'Call-ups'):l,'tab:'+k,on(k),k==='inbox'?un:0])]];}
+  const un=G.inbox.filter(m=>!m.read).length,inj=roster(G.user).filter(p=>p.inj>0).length,lk=myLeagueKey(),scOn=on('transfers')&&UI.tr===(userNBA()?'market':'watch'),lgOn=on('comp')&&lk&&(UI.comp||'table')===lk;
+  return [[null,[['home','Home','tab:home',on('home'),0],['inbox','Inbox','tab:inbox',on('inbox'),un]]],
+    ['Team',[['squad','Squad','tab:squad',on('squad'),0],['tactics','Tactics','tab:tactics',on('tactics'),0],['training','Training','tab:training',on('training'),0],['medical','Medical','tab:medical',on('medical'),inj]]],
+    ['Club',[['staff','Staff','tab:staff',on('staff'),0],['finances','Finances','tab:finances',on('finances'),0],['business','Business','tab:business',on('business'),0],['club','Club','tab:club',on('club'),0]]],
+    ['Market',[['transfers','Transfers','tab:transfers',on('transfers')&&!scOn,0],['scout','Scouting','navgo:scout',scOn,0]]],
+    ['World',[['comp','Competitions','navgo:comp',on('comp')&&!lgOn,0],['league','League','navgo:league',lgOn,0]]]];}
+const navBtn=([k,l,a,o,n],cls)=>`<button class="${cls}${o?' on':''}" data-act="${a}"${o?' aria-current="page"':''}>${nIc(k)}<span>${l}</span>${n?`<em${k==='medical'?' class="o"':''}>${n}</em>`:''}</button>`;
+function navHTML(){return `<aside class="side" aria-label="Main">${navGroups().map(([g,L])=>`<div class="side-g">${g?`<h6>${g}</h6>`:''}${L.map(x=>navBtn(x,'side-b')).join('')}</div>`).join('')}</aside>`;}
+function bnavHTML(){const all=navGroups().flatMap(g=>g[1]),f=k=>all.find(x=>x[0]===k),live=UI.view==='match'&&UI.match&&!UI.match.m.done,
+    pick=['home','squad',null,typeof ntMode==='function'&&ntMode()?'comp':'transfers'].map(k=>k&&f(k)),shown=pick.filter(Boolean).map(x=>x[0]),
+    moreOn=!UI.more&&all.some(x=>x[3]&&!shown.includes(x[0])),moreN=all.filter(x=>!shown.includes(x[0])).reduce((s,x)=>s+(x[0]==='inbox'?x[4]:0),0);
+  return `<nav class="bnav" aria-label="Main">${navBtn(pick[0],'bn')}${navBtn(pick[1],'bn')}<button class="bn bn-m${UI.view==='prematch'||UI.view==='match'?' on':''}" data-act="continue" ${live?'disabled':''}>${nIc('match')}<span>${esc(contLabel())}</span></button>${navBtn(pick[3],'bn')}<button class="bn${moreOn||UI.more?' on':''}" data-act="navmore" aria-expanded="${!!UI.more}">${nIc('more')}<span>More</span>${moreN?`<em>${moreN}</em>`:''}</button></nav>
+  ${UI.more?`<div class="more-bg" data-act="navmore"></div><div class="more" role="dialog" aria-label="All sections">${navGroups().map(([g,L])=>`<div class="more-g">${g?`<h6>${g}</h6>`:''}<div class="more-l">${L.map(x=>navBtn(x,'more-b')).join('')}</div></div>`).join('')}<div class="more-g"><div class="more-l"><button class="more-b" data-act="savegame">${nIc('save')}<span>Save game</span></button></div></div></div>`:''}`;}
 function render(){try{return render0();}catch(err){uiErr('render',err);}}
 function render0(){
   if(G&&typeof tidFix==='function'&&!(render0.fx||(render0.fx=new WeakSet())).has(G)){render0.fx.add(G);try{tidFix();}catch(err){console.error(err);}}
@@ -74,7 +106,7 @@ function render0(){
   else if(UI.view==='season'&&seasonOver())body=seasonHTML();
   else if(ntMode()){UI.view='main';if(!NT_TABS.some(x=>x[0]===UI.tab))UI.tab='home';if(UI.tab==='comp')UI.comp='nt';body=({home:ntModeHome,squad:()=>ntPend()?(ntPend().camp?ntCampPanel():ntRotHTML()):ntMyHTML(),tactics:ntTacHTML,training:ntCampHTML,staff:ntStaffHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
   else{UI.view='main';body=({home:homeHTML,squad:squadHTML,medical:medicalHTML,tactics:tacticsHTML,training:trainingHTML,staff:staffHTML,transfers:transfersHTML,finances:financesHTML,club:clubTabHTML,business:businessHTML,comp:compHTML,inbox:inboxHTML})[UI.tab]();}
-  app.innerHTML=headerHTML()+clubHTML()+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. The demo jumps straight to the event, so the club side still shows a day in November; in a real career tournaments are played in the summer, before the club pre-season. Open the game without the <code>#nt-…</code> ending to return to your own career.</div>':''}${body}</div></main>`+modalHTML();try{ntTheme();}catch(e){}
+  app.innerHTML=headerHTML()+clubHTML()+`<div class="shell">`+navHTML()+`<main class="main gut"><div class="inner">${G&&G.demo?'<div style="background:#fff4cc;border:1px solid #e0c060;color:#5a4500;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px"><b>Demo career</b> \u00b7 nothing is saved. The demo jumps straight to the event, so the club side still shows a day in November; in a real career tournaments are played in the summer, before the club pre-season. Open the game without the <code>#nt-…</code> ending to return to your own career.</div>':''}${body}</div></main></div>`+bnavHTML()+modalHTML();try{ntTheme();}catch(e){}
   if(UI.view==='match')updMatch();
   if(UI.view==='main'&&UI.tab==='club'&&window.arena3dMount)arena3dMount();
 }
@@ -1353,6 +1385,8 @@ function modalHTML(){const M=UI.modal;if(!M)return '';if(M.kind==='jobs')return 
 /* ===================== Actions ===================== */
 const keepF=()=>{const g=id=>document.getElementById(id);if(g('fName'))UI.fName=g('fName').value;if(g('fCity'))UI.fCity=g('fCity').value;if(g('fNat'))UI.fNat=g('fNat').value;if(g('fC1'))UI.fC1=g('fC1').value;if(g('fC2'))UI.fC2=g('fC2').value;};
 const ACT={
+  navgo(k){UI.more=false;if(k==='scout'){UI.tr=userNBA()?'market':'watch';ACT.tab('transfers');return;}if(k==='comp'){const lk=myLeagueKey();if(lk&&(UI.comp||'table')===lk){let o=null;try{o=compList().find(x=>x.me&&x.k!==lk&&x.k!=='nt');}catch(e){}UI.comp=o?o.k:'table';}ACT.tab('comp');return;}if(k==='league'){const lk=myLeagueKey();if(lk)UI.comp=lk;ACT.tab('comp');return;}},
+  navmore(){UI.more=!UI.more;render();},
   gcomp(k){UI.gcomp=k;render();},
   grnd(d){const L=G.nl&&G.nl[(UI.comp||'').slice(2)];UI.gfixR=clamp((UI.gfixR||0)+(+d),0,L?L.sched.length-1:0);render();},
   bcomp(k){UI.bcomp=k;render();},
@@ -1379,7 +1413,7 @@ const ACT={
     if(seasonOver()){UI.view='season';render();return;}
     const f=userFx();if(f&&UI.view==='prematch'){beginMatch(true);return;}if(f){UI.view='prematch';render();window.scrollTo(0,0);return;}
     const lbl=simStep(null);UI.view='main';UI.tab='home';render();toast(`${lbl} simulated`);},
-  tab(t){if(UI.match&&!UI.match.m.done){toast('Finish the match first, or use Sim to end.');return;}if(UI.match&&UI.match.m.done){ACT.matchdone(t);return;}UI.view='main';UI.tab=t;UI.modal=null;render();window.scrollTo(0,0);},
+  tab(t){UI.more=false;if(UI.match&&!UI.match.m.done){toast('Finish the match first, or use Sim to end.');return;}if(UI.match&&UI.match.m.done){ACT.matchdone(t);return;}UI.view='main';UI.tab=t;UI.modal=null;render();window.scrollTo(0,0);},
   prof(id){id=+id;const p=G.players[id];if(!p)return;if(p.tid===G.user){UI.sel=id;ACT.tab('squad');}else{const back=UI.modal&&UI.modal.kind==='club'?UI.modal.tid:null;UI.modal={kind:'player',pid:id,back};render();}},
   club(id){id=+id;if(!G.teams[id])return;if(id===G.user){UI.modal=null;ACT.tab('squad');return;}UI.modal={kind:'club',tid:id};render();},
   sel(id){if(UI.sqSwap!=null&&UI.sqSwap!==+id){sqSwapIds(UI.sqSwap,+id);UI.sqSwap=null;UI.sel=+id;save();render();return;}UI.sel=+id;render();},
@@ -1772,7 +1806,7 @@ function ntStaffHTML(){const J=G.nt.job,c=J.c,S=ntStaffGet(),F=UI.ntsf||(UI.ntsf
     ${total>50?`<div class="ntc-a"><button data-act="ntsall">${UI.ntsAll?'Show top 50':`Show all ${total}`}</button></div>`:''}</section>`;}
 // wrap the frame
 headerHTML=(o=>()=>ntMode()?ntHeaderHTML():o())(headerHTML);
-navHTML=(o=>()=>ntMode()?ntNavHTML():o())(navHTML);
+
 clubHTML=(o=>()=>{if(ntMode())return ntClubHTML();const h=o(),J=G&&G.nt&&G.nt.job;return J?h.replace('<div class="icons">',`<div class="icons"><button class="ic ntsw" data-act="ntmode"><span class="ntsw-i">${ntFlag(J.c,30)}</span><span>National team</span></button>`):h;})(clubHTML);
 
 
