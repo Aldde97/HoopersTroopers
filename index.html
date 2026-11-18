@@ -1110,23 +1110,21 @@ body.mfocus .main .inner{max-width:1500px}
 }
 @media(max-width:700px){tr.hr-trim{display:none}}
 
-/* ---- national team offers: neutral card, flag as the hero ---- */
-.nto-c{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:14px;border-radius:12px;padding:20px 18px 18px;background:var(--ink);color:#fff;box-shadow:0 6px 18px #0002}
-.nto-c::before{content:'';position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,var(--a) 0 50%,var(--b) 50% 100%)}
-.nto-wm{position:absolute;right:-70px;top:-10px;opacity:.09;transform:rotate(-10deg);pointer-events:none}
-.nto-wm img{width:300px!important;height:auto!important;box-shadow:none!important}
-.nto-top{position:relative;display:flex;align-items:center;gap:14px;min-width:0}
-.nto-f{flex:none}.nto-f img{display:block;width:84px;height:63px;border-radius:6px!important;box-shadow:0 0 0 1px #ffffff2e,0 6px 14px #0007!important}
-.nto-t{min-width:0}.nto-t b{display:block;font:900 26px/1 var(--fd);text-transform:uppercase;letter-spacing:.02em}
-.nto-t small{display:flex;align-items:center;gap:6px;margin-top:6px;color:#c8cdd3;font-size:12.5px}
-.nto-s{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.nto-s>div{background:#ffffff10;border-radius:8px;padding:8px 10px;min-width:0}
-.nto-s i{display:block;font:700 10px var(--fd);font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:#9aa3ad}
-.nto-s b{display:block;font:900 22px/1.15 var(--fd);white-space:nowrap}.nto-s b small{font-size:13px;color:#9aa3ad}
-.nto-s .nto-rg{font-size:16px;white-space:normal;line-height:1.1;margin-top:3px}
-.nto-y{display:block;font-size:10.5px;color:#9aa3ad}
-.nto-m{display:block;height:4px;border-radius:2px;background:#ffffff1f;margin-top:5px}.nto-m span{display:block;height:100%;border-radius:2px;background:#5fe08f}
-.nto-b{position:relative;align-self:stretch;min-height:44px;background:#ff6b00;color:#fff;border-radius:8px;font:800 15px var(--fd);letter-spacing:.1em;text-transform:uppercase}
+/* ---- national team offers: club-card style with the probable starting five ---- */
+.nto-c{background:var(--card);border-radius:4px;overflow:hidden;box-shadow:0 1px 2px #0000000f,0 8px 22px #0000000b;display:flex;flex-direction:column;min-width:0}
+.nto-hd{position:relative;display:flex;align-items:center;gap:12px;padding:12px 14px 12px 20px;background:var(--ink);color:#fff}
+.nto-hd::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(180deg,var(--a) 0 50%,var(--b) 50% 100%)}
+.nto-f img{display:block;width:52px;height:39px;border-radius:4px!important;box-shadow:0 0 0 1px #ffffff33!important}
+.nto-hd b{flex:1;min-width:0;font:900 24px/1 var(--fd);text-transform:uppercase;letter-spacing:.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nto-rk{flex:none;text-align:right;font:900 22px/1 var(--fd);color:#ffcf5a}.nto-rk small{display:block;font:700 9.5px var(--fd);letter-spacing:.16em;color:#c8cdd3}
+.nto-bd{display:flex;flex-direction:column;gap:12px;padding:12px 14px 14px}
+.nto-lb{display:flex;align-items:center;justify-content:space-between}.nto-lb small{font:700 11px var(--fd);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.nto-av{font:800 12px var(--fd);letter-spacing:.06em;background:var(--soft,#f2f4f6);border-radius:10px;padding:3px 8px}
+.nto-five .nm-p{position:relative}
+.nto-o{position:absolute;top:-2px;left:50%;margin-left:12px;min-width:22px;height:18px;padding:0 3px;border-radius:9px;background:#1a7f43;color:#fff;font:normal 800 11px/18px var(--fd);text-align:center}
+.nto-fx{display:flex;flex-wrap:wrap;gap:6px 14px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:#3a4048}
+.nto-fx span{display:inline-flex;align-items:center;gap:6px}.nto-fx svg{color:var(--mut)}.nto-fx small{color:var(--mut)}
+.nto-b{min-height:44px;background:#ff6b00;color:#fff;border-radius:6px;font:800 15px var(--fd);letter-spacing:.1em;text-transform:uppercase}
 .nto-b:hover{filter:brightness(1.08)}
 </style>
 
@@ -1157,4 +1155,4 @@ body.mfocus .main .inner{max-width:1500px}
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=6" charset="utf-8"></script>
-<script src="ui.js?v=425" charset="utf-8"></script>
+<script src="ui.js?v=426" charset="utf-8"></script>
