@@ -1094,6 +1094,21 @@ body.mfocus .main .inner{max-width:1500px}
 .nm-sty i{font:500 12px var(--fb);font-style:normal;color:var(--mut)}
 .nm-b2{margin-top:4px}
 @media(max-width:560px){.nmt,.nm-stk,.nm-sec{margin-inline:12px}.nm-p .avatar{width:42px;height:42px}.nt-v b{font-size:22px}}
+
+/* ---- phone fixes ---- */
+@media(max-width:600px){
+  .topb .hmid{gap:12px;padding:0 12px 0 max(12px,env(safe-area-inset-left,0px));overflow:hidden;height:44px}
+  .topb .date{flex:none}
+  .topb .date b{font-size:16px}
+  .topb .date span{font-size:10px;letter-spacing:.06em}
+  .topb .hstat{padding-left:10px;min-width:0}
+  .topb .hstat small{font-size:9px;letter-spacing:.1em}
+  .topb .hstat b{font-size:17px}
+  .topb .hstat~.hstat~.hstat{display:none}
+  .pre-row{flex-wrap:wrap}
+  .pre-row .pre-btn{flex:1 0 100%;justify-content:flex-start;padding-left:46px}
+}
+@media(max-width:700px){tr.hr-trim{display:none}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1123,4 +1138,4 @@ body.mfocus .main .inner{max-width:1500px}
 <script src="gleague.js?v=323" charset="utf-8"></script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
 <script src="flags.js?v=6" charset="utf-8"></script>
-<script src="ui.js?v=423" charset="utf-8"></script>
+<script src="ui.js?v=424" charset="utf-8"></script>
