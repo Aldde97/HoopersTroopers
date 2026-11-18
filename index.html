@@ -1155,6 +1155,53 @@ body.mfocus .main .inner{max-width:1500px}
 .sl-start .sl-t span,.sl-start .sl-t small{color:#9aa4b1}
 .sl-start .sl-c.on{background:transparent}
 @media (max-width:600px){.sl-c{padding:12px 16px}.sl-f{padding:14px 16px 0}.sl-a{width:100%;justify-content:flex-end}}
+
+/* ---------- loading / title screen (static in index.html, shows before the scripts arrive) ---------- */
+.spl{position:fixed;inset:0;z-index:200;background:#0b0d10;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;
+  padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(24px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));transition:opacity .45s ease,visibility .45s}
+.spl.out{opacity:0;visibility:hidden;pointer-events:none}
+.spl-bg{position:absolute;inset:0;pointer-events:none}
+.spl-court{position:absolute;left:0;right:0;bottom:0;width:100%;height:58%;opacity:.09}
+.spl-glow{position:absolute;left:50%;bottom:-30%;width:120vmax;height:70vmax;transform:translateX(-50%);background:radial-gradient(closest-side,#ff6b0040,#ff6b0014 55%,transparent);}
+.spl-lt{position:absolute;top:-25%;width:70vmax;height:90vmax;background:radial-gradient(closest-side,#fff7e61f,transparent 70%);animation:splFl 7s ease-in-out infinite alternate}
+.spl-l1{left:-25vmax;transform:rotate(-24deg)}.spl-l2{right:-25vmax;transform:rotate(24deg);animation-delay:-3.5s}
+@keyframes splFl{0%{opacity:.55}100%{opacity:1}}
+.spl-in{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;width:100%;max-width:560px}
+.spl-eb{display:flex;align-items:center;gap:12px;font:800 13px var(--fd);letter-spacing:.32em;text-transform:uppercase;color:#ff8a1f}
+.spl-eb span{display:block;width:34px;height:2px;background:#ff8a1f66}
+.spl-logo{display:flex;align-items:center;gap:clamp(12px,2.4vw,22px)}
+.spl-ball{width:clamp(64px,13vw,118px);height:auto;flex:none;filter:drop-shadow(0 14px 30px #ff6b0055);animation:splB 2.4s cubic-bezier(.45,0,.55,1) infinite}
+@keyframes splB{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-8px) rotate(14deg)}}
+.spl-h{margin:0;display:flex;flex-direction:column;align-items:flex-start;font:italic 900 clamp(46px,10.5vw,104px)/.84 var(--fd);text-transform:uppercase;letter-spacing:.005em;text-wrap:balance}
+.spl-h span{color:#fff}.spl-h b{color:#ff6b00;font-weight:900}
+.spl-tag{margin:2px 0 6px;font:600 clamp(14px,2.2vw,17px)/1.35 var(--fb);color:#b9c0c8}
+.spl-load{width:100%;max-width:420px;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.spl-bar{height:6px;background:#ffffff17;border-radius:3px;overflow:hidden}
+.spl-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff6b00,#ffb066);border-radius:3px;box-shadow:0 0 14px #ff6b0099}
+.spl-st{display:flex;justify-content:space-between;gap:12px;font:600 13px var(--fb);color:#9aa4b1}
+.spl-st b{font:800 14px var(--fd);letter-spacing:.06em;color:#fff}
+.spl-load.bad .spl-bar i{background:#d6342c;box-shadow:none}.spl-load.bad .spl-st span{color:#ffb4ae}
+.spl-tip{min-height:2.7em;margin:6px 0 0;max-width:460px;font:500 13.5px/1.4 var(--fb);color:#8d949d;opacity:0;transition:opacity .28s}
+.spl-tip.on{opacity:1}
+.spl-go{width:100%;max-width:440px;display:flex;flex-direction:column;gap:10px;margin-top:8px;animation:splIn .4s ease both}
+@keyframes splIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.spl-cont{display:flex;align-items:center;gap:14px;width:100%;min-height:68px;padding:10px 16px;border:0;border-radius:3px;background:#ff6b00;color:#fff;cursor:pointer;text-align:left;font:inherit;box-shadow:0 12px 34px #ff6b0044}
+.spl-cont:hover{background:#ff7c1c}.spl-cont:focus-visible,.spl-b:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.spl-cont .crest{width:40px;height:48px;flex:none}
+.spl-cont span{flex:1;min-width:0;display:flex;flex-direction:column}
+.spl-cont small{font:800 12px var(--fd);letter-spacing:.2em;text-transform:uppercase;opacity:.85}
+.spl-cont b{font:800 21px/1.05 var(--fd);text-transform:uppercase;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spl-cont em{font:500 13px var(--fb);font-style:normal;opacity:.9}
+.spl-cont svg.arr{width:22px;height:22px;flex:none}
+.spl-row{display:flex;gap:10px}
+.spl-b{flex:1;min-height:48px;padding:0 14px;border:1px solid #ffffff33;border-radius:3px;background:#ffffff0d;color:#fff;cursor:pointer;font:800 15px var(--fd);letter-spacing:.14em;text-transform:uppercase}
+.spl-b:hover{background:#ffffff1f;border-color:#ffffff66}
+.spl-b.p{background:#ff6b00;border-color:#ff6b00;min-height:56px;font-size:19px;box-shadow:0 12px 34px #ff6b0044}.spl-b.p:hover{background:#ff7c1c}
+.spl-ft{position:absolute;left:0;right:0;bottom:max(16px,env(safe-area-inset-bottom,0px));padding:0 16px;text-align:center;font:700 11.5px var(--fd);letter-spacing:.22em;text-transform:uppercase;color:#5d646d}
+@media (max-height:620px){.spl-ft{display:none}.spl-in{gap:10px}}
+@media (max-width:520px){.spl-logo{flex-direction:column;gap:10px}.spl-h{align-items:center}.spl-row{flex-direction:column}}
+@media (prefers-reduced-motion:reduce){.spl-ball,.spl-lt{animation:none}.spl-go{animation:none}.spl,.spl-tip{transition:none}}
+.spl-load[hidden],.spl-go[hidden]{display:none!important}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1162,26 +1209,92 @@ body.mfocus .main .inner{max-width:1500px}
     <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".5" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient>
   </defs>
 </svg>
+<div id="splash" class="spl" aria-label="Basketball Manager">
+  <div class="spl-bg" aria-hidden="true">
+    <i class="spl-lt spl-l1"></i><i class="spl-lt spl-l2"></i><i class="spl-glow"></i>
+    <svg class="spl-court" viewBox="0 0 1600 520" preserveAspectRatio="xMidYMax slice" fill="none" stroke="#fff" stroke-width="2.2">
+      <path d="M40 520 L420 140 H1180 L1560 520"/>
+      <path d="M268 292 H1332"/>
+      <ellipse cx="800" cy="292" rx="150" ry="34"/>
+      <ellipse cx="800" cy="292" rx="52" ry="12"/>
+      <path d="M560 140 Q800 236 1040 140"/>
+      <path d="M690 140 V176 H910 V140"/>
+      <path d="M330 520 Q800 300 1270 520"/>
+      <path d="M610 520 V420 H990 V520"/>
+      <ellipse cx="800" cy="420" rx="110" ry="26"/>
+    </svg>
+  </div>
+  <div class="spl-in">
+    <div class="spl-eb"><span></span>Season 2026/27<span></span></div>
+    <div class="spl-logo">
+      <svg class="spl-ball" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#ff6b00"/><circle cx="50" cy="50" r="46" fill="url(#splSh)"/><g fill="none" stroke="#121417" stroke-width="3.6" stroke-linecap="round"><circle cx="50" cy="50" r="46"/><path d="M50 4v92M4 50h92"/><path d="M18 16c14 12 14 56 0 68M82 16c-14 12-14 56 0 68"/></g><defs><radialGradient id="splSh" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient></defs></svg>
+      <h1 class="spl-h"><span>Basketball</span><b>Manager</b></h1>
+    </div>
+    <p class="spl-tag">Real clubs. Real rosters. Your bench.</p>
+    <div class="spl-load" id="splLoad">
+      <div class="spl-bar"><i id="splBar"></i></div>
+      <div class="spl-st"><span id="splSt">Opening the arena</span><b id="splPc">0%</b></div>
+    </div>
+    <div class="spl-go" id="splGo" hidden></div>
+    <p class="spl-tip" id="splTip" aria-live="polite"></p>
+  </div>
+  <div class="spl-ft" id="splFt">EuroLeague · EuroCup · Champions League · national leagues · national teams</div>
+</div>
+<script>
+(function(){var cur=0,nxt=.04,shown=0,done=false,err=false,bar=document.getElementById('splBar'),pc=document.getElementById('splPc'),st=document.getElementById('splSt'),tip=document.getElementById('splTip');
+  var TIPS=["Tap a player's portrait for his attributes, contract and form.","Players who lose their minutes get frustrated, and big egos faster. Talk to them early.","Your board judges you on the season target shown on Home.","Press conferences move morale, the fans and the board. Choose your words.","In Spain you can climb from the Segunda FEB all the way to the ACB.","Assistant coaches speak up during live games: tired legs, hot hands, a tactic that is not working.","Federations watch your work: a national team may offer you its bench.","Export a career as a file to keep a backup or to continue on another device.","A bigger arena and better facilities are built while the season goes on.","Derbies fill the arena. Rivals pin your quotes to their wall."];
+  var ti=Math.floor(Math.random()*TIPS.length);function nextTip(){if(done&&!tip)return;tip.classList.remove('on');setTimeout(function(){tip.textContent='Tip · '+TIPS[ti%TIPS.length];ti++;tip.classList.add('on');},280);}
+  nextTip();var tt=setInterval(nextTip,4800);
+  var t0=Date.now(),tau=1.5;window.__ld=function(a,b,label){cur=a;nxt=b;t0=Date.now();tau=1.2+(b-a)*24;if(label&&st)st.textContent=label;};
+  window.__ldDone=function(){done=true;cur=nxt=1;clearInterval(tt);};
+  function tick(){if(err)return;var cap=done?1:cur+(nxt-cur)*.95*(1-Math.exp(-(Date.now()-t0)/1000/tau));shown+=(Math.max(cap,shown)-shown)*(done?.35:.12);
+    var p=Math.min(100,Math.round(shown*100));if(bar)bar.style.width=(shown*100).toFixed(1)+'%';if(pc)pc.textContent=p+'%';if(!(done&&shown>.995))requestAnimationFrame(tick);else{if(bar)bar.style.width='100%';if(pc)pc.textContent='100%';}}
+  requestAnimationFrame(tick);
+  window.addEventListener('error',function(e){var s=e&&e.target;if(done||err)return;if(s&&s.tagName==='SCRIPT'||e.message){err=true;if(st)st.textContent='The game could not finish loading. Please reload the page.';var l=document.getElementById('splLoad');if(l)l.classList.add('bad');}},true);
+})();
+</script>
 <div id="app"></div>
 <div id="toast" role="status" hidden></div>
+<script>__ld(0,0.0609,"Starting the match engine")</script>
 <script src="engine.js?v=438" charset="utf-8"></script>
+<script>__ld(0.0609,0.0610,"Hanging the club crests")</script>
 <script src="logos.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0610,0.0618,"Taking the team photos")</script>
 <script src="photos.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0618,0.0625,"Hiring the coaching staffs")</script>
 <script src="staff.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0625,0.0632,"Drawing the European cups")</script>
 <script src="eurocup.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0632,0.0739,"Drawing the European cups")</script>
 <script src="aba.js?v=324" charset="utf-8"></script>
+<script>__ld(0.0739,0.0823,"Drawing the European cups")</script>
 <script src="cups.js?v=323"></script>
+<script>__ld(0.0823,0.0845,"Building the national leagues")</script>
 <script src="rl.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0845,0.0848,"Building the national leagues")</script>
 <script src="gbl.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0848,0.0852,"Building the national leagues")</script>
 <script src="lba.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0852,0.0865,"Building the national leagues")</script>
 <script src="a2.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0865,0.0867,"Building the national leagues")</script>
 <script src="gel.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0867,0.0903,"Flying in the NBA")</script>
 <script src="nba.js?v=324" charset="utf-8"></script>
+<script>__ld(0.0903,0.0916,"Flying in the NBA")</script>
 <script src="nbastaff.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0916,0.0918,"Hiring the coaching staffs")</script>
 <script src="hcphotos.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0918,0.0926,"Building the national leagues")</script>
 <script src="aut.js?v=323" charset="utf-8"></script>
+<script>__ld(0.0926,0.9215,"Signing the players of every league")</script>
 <script src="pf.js?v=344" charset="utf-8"></script>
+<script>__ld(0.9215,0.9232,"Flying in the NBA")</script>
 <script src="gleague.js?v=323" charset="utf-8"></script>
+<script>__ld(0.9232,0.9243,"Switching on the floodlights")</script>
 <script src="arena3d.js?v=323" charset="utf-8"></script>
+<script>__ld(0.9243,0.9688,"Raising the national flags")</script>
 <script src="flags.js?v=6" charset="utf-8"></script>
-<script src="ui.js?v=433" charset="utf-8"></script>
+<script>__ld(0.9688,1.0000,"Setting up the bench")</script>
+<script src="ui.js?v=434" charset="utf-8"></script>
+<script>__ld(1.0000,1.0000,"Opening the doors")</script>
