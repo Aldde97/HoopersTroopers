@@ -1572,7 +1572,7 @@ function startHTML(){const slH=slStartHTML(),saved=slH?null:loadSave(),D=csData(
       <div class="cs-box cs-best"><small>Best players</small>${best}</div>
     </div>
   </div>
-  <div class="cs-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" maxlength="32" autocomplete="off"></label>${IDB_OK&&SVL.length>=SLOT_MAX?`<span class="cs-warn">All ${SLOT_MAX} save slots are in use: delete a career first.</span>`:!IDB_OK&&saved?'<span class="cs-warn">Starting a new career replaces your saved game.</span>':''}<button class="cs-go" data-act="startgame">Start career</button></div>
+  <div class="cs-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" maxlength="32" autocomplete="off"></label>${IDB_OK&&!gamePaid()&&SVL.length===1?`<span class="cs-warn">Free version: one save slot. Starting a new career replaces ${esc(SVL[0].name||'your saved career')}.</span>`:IDB_OK&&SVL.length>=slotMax()?`<span class="cs-warn">${slotFullMsg()} Delete a career first.</span>`:!IDB_OK&&saved?'<span class="cs-warn">Starting a new career replaces your saved game.</span>':''}<button class="cs-go" data-act="startgame">Start career</button></div>
   </div></div>`;}
 // keep the selected crest in view
 function csScroll(){const r=document.getElementById('csCrests');if(!r)return;const b=r.querySelector('.on');if(b)r.scrollLeft=b.offsetLeft-r.clientWidth/2+b.clientWidth/2;}
@@ -1876,7 +1876,7 @@ const ACT={
   startlg(k){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;UI.startLg=k;render();},
   pickc(sh){UI.pickS=sh;UI.pick=null;const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;render();},
   pick(i){UI.pick=+i;UI.pickS=null;const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;render();},
-  startgame(){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value.trim()||'Head Coach';const c=(UI.cc||[]).find(x=>x.short===UI.csSel);if(!c)return;if(IDB_OK&&SVL.length>=SLOT_MAX){slOpen({t:`All ${SLOT_MAX} slots are in use. Delete a career first, then start the new one.`,bad:1});return;}slotDetach();if(c.lg==='EL')newGame(c.id,UI.mgr);else startCareerAt(c.short,UI.mgr);UI.cc=null;save();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
+  startgame(){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value.trim()||'Head Coach';const c=(UI.cc||[]).find(x=>x.short===UI.csSel);if(!c)return;if(IDB_OK&&!gamePaid()&&SVL.length===1){const old=SVL[0].id;SVL=[];slotDelete(old);}else if(IDB_OK&&SVL.length>=slotMax()){slOpen({t:slotFullMsg()+' Delete a career first, then start the new one.',bad:1});return;}slotDetach();if(c.lg==='EL')newGame(c.id,UI.mgr);else startCareerAt(c.short,UI.mgr);UI.cc=null;save();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
   load(){const s=loadSave();if(!s){toast('No saved game found');return;}G=s;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();UI.view='main';UI.tab='home';render();},
   course(k){const e=startCourse(k);toast(e||'Course booked');render();},
   jobsopen(){UI.modal={kind:'jobs'};render();},
@@ -2123,14 +2123,14 @@ function slCard(m,opts){const cur=m.id===SLOT_ID&&G&&!G.demo,del=UI.slDel===m.id
 function savesModal(){const n=SVL.length,inGame=G&&!G.demo;
   const list=!IDB_OK?`<p class="set-n" style="padding:14px 22px">Save slots need browser storage that this window does not offer (a private window, for example). Your career is still saved as a single game, and you can export it as a file.</p>`
     :n?SVL.map(m=>slCard(m)).join(''):`<p class="set-n" style="padding:14px 22px">No careers saved in this browser yet.</p>`;
-  const full=IDB_OK&&n>=SLOT_MAX;
-  return `<div class="ovl" data-act="ovl"><div class="modal set sl-m" role="dialog" aria-modal="true" aria-label="Saved careers" style="max-width:620px"><div class="ch"><h3>Saved careers <small class="sl-n">${IDB_OK?`${n} of ${SLOT_MAX} slots`:''}</small></h3><button class="lnk" data-act="close">Close ✕</button></div>
+  const full=IDB_OK&&n>=slotMax(),paid=gamePaid();
+  return `<div class="ovl" data-act="ovl"><div class="modal set sl-m" role="dialog" aria-modal="true" aria-label="Saved careers" style="max-width:620px"><div class="ch"><h3>Saved careers <small class="sl-n">${IDB_OK?(n>slotMax()?`${n} saved \u00b7 new careers need a free slot`:`${n} of ${slotMax()} slot${slotMax()===1?'':'s'}`):''}</small></h3><button class="lnk" data-act="close">Close ✕</button></div>
   ${UI.slMsg?`<div class="sl-msg ${UI.slMsg.bad?'bad':''}">${esc(UI.slMsg.t)}</div>`:''}
   <div class="sl-l">${list}</div>
   <div class="sl-f">${inGame&&IDB_OK?`<button class="btn sm" data-act="slcopy"${full?' disabled':''}>Save a copy in a new slot</button>`:''}
     <label class="btn sm sl-imp${full?' dis':''}">Import a save file<input type="file" id="slImp" accept=".json,application/json" ${full?'disabled':''} hidden></label>
-    ${inGame?`<button class="btn sm" data-act="slnew"${full?' disabled':''}>Start a new career</button>`:''}${!inGame&&SAVE_TXT&&!IDB_OK?`<button class="btn sm" data-act="slexp:single">Export</button>`:''}</div>
-  <p class="set-n">Careers are saved automatically in this browser. Export a career as a file to keep a backup or to continue on another device, then import it there.${full?` All ${SLOT_MAX} slots are in use: delete one to make room.`:''}</p></div></div>`;}
+    ${inGame?`<button class="btn sm" data-act="slnew"${full&&paid?' disabled':''}>Start a new career</button>`:''}${!inGame&&SAVE_TXT&&!IDB_OK?`<button class="btn sm" data-act="slexp:single">Export</button>`:''}</div>
+  <p class="set-n">Careers are saved automatically in this browser. Export a career as a file to keep a backup or to continue on another device, then import it there.${!paid?` The free version keeps one career; the full game unlocks ${SLOT_PAID} save slots.`:full?` All ${SLOT_PAID} slots are in use: delete one to make room.`:''}</p></div></div>`;}
 function slStartHTML(){if(!IDB_OK||!SVL.length)return null;const L=SVL.slice(0,3).map(m=>slCard(m,{start:1})).join('');
   return `<div class="sl-start"><div class="sl-sh"><b>Your careers</b><button class="lnk" data-act="saves">${SVL.length>3?`All ${SVL.length} careers`:'Manage'} ›</button></div>${L}</div>`;}
 function slOpen(msg){UI.modal={kind:'saves'};UI.slMsg=msg||null;render();}
@@ -2154,7 +2154,7 @@ Object.assign(ACT,{
   sldel(id){UI.slDel=id==='0'?null:id;render();},
   async sldelok(id){if(id===SLOT_ID)return;await slotDelete(id);UI.slDel=null;slOpen({t:'Career deleted.'});},
   async slcopy(){const e=await slotCopy();slOpen(e?{t:e,bad:1}:{t:'A copy of this career was saved in a new slot. You keep playing the current one.'});},
-  slnew(){if(slotsFull()||(IDB_OK&&SVL.length>=SLOT_MAX)){slOpen({t:`All ${SLOT_MAX} slots are in use. Delete a career first.`,bad:1});return;}save();slotDetach();G=null;UI.modal=null;UI.view='start';UI.pick=null;render();window.scrollTo(0,0);},
+  slnew(){if(IDB_OK&&gamePaid()&&SVL.length>=slotMax()){slOpen({t:slotFullMsg(),bad:1});return;}save();slotDetach();G=null;UI.modal=null;UI.view='start';UI.pick=null;render();window.scrollTo(0,0);},
 });
 
 /* ===================== Boot ===================== */
