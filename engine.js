@@ -7193,14 +7193,75 @@ async function gz(txt){const r=new Blob([txt]).stream().pipeThrough(new Compress
 async function gunz(u8){const r=new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));return await new Response(r).text();}
 function saveFailed(){if(SAVE_WARNED)return;SAVE_WARNED=true;try{if(typeof toast==='function')toast('Saving failed: this browser has no storage room left for the career.');}catch(e){}
   try{if(G)msg('Club Secretary','Your career could not be saved','This browser refused to store the career (storage full or blocked, for example in a private window). Progress since the last successful save will be lost if you close the page.','board');}catch(e){}}
-async function saveZ(txt){if(SAVE_BUSY){SAVE_NEXT=txt;return;}SAVE_BUSY=true;
-  try{const z='gz1:'+b64(await gz(txt));try{localStorage.setItem(KEYZ,z);try{localStorage.removeItem(KEY);}catch(e){}SAVE_WARNED=false;}catch(e){saveFailed();}}
-  catch(e){try{localStorage.setItem(KEY,txt);}catch(e2){saveFailed();}}
-  finally{SAVE_BUSY=false;if(SAVE_NEXT!=null){const t=SAVE_NEXT;SAVE_NEXT=null;saveZ(t);}}}
+/* ===================== Save slots ===================== */
+// Up to SLOT_MAX careers live in this browser's IndexedDB (database bm-saves: store 'meta' holds the card shown in the list,
+// store 'data' the gzip of the career JSON). SLOT_ID is the career being played; every save() writes there. The slot id is
+// captured when save() runs, so a save still compressing never lands in a career loaded meanwhile. The old single save in
+// localStorage moves into a slot on first start (then the localStorage copy is removed to free room). Without IndexedDB
+// (some private windows) the game keeps the old single localStorage save and the slot list says so.
+const SLOT_MAX=6,SLOT_ACT='bm-slot-active-v1';
+let IDB=null,IDB_OK=false,SVL=[],SLOT_ID=null;
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}}
+function idbOpen(){return new Promise(res=>{try{if(typeof indexedDB==='undefined')return res(null);const r=indexedDB.open('bm-saves',1);
+  r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('meta'))d.createObjectStore('meta',{keyPath:'id'});if(!d.objectStoreNames.contains('data'))d.createObjectStore('data',{keyPath:'id'});};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);r.onblocked=()=>res(null);setTimeout(()=>res(null),4000);}catch(e){res(null);}});}
+function idbTx(stores,mode,fn){return new Promise((res,rej)=>{try{const tx=IDB.transaction(stores,mode);let out;const st=stores.map(s=>tx.objectStore(s));const q=fn(...st);
+  if(q&&'onsuccess' in q)q.onsuccess=()=>{out=q.result;};tx.oncomplete=()=>res(out);tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('abort'));}catch(e){rej(e);}});}
+function slotNewId(){return 's'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+// rank and record as the top bar shows them (those helpers read the global G, so G points at g for this synchronous call)
+function slRecOf(g){const old=G;try{G=g;const t=g.teams[g.user];
+  const rec=userIsCup()&&cupUser()?cupUser().rec.slice(0,2).join('\u2013'):userIsNL()&&nlUser()?nlRec(nlUser(),G.user).slice(0,2).join('\u2013'):userIsKls()?`${t.kw||0}\u2013${t.kl||0}`:userIsBih()?`${t.bw||0}\u2013${t.bl||0}`:userNotEL()?`${t.dw}\u2013${t.dl}`:`${t.w}\u2013${t.l}`;
+  const rk=userIsDom()&&G.dom.top8&&!G.dom.top8.includes(G.user)?userRank()-8:userRank();return (rk?ordn(rk)+' \u00b7 ':'')+rec;}catch(e){return null;}finally{G=old;}}
+function slotMetaOf(g,id){const t=g.teams[g.user]||{};return {id,rec:slRecOf(g),short:t.short,name:t.name,c1:t.c1,c2:t.c2,tid:t.id||0,mgr:g.mgr,season:g.season,w:t.w||0,l:t.l||0,day:g.day||0,seasons:(g.history||[]).length,savedAt:Date.now()};}
+async function slotsLoad(){if(!IDB_OK)return SVL=[];try{const a=await idbTx(['meta'],'readonly',m=>m.getAll());SVL=(a||[]).sort((x,y)=>y.savedAt-x.savedAt);}catch(e){SVL=[];}return SVL;}
+async function slotPut(id,payload,meta){await idbTx(['meta','data'],'readwrite',(m,d)=>{d.put(Object.assign({id},payload));m.put(meta);});
+  const i=SVL.findIndex(s=>s.id===id);if(i>=0)SVL[i]=meta;else SVL.push(meta);SVL.sort((x,y)=>y.savedAt-x.savedAt);}
+async function slotTxt(id){const r=await idbTx(['data'],'readonly',d=>d.get(id));if(!r)return null;if(r.z)return await gunz(r.z);return r.txt||null;}
+async function slotDelete(id){if(!IDB_OK)return;try{await idbTx(['meta','data'],'readwrite',(m,d)=>{m.delete(id);d.delete(id);});}catch(e){}SVL=SVL.filter(s=>s.id!==id);if(lsGet(SLOT_ACT)===id)lsSet(SLOT_ACT,null);}
+function slotsFull(){return IDB_OK&&SVL.length>=SLOT_MAX&&!SVL.some(s=>s.id===SLOT_ID);}
+async function saveZ(txt,id){if(SAVE_BUSY){SAVE_NEXT={txt,id};return;}SAVE_BUSY=true;
+  try{if(IDB_OK&&id){const g=JSON.parse(txt);const payload=ZOK?{z:await gz(txt)}:{txt};await slotPut(id,payload,slotMetaOf(g,id));if(id===SLOT_ID)lsSet(SLOT_ACT,id);SAVE_WARNED=false;}
+    else if(ZOK){const z='gz1:'+b64(await gz(txt));try{localStorage.setItem(KEYZ,z);try{localStorage.removeItem(KEY);}catch(e){}SAVE_WARNED=false;}catch(e){saveFailed();}}
+    else{try{localStorage.setItem(KEY,txt);}catch(e){saveFailed();}}}
+  catch(e){saveFailed();}
+  finally{SAVE_BUSY=false;if(SAVE_NEXT!=null){const n=SAVE_NEXT;SAVE_NEXT=null;saveZ(n.txt,n.id);}}}
 let NT_DEMO=false;
 function save(){if(NT_DEMO||(G&&G.demo))return;ownerProtect();coachTick();arenaTick();let txt;try{txt=JSON.stringify(G);}catch(e){return;}SAVE_TXT=txt;
-  if(ZOK)saveZ(txt);else{try{localStorage.setItem(KEY,txt);}catch(e){saveFailed();}}}
-function loadSave(){try{if(SAVE_TXT)return JSON.parse(SAVE_TXT);const s=localStorage.getItem(KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
-function wipeSave(){SAVE_TXT=null;SAVE_NEXT=null;try{localStorage.removeItem(KEY);}catch(e){}try{localStorage.removeItem(KEYZ);}catch(e){}}
-// at start-up: unpack a compressed save so the start screen can offer it
-const SAVE_READY=(async()=>{try{const z=localStorage.getItem(KEYZ);if(z&&z.startsWith('gz1:')&&ZOK){SAVE_TXT=await gunz(unb64(z.slice(4)));}}catch(e){}})();
+  if(IDB_OK&&!SLOT_ID){if(slotsFull())return;SLOT_ID=slotNewId();lsSet(SLOT_ACT,SLOT_ID);}
+  saveZ(txt,IDB_OK?SLOT_ID:null);}
+function loadSave(){try{if(SAVE_TXT)return JSON.parse(SAVE_TXT);const s=lsGet(KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
+// deletes the career being played (Settings > Delete save)
+function wipeSave(){SAVE_TXT=null;SAVE_NEXT=null;const id=SLOT_ID;SLOT_ID=null;if(id)slotDelete(id);lsSet(KEY,null);lsSet(KEYZ,null);}
+// leave the current career (it stays in its slot) so a new one can start
+function slotDetach(){SAVE_TXT=null;SLOT_ID=null;lsSet(SLOT_ACT,null);}
+// load another slot: the current career is saved first
+async function slotLoad(id){if(G&&!G.demo&&SLOT_ID&&SLOT_ID!==id)save();const txt=await slotTxt(id);if(!txt)throw new Error('This save could not be read.');
+  const g=JSON.parse(txt);SLOT_ID=id;lsSet(SLOT_ACT,id);SAVE_TXT=txt;return g;}
+// a copy of the current career in a new slot (the game then continues in the copy)
+async function slotCopy(){if(!IDB_OK||!G)return 'Save slots are not available in this browser.';if(SVL.length>=SLOT_MAX)return `All ${SLOT_MAX} slots are in use. Delete a career first.`;
+  save();const id=slotNewId(),txt=JSON.stringify(G);await slotPut(id,ZOK?{z:await gz(txt)}:{txt},slotMetaOf(G,id));return null;}
+// export: a .json file holding the gzip of the career (base64), plus a small summary
+async function slotExportData(id){let txt=id===SLOT_ID&&G&&!G.demo?JSON.stringify(G):await slotTxt(id);if(!txt)throw new Error('This save could not be read.');
+  const g=JSON.parse(txt),m=slotMetaOf(g,id);const out={app:'basketball-manager',kind:'career',v:1,exported:new Date().toISOString(),meta:{club:m.name,short:m.short,mgr:m.mgr,season:m.season,w:m.w,l:m.l}};
+  if(ZOK)out.gz=b64(await gz(txt));else out.game=g;
+  const nm=((m.short||'club')+'-'+m.season+'-'+(m.mgr||'coach')).replace(/[^A-Za-z0-9-]+/g,'-').replace(/-+/g,'-').slice(0,60);
+  return {filename:`career-${nm}.json`,text:JSON.stringify(out)};}
+// import: accepts an exported file or a plain career JSON; it goes into a new slot
+async function slotImportText(text){let o;try{o=JSON.parse(text);}catch(e){return {err:'This file is not a saved career.'};}
+  let g=null;try{if(o&&o.app==='basketball-manager'&&o.gz){if(!ZOK)return {err:'This browser cannot unpack the file.'};g=JSON.parse(await gunz(unb64(o.gz)));}
+    else if(o&&o.app==='basketball-manager'&&o.game)g=o.game;else if(o&&Array.isArray(o.teams)&&o.players)g=o;}catch(e){return {err:'This file is damaged and could not be read.'};}
+  if(!g||!Array.isArray(g.teams)||!g.players||g.user==null||!g.teams[g.user])return {err:'This file is not a saved career.'};
+  if(!IDB_OK)return {err:'Save slots are not available in this browser (a private window, for example).'};
+  if(SVL.length>=SLOT_MAX)return {err:`All ${SLOT_MAX} slots are in use. Delete a career first.`};
+  const id=slotNewId(),txt=JSON.stringify(g);try{await slotPut(id,ZOK?{z:await gz(txt)}:{txt},Object.assign(slotMetaOf(g,id),{imported:1}));}catch(e){return {err:'This browser has no room left for another career.'};}
+  return {id,meta:SVL.find(s=>s.id===id)};}
+// at start-up: open the slots, move an old single save into a slot, unpack the active career so the start screen can offer it
+const SAVE_READY=(async()=>{try{IDB=await idbOpen();IDB_OK=!!IDB;
+  if(IDB_OK){await slotsLoad();
+    const z=lsGet(KEYZ),raw=lsGet(KEY);let old=null;
+    try{if(z&&z.startsWith('gz1:')&&ZOK)old=await gunz(unb64(z.slice(4)));else if(raw)old=raw;}catch(e){}
+    if(old){try{const g=JSON.parse(old),id=slotNewId();await slotPut(id,ZOK?{z:await gz(old)}:{txt:old},slotMetaOf(g,id));lsSet(SLOT_ACT,id);lsSet(KEYZ,null);lsSet(KEY,null);}catch(e){}}
+    const act=lsGet(SLOT_ACT);SLOT_ID=SVL.some(s=>s.id===act)?act:null;
+    if(SLOT_ID){try{SAVE_TXT=await slotTxt(SLOT_ID);}catch(e){SAVE_TXT=null;}}}
+  else{const z=lsGet(KEYZ);if(z&&z.startsWith('gz1:')&&ZOK){SAVE_TXT=await gunz(unb64(z.slice(4)));}}}catch(e){}})();

@@ -83,7 +83,8 @@ function settingsModal(){const S=BMSET,row=(l,d,c)=>`<div class="set-r"><div><b>
   ${row('Live match speed','The speed a live match starts at.',bt('speed',1,'1\u00d7')+bt('speed',2,'2\u00d7')+bt('speed',4,'4\u00d7'))}
   ${row('Sound','Clicks, the buzzer and the crowd on big plays.',bt('snd',0,'Off')+bt('snd',1,'On'))}
   ${row('Currency symbol','Only the symbol changes, amounts stay the same.',bt('cur','','Auto')+bt('cur','\u20ac','\u20ac')+bt('cur','$','$'))}
-  ${has?`<div class="set-r set-d"><div><b>Saved career</b><small>${UI.setDel?'This removes your career from this browser for good.':'Delete the career saved in this browser and return to the start screen.'}</small></div><div class="btns">${UI.setDel?`<button class="btn sm" data-act="setdel:0">Keep it</button><button class="btn sm set-x" data-act="setdel:2">Delete for good</button>`:`<button class="btn sm" data-act="setdel:1">Delete save\u2026</button>`}</div></div>`:''}
+  <div class="set-r"><div><b>Saved careers</b><small>Switch between careers, export a career as a file or import one.</small></div><div class="btns"><button class="btn sm" data-act="saves">Open…</button></div></div>
+  ${has?`<div class="set-r set-d"><div><b>This career</b><small>${UI.setDel?'This removes the career you are playing from this browser for good.':'Delete the career you are playing and return to the start screen.'}</small></div><div class="btns">${UI.setDel?`<button class="btn sm" data-act="setdel:0">Keep it</button><button class="btn sm set-x" data-act="setdel:2">Delete for good</button>`:`<button class="btn sm" data-act="setdel:1">Delete save\u2026</button>`}</div></div>`:''}
   <p class="set-n">Settings are stored in this browser only.</p></div></div>`;}
 /* ---------- sound: small synthesised effects, off unless switched on ---------- */
 const SFX={ctx:null,
@@ -1535,7 +1536,7 @@ function csExpect(c){const r=c.rank,N=c.of;if(c.lg==='EL')return r<=4?'Reach the
   if(c.lg==='NCAA')return r<=2?'Win the national championship':r<=6?'Reach the Final Four':r<=16?'Reach the Sweet 16':r<=30?'Make the NCAA Tournament':'Top half of the conference';
   if(c.lg.startsWith('CUP'))return r<=2?'Win the cup':r<=Math.ceil(N/4)?'Reach the quarter-finals':r<=Math.ceil(N/2)?'Reach the playoffs':'Survive the group stage';
   return r===1?'Win the league':r<=3?'Reach the semi-finals':r<=Math.ceil(N/2)?'Reach the playoffs':r>N-3?'Avoid relegation':'Finish mid-table';}
-function startHTML(){const saved=loadSave(),D=csData();
+function startHTML(){const slH=slStartHTML(),saved=slH?null:loadSave(),D=csData();
   const natK=UI.csNat&&D.nats.find(x=>x.n===UI.csNat)?UI.csNat:D.nats[0].n,NA=D.nats.find(x=>x.n===natK);
   const lgs=[...new Set(NA.clubs.map(c=>c.lg))].sort((a,b)=>(CS_LG[a]||['',9])[1]-(CS_LG[b]||['',9])[1]);
   const lgK=lgs.includes(UI.csLg)?UI.csLg:lgs[0],list=NA.clubs.filter(c=>c.lg===lgK).sort((a,b)=>b.rep-a.rep||a.name.localeCompare(b.name));
@@ -1553,7 +1554,7 @@ function startHTML(){const saved=loadSave(),D=csData();
   const desc=`${esc(sel.name)} from ${esc(sel.city||'')} is ${tier}. Home games are at the ${esc(sel.arena||'arena')} (${(sel.cap||0).toLocaleString('en-GB')} seats). In the ${esc(lgName(lgK))}${sel.grp?` (${esc(sel.grp)})`:''} the squad ranks ${ordn(sel.rank)} of ${sel.of}${sel.grp&&(lgK==='RL'||lgK==='PROB')?' in its group':''} on strength${sel.best[0]?`, led by ${esc(sel.best[0].n)}`:''}.`;
   const ini=(sel.hc||'?').split(' ').map(x=>x[0]).join('').slice(0,2);
   const box=(l,v,sub,cls='')=>`<div class="cs-box ${cls}"><small>${l}</small><b>${v}</b>${sub?`<span>${sub}</span>`:''}</div>`;
-  const cont=saved?`<div class="cs-cont">${crest(saved.teams[saved.user],'dk')}<div><b>${esc(saved.teams[saved.user].name)}</b><span>${esc(saved.mgr)} · ${saved.season}/${String(saved.season+1).slice(2)} · ${saved.teams[saved.user].w}–${saved.teams[saved.user].l}</span></div><button class="btn p" data-act="load">Continue career</button></div>`:'';
+  const cont=slH?slH:saved?`<div class="cs-cont">${crest(saved.teams[saved.user],'dk')}<div><b>${esc(saved.teams[saved.user].name)}</b><span>${esc(saved.mgr)} · ${saved.season}/${String(saved.season+1).slice(2)} · ${saved.teams[saved.user].w}–${saved.teams[saved.user].l}</span></div><button class="btn p" data-act="load">Continue career</button></div>`:'';
   return `<div class="cs"><div class="cs-bg" id="csBg" aria-hidden="true"></div><div class="cs-veil"></div><div class="cs-in">${cont}
   <div class="cs-crumb">Manager career › New career</div><h1 class="cs-h">Choose your club</h1><p class="cs-sub">Pick the club you will manage. Every club has its own budget, squad and board expectations – from the EuroLeague down to the Regionalliga.</p>
   ${nav('nat','csnat',D.nats.map(x=>x.n),natK)}${nav('lg','cslg',lgs,lgK)}${strip}
@@ -1571,7 +1572,7 @@ function startHTML(){const saved=loadSave(),D=csData();
       <div class="cs-box cs-best"><small>Best players</small>${best}</div>
     </div>
   </div>
-  <div class="cs-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" maxlength="32" autocomplete="off"></label>${saved?'<span class="cs-warn">Starting a new career replaces your saved game.</span>':''}<button class="cs-go" data-act="startgame">Start career</button></div>
+  <div class="cs-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" maxlength="32" autocomplete="off"></label>${IDB_OK&&SVL.length>=SLOT_MAX?`<span class="cs-warn">All ${SLOT_MAX} save slots are in use: delete a career first.</span>`:!IDB_OK&&saved?'<span class="cs-warn">Starting a new career replaces your saved game.</span>':''}<button class="cs-go" data-act="startgame">Start career</button></div>
   </div></div>`;}
 // keep the selected crest in view
 function csScroll(){const r=document.getElementById('csCrests');if(!r)return;const b=r.querySelector('.on');if(b)r.scrollLeft=b.offsetLeft-r.clientWidth/2+b.clientWidth/2;}
@@ -1614,7 +1615,7 @@ function tradeModalHTML(){const M=UI.modal,t=G.teams[M.tid],me=G.teams[G.user];i
   <p class="mut" style="font-size:13px;margin-top:8px">NBA salary matching: a team under the cap can absorb salary into its cap space; over the cap it may take back 200% + 250k (small salaries), the outgoing salary + 7.5M (middle) or 125% + 250k (big salaries); above the first apron only 100%. Draft picks carry no salary. Players who joined this season cannot be traded. Trade deadline after 60% of the regular season.</p></div>
   <div class="sec">${status}${hint!=null?`<div class="btns"><button class="btn" data-act="trgive:${hint}">They would do it if you add ${esc(pname(G.players[hint]))}</button></div>`:''}<div class="btns">${M.done?'<button class="btn p" data-act="close">Done</button>':`<button class="btn p" data-act="trgo" ${ev.ok?'':'disabled'}>Propose trade</button><button class="btn" data-act="close">Cancel</button>`}</div></div>
   <div class="g-2" style="align-items:start"><div><h4 style="margin:4px 0 8px">You receive \u00b7 ${esc(t.name)}</h4>${pks(t.id,M.tpk,'get')}${rows(t.id,M.get,'trget')}</div><div><h4 style="margin:4px 0 8px">You send \u00b7 ${esc(me.name)}</h4>${pks(me.id,M.gpk,'give')}${rows(me.id,M.give,'trgive')}</div></div>${swaps}</div></div>`;}
-function modalHTML(){const M=UI.modal;if(!M)return '';if(M.kind==='settings')return settingsModal();if(M.kind==='jobs')return jobsModal(M);if(M.kind==='presser')return presserModal();if(M.kind==='treq')return treqModal();if(M.kind==='trade')return tradeModalHTML();if(M.kind==='neg')return negModalHTML();if(M.kind==='resign')return resignModalHTML();if(M.kind==='loanin')return loanInModalHTML();if(M.kind==='club')return clubModalHTML(M.tid);if(M.kind==='hire')return hireModalHTML();if(M.kind==='ptalk')return ptModalHTML();if(M.kind==='rettalk')return rtModalHTML();if(M.kind==='sponsor')return sponsorModalHTML();if(M.kind==='meet')return meetModal();if(M.kind==='room')return roomModal();if(M.kind==='short')return shortModal();if(M.kind==='contracts')return ctModal(M);if(M.kind==='roles')return rolesModal(M);if(M.kind==='board')return `<div class="ovl" data-act="ovl"><div class="modal" role="dialog" aria-modal="true" aria-label="Talk to the board"><div class="ch"><h3>Talk to the board</h3><button class="lnk" data-act="close">Close ✕</button></div>${boardModal(M)}</div></div>`;const p=G.players[M.pid];if(!p){UI.modal=null;return '';}
+function modalHTML(){const M=UI.modal;if(!M)return '';if(M.kind==='settings')return settingsModal();if(M.kind==='saves')return savesModal();if(M.kind==='jobs')return jobsModal(M);if(M.kind==='presser')return presserModal();if(M.kind==='treq')return treqModal();if(M.kind==='trade')return tradeModalHTML();if(M.kind==='neg')return negModalHTML();if(M.kind==='resign')return resignModalHTML();if(M.kind==='loanin')return loanInModalHTML();if(M.kind==='club')return clubModalHTML(M.tid);if(M.kind==='hire')return hireModalHTML();if(M.kind==='ptalk')return ptModalHTML();if(M.kind==='rettalk')return rtModalHTML();if(M.kind==='sponsor')return sponsorModalHTML();if(M.kind==='meet')return meetModal();if(M.kind==='room')return roomModal();if(M.kind==='short')return shortModal();if(M.kind==='contracts')return ctModal(M);if(M.kind==='roles')return rolesModal(M);if(M.kind==='board')return `<div class="ovl" data-act="ovl"><div class="modal" role="dialog" aria-modal="true" aria-label="Talk to the board"><div class="ch"><h3>Talk to the board</h3><button class="lnk" data-act="close">Close ✕</button></div>${boardModal(M)}</div></div>`;const p=G.players[M.pid];if(!p){UI.modal=null;return '';}
   let body='',title='';
   if(M.kind==='offer'){const fa=p.tid==null,t=fa?null:G.teams[p.tid],sal=demand(p);title=fa?'Offer contract':'Transfer offer';
     body=`<div class="sec"><div style="display:flex;gap:12px;align-items:center"><span class="avatar ph" style="width:56px;height:56px;font-size:24px">${avatarIn(p,p.no||'\u2013')}</span><div><b class="c" style="font-size:22px;font-weight:800">${esc(pname(p))}</b><p class="mut">${p.pos} \u00b7 ${p.age} \u00b7 OVR ${ovrTxt(p)} \u00b7 POT ${potTxt(p)} \u00b7 ${fa?'Free agent':esc(t.name)}</p></div></div>
@@ -1709,7 +1710,7 @@ const ACT={
   msg(id){UI.msg=+id;if(UI.tab!=='inbox'||UI.view!=='main'){UI.view='main';UI.tab='inbox';}render();},
   settings(){UI.more=false;UI.setDel=false;UI.modal={kind:'settings'};render();},
   setv(k,v){if(!(k in BMSET))return;BMSET[k]=k==='cur'?(v||''):+v;setSave();setApply();if(k==='snd'&&+v)SFX.click();if(k==='speed'&&UI.match&&!UI.match.m.done)UI.match.speed=+v;render();},
-  setdel(s){if(s==='2'){UI.modal=null;UI.setDel=false;ACT.restart();return;}UI.setDel=s==='1';render();},
+  setdel(s){if(s==='2'){UI.modal=null;UI.setDel=false;wipeSave();ACT.restart();return;}UI.setDel=s==='1';render();},
   momnext(){(UI.mq||[]).shift();momentPaint();},
   todoall(){UI.todoAll=!UI.todoAll;render();},
   ibcat(k){UI.ibCat=k;UI.msg=null;ACT.tab('inbox');},
@@ -1868,14 +1869,14 @@ const ACT={
   meetgo(){if(meetDue())meetStart();UI.modal={kind:'meet'};render();},
   meetans(k){meetAnswer(k);render();},
   meetend(){const sack=G.meet&&G.meet.v==='sack';meetClose();UI.modal=null;if(sack){UI.view='main';}render();window.scrollTo(0,0);},
-  savegame(){save();toast('Game saved in this browser');},
+  savegame(){save();UI.slDel=null;slOpen({t:'Game saved.'});},
   csnat(k){keepName();UI.csNat=k;UI.csLg=null;UI.csSel=null;render();},
   cslg(k){keepName();UI.csLg=k;UI.csSel=null;render();},
   cssel(k){keepName();UI.csSel=k;render();},
   startlg(k){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;UI.startLg=k;render();},
   pickc(sh){UI.pickS=sh;UI.pick=null;const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;render();},
   pick(i){UI.pick=+i;UI.pickS=null;const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;render();},
-  startgame(){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value.trim()||'Head Coach';const c=(UI.cc||[]).find(x=>x.short===UI.csSel);if(!c)return;if(c.lg==='EL')newGame(c.id,UI.mgr);else startCareerAt(c.short,UI.mgr);UI.cc=null;save();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
+  startgame(){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value.trim()||'Head Coach';const c=(UI.cc||[]).find(x=>x.short===UI.csSel);if(!c)return;if(IDB_OK&&SVL.length>=SLOT_MAX){slOpen({t:`All ${SLOT_MAX} slots are in use. Delete a career first, then start the new one.`,bad:1});return;}slotDetach();if(c.lg==='EL')newGame(c.id,UI.mgr);else startCareerAt(c.short,UI.mgr);UI.cc=null;save();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
   load(){const s=loadSave();if(!s){toast('No saved game found');return;}G=s;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();UI.view='main';UI.tab='home';render();},
   course(k){const e=startCourse(k);toast(e||'Course booked');render();},
   jobsopen(){UI.modal={kind:'jobs'};render();},
@@ -1935,7 +1936,7 @@ const ACT={
   spmatch(v){const n=UI.modal.n;n.ask=+v;spOffer(n);render();scrollChat();},
   spoffer(){spOffer(UI.modal.n);render();scrollChat();},
   spsign(){const e=spSign(UI.modal.n);UI.modal=null;toast(e||'Sponsorship signed');render();},
-  restart(){wipeSave();G=null;UI.view='start';UI.pick=null;render();},
+  restart(){slotDetach();G=null;UI.view='start';UI.pick=null;render();},
 };
 // transfer search: re-render as the user types, keeping focus and caret in the field
 function sqSwapIds(a,b){const t=G.teams[G.user],i=t.order.indexOf(a),j=t.order.indexOf(b);if(i<0||j<0||i===j)return;[t.order[i],t.order[j]]=[t.order[j],t.order[i]];}
@@ -2111,11 +2112,56 @@ function ntRotHTML(){const J=G.nt.job,c=J.c,w=ntPend(),C=G.nt.cyc,key=ntKey(w),p
   <div class="sq-act"><button class="sq-btn" data-act="ntautorot">Auto-pick rotation</button><p>Drag a player onto another to swap them, or use Swap with\u2026 in the player panel. Changes save by themselves.</p></div></section>
   <section class="sq-c sq-d">${panel}</section></div>`;}
 
+/* ===================== Saved careers (slots, export, import) ===================== */
+function slAgo(ts){const s=Math.max(0,(Date.now()-ts)/1000);if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';const d=Math.floor(s/86400);return d<7?d+(d===1?' day ago':' days ago'):new Date(ts).toLocaleDateString();}
+function slTeam(m){return {id:m.tid||0,short:m.short||'?',name:m.name||'',c1:m.c1||'#333',c2:m.c2||'#fff'};}
+function slCard(m,opts){const cur=m.id===SLOT_ID&&G&&!G.demo,del=UI.slDel===m.id,o=opts||{};
+  const sub=`${esc(m.mgr||'Head Coach')} · ${m.season}/${String(m.season+1).slice(2)} · ${m.rec?esc(m.rec):`${m.w}–${m.l}`}`;
+  const acts=del?`<span class="sl-q">Delete for good?</span><button class="btn sm" data-act="sldel:0">Keep</button><button class="btn sm set-x" data-act="sldelok:${m.id}">Delete</button>`
+    :`${cur?'<span class="pill g">Playing</span>':`<button class="btn sm p" data-act="slload:${m.id}">${o.start?'Continue':'Load'}</button>`}<button class="btn sm" data-act="slexp:${m.id}" title="Save this career as a file">Export</button>${cur?'':`<button class="btn sm sl-x" data-act="sldel:${m.id}" title="Delete this career" aria-label="Delete this career">✕</button>`}`;
+  return `<div class="sl-c${cur?' on':''}${UI.slNew===m.id?' new':''}">${crest(slTeam(m),o.start?'dk':'')}<div class="sl-t"><b>${esc(m.name||m.short)}</b><span>${sub}</span><small>${m.imported&&UI.slNew===m.id?'Imported · ':''}Saved ${slAgo(m.savedAt)}</small></div><div class="sl-a">${acts}</div></div>`;}
+function savesModal(){const n=SVL.length,inGame=G&&!G.demo;
+  const list=!IDB_OK?`<p class="set-n" style="padding:14px 22px">Save slots need browser storage that this window does not offer (a private window, for example). Your career is still saved as a single game, and you can export it as a file.</p>`
+    :n?SVL.map(m=>slCard(m)).join(''):`<p class="set-n" style="padding:14px 22px">No careers saved in this browser yet.</p>`;
+  const full=IDB_OK&&n>=SLOT_MAX;
+  return `<div class="ovl" data-act="ovl"><div class="modal set sl-m" role="dialog" aria-modal="true" aria-label="Saved careers" style="max-width:620px"><div class="ch"><h3>Saved careers <small class="sl-n">${IDB_OK?`${n} of ${SLOT_MAX} slots`:''}</small></h3><button class="lnk" data-act="close">Close ✕</button></div>
+  ${UI.slMsg?`<div class="sl-msg ${UI.slMsg.bad?'bad':''}">${esc(UI.slMsg.t)}</div>`:''}
+  <div class="sl-l">${list}</div>
+  <div class="sl-f">${inGame&&IDB_OK?`<button class="btn sm" data-act="slcopy"${full?' disabled':''}>Save a copy in a new slot</button>`:''}
+    <label class="btn sm sl-imp${full?' dis':''}">Import a save file<input type="file" id="slImp" accept=".json,application/json" ${full?'disabled':''} hidden></label>
+    ${inGame?`<button class="btn sm" data-act="slnew"${full?' disabled':''}>Start a new career</button>`:''}${!inGame&&SAVE_TXT&&!IDB_OK?`<button class="btn sm" data-act="slexp:single">Export</button>`:''}</div>
+  <p class="set-n">Careers are saved automatically in this browser. Export a career as a file to keep a backup or to continue on another device, then import it there.${full?` All ${SLOT_MAX} slots are in use: delete one to make room.`:''}</p></div></div>`;}
+function slStartHTML(){if(!IDB_OK||!SVL.length)return null;const L=SVL.slice(0,3).map(m=>slCard(m,{start:1})).join('');
+  return `<div class="sl-start"><div class="sl-sh"><b>Your careers</b><button class="lnk" data-act="saves">${SVL.length>3?`All ${SVL.length} careers`:'Manage'} ›</button></div>${L}</div>`;}
+function slOpen(msg){UI.modal={kind:'saves'};UI.slMsg=msg||null;render();}
+async function slDoLoad(id){try{const g=await slotLoad(id);G=g;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();UI.modal=null;UI.slDel=null;UI.match=null;UI.view='main';UI.tab='home';render();window.scrollTo(0,0);toast(`Loaded: ${G.teams[G.user].name}`);}
+  catch(e){slOpen({t:e.message||'This save could not be read.',bad:1});}}
+async function slDoExport(id){let dl=null;try{dl=await window.claude?.use?.('downloads');}catch(e){}
+  if(!dl){toast('Exporting files is not available in this view.');return;}
+  try{let f;if(id==='single'){const g=loadSave();if(!g)throw new Error('No saved game found.');const txt=JSON.stringify(g);f={filename:'career.json',text:JSON.stringify({app:'basketball-manager',kind:'career',v:1,exported:new Date().toISOString(),...(ZOK?{gz:b64(await gz(txt))}:{game:g})})};}
+    else f=await slotExportData(id);
+    await dl.save({filename:f.filename,data:new Blob([f.text],{type:'application/json'})});toast('Career exported');}
+  catch(e){if(e&&e.code==='declined')return;if(e&&e.code==='rate_limited'){toast('A save prompt is already open.');return;}toast(e&&e.message?`Export failed: ${e.message}`:'Export failed');}}
+async function slDoImport(file){if(!file)return;if(file.size>60e6){slOpen({t:'This file is too large to be a saved career.',bad:1});return;}
+  let text;try{text=await file.text();}catch(e){slOpen({t:'The file could not be read.',bad:1});return;}
+  const r=await slotImportText(text);if(r.err){slOpen({t:r.err,bad:1});return;}
+  UI.slNew=r.id;slOpen({t:`Imported: ${r.meta.name} (${r.meta.mgr}, ${r.meta.season}/${String(r.meta.season+1).slice(2)}). Load it from the list.`});}
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='slImp'){const f=e.target.files&&e.target.files[0];e.target.value='';slDoImport(f);}});
+Object.assign(ACT,{
+  saves(){UI.slDel=null;slOpen();},
+  slload(id){slDoLoad(id);},
+  slexp(id){slDoExport(id);},
+  sldel(id){UI.slDel=id==='0'?null:id;render();},
+  async sldelok(id){if(id===SLOT_ID)return;await slotDelete(id);UI.slDel=null;slOpen({t:'Career deleted.'});},
+  async slcopy(){const e=await slotCopy();slOpen(e?{t:e,bad:1}:{t:'A copy of this career was saved in a new slot. You keep playing the current one.'});},
+  slnew(){if(slotsFull()||(IDB_OK&&SVL.length>=SLOT_MAX)){slOpen({t:`All ${SLOT_MAX} slots are in use. Delete a career first.`,bad:1});return;}save();slotDetach();G=null;UI.modal=null;UI.view='start';UI.pick=null;render();window.scrollTo(0,0);},
+});
+
 /* ===================== Boot ===================== */
 function boot(data){if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
 window.claude?.hot?.ready?window.claude.hot.ready(boot):boot(window.claude?.hot?.data??{});
-try{SAVE_READY.then(()=>{if(SAVE_TXT&&(!G||UI.view==='start'))render();});}catch(e){}
+try{SAVE_READY.then(()=>{if((SAVE_TXT||SVL.length)&&(!G||UI.view==='start'))render();});}catch(e){}
 
 // National team head coaches without a club portrait in the game: Wikimedia Commons (face-cropped, checked by eye; official club, federation and FIBA photos for coaches without one there). Loaded last so the sheet numbers of the other files stay as they are. Files: Chus_Mateo_Real_Madrid_Baloncesto_Euroleague_20250206_(2).jpg; Luca_Banchi_Anadolu_Efes_TBSL_20250524_(3)_(cropped).jpg; Dainius_Adomaitis_cropped_from_202401271811_DSCN7181.jpg; EuroBasket_2017_Finland_vs_Iceland_70_(cropped).jpg; 2022-07-03_Basketball,_Männer,_European_Qualifiers,_Deutschland_-_Polen_1DX_1302_by_Stepro.jpg; אריאל_בית_הלחמי.jpg; 2024-05-17_ALBA_Berlin_gegen_Telekom_Baskets_Bonn_(Basketball-Bundesliga_2023-24)_by_Sandro_Halank–008.jpg; LubosBarton.JPG; Aramis_Naglić_Rijeka_0808.jpg; Aleksandar_Petrovic_by_Augustas_Didzgalvis.jpg; Néstor_García_(cropped).jpg; Jacob_Chance_Perth_Wildcats_2019.jpg; Deng2-20190120_(cropped).jpg; David_Fizdale_in_2009.jpg; Augusti_Julbe.jpg; Josep_Claros.jpg; Alfred_aboya_cropped.jpg
 (()=>{const i=SPRITES.s.push('sprites/s13.jpg?v=2')-1;const P={"Chus Mateo":0,"Luca Banchi":1,"Dainius Adomaitis":2,"Craig Pedersen":3,"Igor Miličić":4,"Ariel Beit-Halahmy":5,"Lionel Bosco":6,"Luboš Bartoň":7,"Aramis Naglić":8,"Aleksandar Petrović":9,"Néstor García":10,"Jacob Chance":11,"Luol Deng":12,"David Fizdale":13,"Augustí Julbe":14,"Josep Clarós":15,"Alfred Aboya":16,"Heiko Rannula":17,"Aleksandar Džikić":18,"Mário Gomes":19,"Hakan Demir":20,"Thibaut Petit":21,"Oliver Vidin":22,"Johan Roijakkers":23,"Lyubomir Minchev":24,"Sotiris Manolopoulos":25,"Carlos González":26,"Alexis Cedres":27,"Ahmad Farran":28,"Adel Tlatli":29,"DeSagana Diop":30};for(const n in P)window.STAFF_PHOTOS[n]=[i,P[n]];})();
