@@ -4001,7 +4001,7 @@ const NLCFG={
   PROB:{name:'BARMER ProB',short:'ProB',groups:['Nord','S\xfcd'],po:'prob',prize:40000,title:'ProB champions',up:'PROA',down:'RL',nDown:2},
   RL:{name:'1. Regionalliga',short:'Regionalliga',groups:['Nord','West','S\xfcdwest','S\xfcdost-Nord','S\xfcdost-S\xfcd'],po:'rl',prize:15000,title:'Regionalliga champions',up:'PROB',down:null,nDown:0},
   ACB:{name:'Liga Endesa',short:'ACB',country:'Spain',el:['RMB','FCB','BKN','VAL'],po:'acb',prize:300000,title:'Spanish champions',up:null,down:'PF',nDown:2,safeRank:16,elWait:true},
-  PF:{name:'Primera FEB',short:'Primera FEB',country:'Spain',po:'gel',prize:60000,title:'Primera FEB playoff winners',up:'ACB',down:null,nDown:0},
+  PF:{name:'Primera FEB',short:'Primera FEB',country:'Spain',po:'gel',prize:60000,title:'Primera FEB playoff winners',up:'ACB',down:'SFB',nDown:3},
   LBA:{name:'LBA Serie A',short:'LBA',country:'Italy',el:['MIL','VIR'],po:'lba',prize:250000,title:'Italian champions',up:null,down:'A2',nDown:2,elWait:true},
   A2:{name:'Serie A2',short:'A2',country:'Italy',po:'a2',prize:60000,title:'Serie A2 playoff winners',up:'LBA',down:'SBN',nDown:0},
   SBN:{name:'Serie B Nazionale',short:'Serie B',country:'Italy',groups:['A','B'],po:'sbn',prize:20000,title:'Serie B Nazionale playoff winners',up:'A2',down:null,nDown:0,safeRank:13},
@@ -4023,7 +4023,7 @@ const NLCFG={
   NCAA:{name:'NCAA Division I',short:'NCAA',country:'USA',po:'ncaa',groups:['ACC','Big East','Big Ten','Big 12','SEC'],prize:0,title:'National champions',up:null,down:null,nDown:0,safeRank:9},
   KOS:{name:'ProCredit Superliga',short:'Superliga',country:'Kosovo',po:'kos',prize:30000,title:'Kosovo champions',up:null,down:null,nDown:0,safeRank:6},
   MKD:{name:'MTEL Super Liga',short:'Super Liga',country:'North Macedonia',guest:['MZT','TFT'],guestPlay:1,po:'mkd',prize:30000,title:'Macedonian champions',up:null,down:null,nDown:0,safeRank:6},
-  SFB:{name:'Segunda FEB',short:'Segunda FEB',country:'Spain',groups:['Group A','Group B'],po:'sfb',prize:30000,title:'Segunda FEB playoff winners',up:null,down:null,nDown:0,safeRank:4},
+  SFB:{name:'Segunda FEB',short:'Segunda FEB',country:'Spain',groups:['Group A','Group B'],po:'sfb',prize:30000,title:'Segunda FEB playoff winners',up:'PF',down:null,nDown:0,safeRank:4},
   CZN:{name:'Kooperativa NBL',short:'NBL',country:'Czechia',po:'czn',prize:120000,title:'Czech champions',up:null,down:null,nDown:0,safeRank:8},
   LPT:{name:'Liga Betclic',short:'Liga Betclic',country:'Portugal',po:'lpt',prize:150000,title:'Portuguese champions',up:null,down:null,nDown:0,safeRank:8},
   NBB:{name:'Novo Basquete Brasil',short:'NBB',country:'Brazil',po:'nbb',prize:250000,title:'NBB champions',up:null,down:null,nDown:0,safeRank:16},
@@ -4231,7 +4231,7 @@ function nlInitAll(){
   G.nl={};for(const c in NLCFG){const L=nlInit(c);if(L)G.nl[c]=L;}
   glAssign();
   const L=nlUser();if(!L)return;const C=NLCFG[L.code];L.obj=nlObjective(L);
-  if(userIsNL()){G.leg='nl';msg('Club President',`${C.name} target`,`We play the ${C.name}${L.groups?` (${G.teams[G.user].grp})`:''}: ${L.sched.length} rounds, then the playoffs.${L.code==='RL'?` ${rlUpText(G.teams[G.user].grp)}`:L.code==='PML'?' The playoff champion is promoted.':C.up?' The two finalists are promoted.':''} The board's target: ${nlObjText(L).toLowerCase()}.`,'board');}
+  if(userIsNL()){G.leg='nl';msg('Club President',`${C.name} target`,`We play the ${C.name}${L.groups?` (${G.teams[G.user].grp})`:''}: ${L.sched.length} rounds, then the playoffs.${L.code==='RL'?` ${rlUpText(G.teams[G.user].grp)}`:L.code==='PML'?' The playoff champion is promoted.':L.code==='SFB'?' The two finalists and the better-placed losing semi-finalist are promoted to the Primera FEB.':C.up?' The two finalists are promoted.':''} The board's target: ${nlObjText(L).toLowerCase()}.`,'board');}
   else if(userIs2())msg('Club President',C.name,`Besides the ABA League 2 we play the ${C.name}: ${L.sched.length} rounds, then the playoffs. The two competitions alternate.`,'board');
   else msg('Club President',C.name,`Besides the EuroLeague we play the ${C.name} on weekends: ${L.sched.length} rounds, then play-in and playoffs after the EuroLeague Final Four.`,'board');
 }
@@ -4251,13 +4251,14 @@ function ensureNL(){
   if(userIsNL())G.leg='nl';
 }
 /* ===================== Greek Elite League ===================== */
-// Primera FEB (Spain, 2026-27, FEB): 18 clubs, 34 rounds. The 1st goes up; 2nd-9th play quarter-finals best of five (2-9, 5-6, 3-8, 4-7, as in 2026), then a Final Four of single games whose winner goes up too. The ACB's last two come down. The three relegation places to the Segunda FEB are not simulated (the board treats them as failure).
+// Primera FEB (Spain, 2026-27, FEB): 18 clubs, 34 rounds. The 1st goes up; 2nd-9th play quarter-finals best of five (2-9, 5-6, 3-8, 4-7, as in 2026), then a Final Four of single games whose winner goes up too. The ACB's last two come down. The last three go down to the Segunda FEB (three clubs come up from there).
 // Elite League and Primera FEB share this format
 const gelC=L=>{const C=NLCFG[L.code],T=NLCFG[C.up];return {n:C.name,u:T.name,us:T.short,safe:L.ids.length-(L.code==='PF'||L.code==='LL'?3:2)};};
 function gelNext(L,P,W){const U=G.user,o=(a,b)=>nlOrd(L,a,b),N=gelC(L),nb=L.code==='LL'?3:L.code==='EL2'?2:1;
   if(P.stage==='qf'){L.po={stage:'sf',ser:domSeries([o(W[0],W[1]),o(W[2],W[3])],nb)};return;}
   if(P.stage==='sf'){L.po={stage:'fin',ser:domSeries([o(W[0],W[1])],nb)};return;}
-  L.champ=W[0];L.phase='done';if(!L.up.includes(W[0]))L.up.push(W[0]);L.down=[];
+  L.champ=W[0];L.phase='done';if(!L.up.includes(W[0]))L.up.push(W[0]);L.down=L.code==='PF'&&NLCFG.PF.down&&G.nl.SFB?L.final.slice(-3).filter(i=>!L.up.includes(i)):[];
+  if(L.down.length){news(`Relegated from the ${N.n}`,`${L.down.map(i=>G.teams[i].name).join(', ')} go down to the ${NLCFG[NLCFG[L.code].down].name}.`);if(L.down.includes(U))msg('Club President','Relegated',`We finished in the relegation places of the ${N.n} and go down to the ${NLCFG[NLCFG[L.code].down].name}.`,'board');}
   if(L.champ===U){prize(NLCFG[L.code].prize,`${N.n} ${L.code==='EL2'?'playoff':'final four'} winners!`);G.board=clamp(G.board+5,0,100);msg('Club President','Promotion!',`We won the ${N.n} ${L.code==='EL2'?'playoffs':'final four'} and are promoted to the ${N.u}!`,'board');}
   news(`Promoted to the ${N.us}`,`${L.up.map(i=>G.teams[i].name).join(' and ')} go up from the ${N.n} to the ${N.u}.`);}
 function gelRegText(L,U){const r=L.final.indexOf(U)+1,N=gelC(L);return r===1?`We are promoted to the ${N.us}!`:r<=9?'We are in the playoffs.':r>N.safe?'We finished in the relegation places.':'Our season is over.';}
@@ -5156,7 +5157,7 @@ function nlStartPO(L){if(!L||L.phase!=='wait')return;const f=L.final;L.phase='po
   if(L.code==='CGL'){const s=f.filter(i=>G.teams[i].short!=='SCD').slice(0,4);L.po={stage:'qf',ser:bihAgg([[s[0],s[3]],[s[1],s[2]]])};if(nlUserIn(L))msg('Assistant Coach','CKL play-in','The CKL play-in starts now: two legs on aggregate, the winners reach the Final Four.','staff');return;}
   if(L.code==='PML'){L.po={stage:'sf',ser:domSeries([[f[0],f[3]],[f[1],f[2]]],2)};if(nlUserIn(L))msg('Assistant Coach','Prva liga playoffs','The Prva liga playoffs start now.','staff');return;}
   if(L.code==='PRD'){const s=f['Champions group']||[];L.seedsA=s.slice(0,4);L.po={stage:'sf',ser:domSeries([[s[0],s[3]],[s[1],s[2]]],1)};return;}
-  if(L.code==='SFB'){const A=(f['Group A']||[]).slice(0,4),B=(f['Group B']||[]).slice(0,4);L.seedsA=A.concat(B);L.po={stage:'qf',ser:domSeries([[A[0],B[3]],[B[1],A[2]],[B[0],A[3]],[A[1],B[2]]],2)};if(nlUserIn(L))msg('Assistant Coach','Segunda FEB playoffs','The promotion playoffs start: the top four of each group meet across the groups. Every round is best of three.','staff');return;}
+  if(L.code==='SFB'){const A=(f['Group A']||[]).slice(0,4),B=(f['Group B']||[]).slice(0,4);L.seedsA=A.concat(B);L.po={stage:'qf',ser:domSeries([[A[0],B[3]],[B[1],A[2]],[B[0],A[3]],[A[1],B[2]]],2)};if(nlUserIn(L))msg('Assistant Coach','Segunda FEB playoffs','The promotion playoffs start: the top four of each group meet across the groups. Every round is best of three; the two finalists and the better-placed losing semi-finalist go up to the Primera FEB.','staff');return;}
   if(L.code==='CZN'){L.seedsA=f.slice(0,8);const s=f;L.po={stage:'qf',ser:domSeries([[s[0],s[7]],[s[3],s[4]],[s[1],s[6]],[s[2],s[5]]],3)};if(nlUserIn(L))msg('Assistant Coach','NBL playoffs','The playoffs start: quarter-finals and semi-finals best of five, the final best of seven.','staff');return;}
   if(L.code==='LPT'){L.seedsA=f.slice(0,8);const s=f;L.po={stage:'qf',ser:domSeries([[s[0],s[7]],[s[3],s[4]],[s[1],s[6]],[s[2],s[5]]],2)};if(nlUserIn(L))msg('Assistant Coach','Liga Betclic playoffs','The playoffs start: quarter-finals best of three, then best of five.','staff');return;}
   if(L.code==='NBB'){L.seedsA=f.slice(0,16);const s=f;L.po={stage:'r16',ser:domSeries([[s[0],s[15]],[s[7],s[8]],[s[3],s[12]],[s[4],s[11]],[s[1],s[14]],[s[6],s[9]],[s[2],s[13]],[s[5],s[10]]],3)};if(nlUserIn(L))msg('Assistant Coach','NBB playoffs','The playoffs start: every round is best of five.','staff');return;}
@@ -5205,7 +5206,10 @@ function nlNext(L,P,W){if(L.code==='KOS')return ksNext(L,P,W);if(L.code==='MKD')
   if((L.code==='QBL'||L.code==='AUS')&&P.stage==='pi1'){L.seeds[2]=W[0];L.po={stage:'pi2',ser:domSeries([[domLoser(P.ser[0]),W[1]]],1)};return;}
   if((L.code==='QBL'||L.code==='AUS')&&P.stage==='pi2'){L.seeds[3]=W[0];const s=L.seeds;L.po={stage:'sf',ser:domSeries([[s[0],s[3]],[s[1],s[2]]],2)};return;}
   if(L.code==='SFB'&&P.stage==='qf'){L.po={stage:'sf',ser:domSeries([nlOrd(L,W[0],W[1]),nlOrd(L,W[2],W[3])],2)};return;}
-  if(L.code==='SFB'&&P.stage==='sf'){L.po={stage:'fin',ser:domSeries([nlOrd(L,W[0],W[1])],2)};return;}
+  if(L.code==='SFB'&&P.stage==='sf'){const lost=P.ser.map(s=>s.hi===W[0]||s.hi===W[1]||s.lo===W[0]||s.lo===W[1]?(W.includes(s.hi)?s.lo:s.hi):null).filter(x=>x!=null),third=lost.slice().sort((a,b)=>(nlSeedV(L,a)-nlSeedV(L,b))||(nlRec(L,b)[0]-nlRec(L,a)[0]))[0];
+    L.up=W.concat(third!=null?[third]:[]);L.po={stage:'fin',ser:domSeries([nlOrd(L,W[0],W[1])],2)};
+    news('Promoted to the Primera FEB',`${L.up.map(i=>G.teams[i].name).join(', ')} go up from the Segunda FEB to the Primera FEB.`);
+    if(L.up.includes(U))msg('Club President','Promotion!',W.includes(U)?'We reached the Segunda FEB final and are promoted to the Primera FEB!':'We lost our semi-final but go up as the better-placed losing semi-finalist: we play the Primera FEB next season!','board');return;}
   if(L.code==='CZN'&&P.stage==='qf'){L.po={stage:'sf',ser:domSeries([nlOrd(L,W[0],W[1]),nlOrd(L,W[2],W[3])],3)};return;}
   if(L.code==='CZN'&&P.stage==='sf'){L.po={stage:'fin',ser:domSeries([nlOrd(L,W[0],W[1])],4)};return;}
   if(L.code==='LPT'&&P.stage==='qf'){L.po={stage:'sf',ser:domSeries([nlOrd(L,W[0],W[1]),nlOrd(L,W[2],W[3])],3)};return;}
