@@ -2144,7 +2144,7 @@ const finState=(bal,W)=>{const r=bal/Math.max(1,W);return r>=-.08?'ok':r>=-.2?'s
 // bank debt counts half towards the financial status: it is planned debt, not unpaid wages
 const userFinState=()=>finState(G.fin.bal-(G.fin.loan?G.fin.loan.left*.5:0),teamCosts(G.user));
 const teamFinState=tid=>tid===G.user?userFinState():(G.teams[tid].fin||G.teams[tid].dfin||{}).st||'ok';
-function news(subj,body){if(G.ndg){G.ndg.push(subj);return;}msg('EuroLeague News',subj,body,'board');}
+function news(subj,body){if(G.ndg){G.ndg.push(subj);return;}msg('EuroLeague News',subj,body,'board');try{feedWire(subj);}catch(e){}}
 // summer moves come as one round-up instead of a hundred messages
 function newsFlush(){const L=G.ndg;G.ndg=null;if(!L||!L.length)return;msg('EuroLeague News',`Summer round-up \u00b7 ${L.length} moves`,`${L.slice(0,80).join('. ')}${L.length>80?`. And ${L.length-80} more.`:'.'}`,'board');}
 function ensureFinance(){
@@ -2953,6 +2953,7 @@ function userResult(m,r){
   msg('Match Report',`${won?'Win':'Loss'}: ${H.name} ${r.hs}\u2013${r.as} ${A.name}`,`${KINDN[r.kind]}${r.ot?' (overtime)':''}. ${pname(top)} led us with ${tb.pts} points, ${tb.reb} rebounds and ${tb.ast} assists (PIR ${pir(tb)}).${won?' The dressing room is happy.':' We need a response next game.'}`,'res');
   const cb=s=>s.ord.filter(p=>s.box[p.id].sec>0).map(p=>{const b=s.box[p.id];return [p.id,Math.round(b.sec/60),b.pts,b.reb,b.ast,pir(b)];});
   G.lastGame={label:stepLabel(),h:r.h,a:r.a,hs:r.hs,as:r.as,qp:m.qp,top:top.id,box:[cb(m.s[0]),cb(m.s[1])]};
+  try{feedResult(r,won,me,op,top,tb,m);}catch(e){console.error(e);}
 }
 function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}
@@ -2970,7 +2971,7 @@ function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=
   else if(L.phase==='done')d=263;
   if(d!=null)G.day=Math.max(d0+1,d);}
 
-function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -7276,3 +7277,74 @@ const SAVE_READY=(async()=>{try{IDB=await idbOpen();IDB_OK=!!IDB;
     const act=lsGet(SLOT_ACT);SLOT_ID=SVL.some(s=>s.id===act)?act:null;
     if(SLOT_ID){try{SAVE_TXT=await slotTxt(SLOT_ID);}catch(e){SAVE_TXT=null;}}}
   else{const z=lsGet(KEYZ);if(z&&z.startsWith('gz1:')&&ZOK){SAVE_TXT=await gunz(unb64(z.slice(4)));}}}catch(e){}})();
+
+/* ===================== Social feed ===================== */
+// G.feed: posts from fans, journalists, insiders, a stats account and the league wire, newest first (at most FEED_MAX).
+// All accounts are fictional; real players only appear as the subject of a post (portrait card), never as authors.
+// Sources: userResult (feedResult), the daily tick (feedTick: rumours from G.rum, arrivals/departures, injuries, fan protests,
+// board pressure) and league news (feedWire from news()). G.feedSeen = id of the newest post the user has seen.
+const FEED_MAX=400;
+const FEED_INS=[['Hoops Insider','@HoopsInsider',5],['Euro Whispers','@EuroWhispers',3],['Transfer Talk','@TransferTalkBB',2],['Bench Mob Rumours','@BenchMobRumours',1]];
+const FEED_STAT={n:'Box Score Bot',h:'@BoxScoreBot',t:'stat',ini:'BS'};
+const FEED_WIRE={n:'League Wire',h:'@LeagueWire',t:'wire',ini:'LW'};
+function feedRng(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return ()=>{h^=h<<13;h^=h>>>17;h^=h<<5;return ((h>>>0)%100000)/100000;};}
+// a few stable fan accounts per club (same names every season)
+function feedFans(t){G.fdFans=G.fdFans||{};if(G.fdFans[t.short])return G.fdFans[t.short];const r=feedRng('fans'+t.short),N=NAMES[NATALIAS&&NATALIAS[t.nat]||t.nat]||NAMES.SRB,pk=a=>a[Math.floor(r()*a.length)];
+  const s=t.short.toLowerCase(),c=(t.city||t.short).replace(/[^A-Za-z]/g,'');
+  const H=[`@curva_${s}`,`@${s}nation`,`@${c}Hoops`,`@${s}_tilidie`,`@oldschool_${s}`,`@${s}family`,`@${c}Courtside`,`@${s}_dad`];
+  const L=H.map((h,i)=>{const f=pk(N.f),l=pk(N.l);return {n:i===5?`${l} family`:`${f} ${l[0]}.`,h,t:'fan',tid:t.id,ini:(f[0]+l[0]).toUpperCase(),ul:i===0||i===3};});
+  G.fdFans[t.short]=L;return L;}
+function feedPress(){const j=pick(PR_J);return {n:j[0],h:'@'+j[1].replace(/[^A-Za-z]/g,''),o:j[1],t:'press',ini:j[0].split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase()};}
+function feedReach(t,k){const rep=(t&&t.rep)||60,fan=.5+(G.fans||50)/100;return Math.max(3,Math.round(30*Math.pow(1.1,rep-50)*fan*k*rf(.55,1.6)));}
+function feedPush(a,txt,o){if(!G||G.demo)return;G.feed=G.feed||[];G.fid=G.fid||1;const t=G.teams[a.tid!=null?a.tid:G.user],k=a.t==='press'?3:a.t==='ins'?4:a.t==='stat'?1.5:a.t==='wire'?2:1;
+  const lk=feedReach(t,k*(o&&o.hot?2.2:1));G.feed.unshift(Object.assign({id:G.fid++,d:G.day,s:G.season,a,txt,lk,rt:Math.round(lk*rf(.08,.3)),rp:Math.round(lk*rf(.03,.14))},o||{}));
+  if(G.feed.length>FEED_MAX)G.feed.length=FEED_MAX;}
+const FD=(a,i)=>a[(i==null?Math.floor(Math.random()*a.length):i)%a.length];
+function feedResult(r,won,me,op,top,tb,m){if(!G||G.demo)return;const U=G.teams[G.user],O=G.teams[op.tid],F=fg(),mg=me.pts-op.pts,dby=derbyOf(r.h,r.a),pre=r.kind==='pre',
+    sc=`${me.pts}–${op.pts}`,tn=pname(top),st=F.st||0,res={h:r.h,a:r.a,hs:r.hs,as:r.as,ot:!!r.ot,k:r.kind};
+  feedPush(FEED_STAT,`FINAL${r.ot?' (OT)':''}: ${G.teams[r.h].name} ${r.hs}–${r.as} ${G.teams[r.a].name}. ${tn}: ${tb.pts} pts, ${tb.reb} reb, ${tb.ast} ast, PIR ${pir(tb)}.`,{res,pid:top.id,tone:0});
+  if(pre)return;
+  const fans=feedFans(U),f=()=>pick(fans),ul=fans.find(x=>x.ul)||fans[0];
+  let L;
+  if(won){L=mg>=20?[`${sc}. That's not a win, that's a statement. ${O.name} never had a chance.`,`Blowout! ${sc} and the bench got minutes. Love to see it.`,`Somebody check on ${O.name}. ${sc}. \u{1F525}`]
+    :mg<=3?[`My heart can't take this. ${sc}! What a finish!`,`Ugly, nervy, beautiful. ${sc}. A win is a win.`,`I aged ten years in that fourth quarter. WE WIN ${sc}!`]
+    :[`Solid job tonight. ${sc} and on to the next one.`,`${sc}. Good defence, smart possessions. This team is growing.`,`Another W in the books. ${sc} \u{1F4AA}`];
+    if(st>=4)L.push(`${st} in a row! Don't wake me up.`,`${st} straight wins. The coach has this group locked in.`);}
+  else{L=mg<=-20?[`${sc}. Embarrassing. I want answers.`,`I paid for a ticket to watch that? ${-mg} points. Unacceptable.`,`Turn it off. ${sc}. Worst performance of the season.`]
+    :mg>=-3?[`So close. ${sc}. One stop and we win that.`,`Painful loss, ${sc}. Free throws again...`,`Heartbreaker. Proud of the fight though.`]
+    :[`${sc}. Not good enough tonight.`,`We looked tired out there. ${sc}. Need a reaction.`,`Flat start, no rhythm, ${sc}. Next game is a must-win.`];
+    if(st<=-3)L.push(`${-st} losses in a row. Something has to change.`,`Losing streak at ${-st}. Where is the plan, coach?`);}
+  if(dby)L=L.concat(won?[`DERBY WINNERS! ${dby} belongs to us. ${sc}!`,`The city is ours tonight. ${dby}, ${sc}.`]:[`Losing the ${dby}... I can't go to work tomorrow.`,`${dby} lost. That one hurts more than any other.`]);
+  const a1=dby||st>=4||st<=-3?ul:f();feedPush(a1,pick(L),{tone:won?1:-1,res:Math.random()<.5?res:null,hot:!!dby});
+  if(tb.pts>=25||pir(tb)>=28)feedPush(f(),pick(won?[`${tn} was on another planet tonight. ${tb.pts} points! MVP!`,`Give ${top.l||tn} whatever he wants. ${tb.pts} and ${tb.reb} boards.`,`${tn} went off. ${tb.pts} pts, PIR ${pir(tb)}. \u{1F525}\u{1F525}`]:[`${tn} gave us ${tb.pts} and still we lose. He needs help.`,`At least ${tn} showed up: ${tb.pts} points.`]),{tone:1,pid:top.id});
+  else if(Math.random()<.3)feedPush(f(),pick(won?[`Shoutout to ${tn}. Quietly did everything tonight.`,`${tn} is the heartbeat of this team.`]:[`Even ${tn} couldn't save us tonight.`,`Need more from everyone, not just ${tn}.`]),{tone:won?1:-1,pid:top.id});
+  // the other side
+  if(Math.random()<(dby?.9:.22)){const of=pick(feedFans(O));feedPush(of,pick(won?[`Lost to ${U.name}. ${op.pts}–${me.pts}. Rough night.`,`${U.name} deserved it tonight. We'll see them again.`]:[`Big win over ${U.name}! ${op.pts}–${me.pts}.`,`Easy work against ${U.name} tonight.`]),{tone:0});}
+  // the press
+  if(Math.random()<.4){const P=feedPress();let rk=null;try{rk=userRank();}catch(e){}const mgr=G.mgr||'the coach';
+    feedPush(P,pick(won?[`${U.name} ${sc} ${O.name}. ${mgr}'s side look sharper by the week${rk?`, ${ordn(rk)} in the table now`:''}.`,`Takeaway from ${U.name} v ${O.name}: ${tn} is playing at an All-League level right now.`,`${U.name} found answers late. ${mg<=5?'Close game, smart execution down the stretch.':'Comfortable in the end.'}`]
+      :[`${U.name} fall ${sc} to ${O.name}.${st<=-3?` Pressure is building on ${mgr}.`:''}`,`Worrying signs for ${U.name}: the second unit gave up a big run again.`,`${O.name} were the better side. ${U.name} have questions to answer${rk?` (${ordn(rk)})`:''}.`]),{tone:won?1:-1});}}
+function feedTick(){if(!G||G.demo||G.sacked||!G.teams[G.user])return;const U=G.teams[G.user],F=fg(),fans=feedFans(U),f=()=>pick(fans),ros=roster(U.id),ids=ros.map(p=>p.id);
+  // rumours from the rumour mill
+  for(const r of (G.rum||[])){if(r.fd||!G.players[r.pid])continue;r.fd=1;const p=G.players[r.pid],t=G.teams[r.tid],I=pick(FEED_INS),rel=r.real?Math.max(3,I[2]):Math.max(1,Math.min(4,I[2]-1));
+    feedPush({n:I[0],h:I[1],t:'ins',ini:I[0].split(' ').map(x=>x[0]).join('').slice(0,2)},pick([`\u{1F6A8} ${t.name} are monitoring ${pname(p)}. Talks at an early stage.`,`Hearing ${t.name} like ${pname(p)} a lot. ${U.name} would want a big fee.`,`${pname(p)} is on ${t.name}'s list. Watch this space.`]),{pid:p.id,tid:t.id,rel,rum:1,hot:1});
+    if(Math.random()<.7)feedPush(f(),pick([`Don't you dare sell ${pname(p)}.`,`If ${t.name} want ${p.l||pname(p)}, make them pay double.`,`Not ${pname(p)}... please tell me it's just noise.`]),{pid:p.id,tone:-1});}
+  // arrivals and departures
+  const prev=G.feedRos;G.feedRos=ids;
+  if(prev&&G.feedRosT===U.id){for(const id of ids)if(!prev.includes(id)){const p=G.players[id];feedPush(f(),pick([`Welcome to ${U.city||U.name}, ${pname(p)}! \u{1F44F}`,`${pname(p)} is one of us now. Big signing.`,`Like the ${pname(p)} move. Fills a real need.`]),{pid:id,tone:1});
+      if(p.o>=70||Math.random()<.4)feedPush(feedPress(),`${U.name} add ${pname(p)} (${p.pos}, ${p.age}). ${p.o>=72?'A statement signing.':'A depth move for the rotation.'}`,{pid:id,tone:0});}
+    for(const id of prev)if(!ids.includes(id)&&G.players[id]){const p=G.players[id],to=p.tid!=null?G.teams[p.tid]:null;feedPush(f(),to?pick([`Thanks for everything, ${pname(p)}. Good luck at ${to.name}.`,`${pname(p)} to ${to.name}... end of an era.`]):`${pname(p)} leaves the club. Thanks for the memories.`,{pid:id,tid:to?to.id:null,tone:0});}}
+  G.feedRosT=U.id;
+  // injuries
+  G.feedInj=G.feedInj||{};for(const p of ros){if(p.inj>0&&!G.feedInj[p.id]){G.feedInj[p.id]=1;const long=p.inj>=10;feedPush(long?feedPress():f(),long?`${U.name} lose ${pname(p)} for about ${Math.ceil(p.inj/2)} weeks (${p.injT||'injury'}). Big blow.`:pick([`Please let ${pname(p)}'s injury be nothing serious \u{1F64F}`,`${pname(p)} limping off... not what we needed.`]),{pid:p.id,tone:-1});}
+    else if(p.inj<=0&&G.feedInj[p.id]){delete G.feedInj[p.id];if(Math.random()<.5)feedPush(f(),`${pname(p)} is back! Let's go.`,{pid:p.id,tone:1});}}
+  // fan protest
+  if(F.prot&&G.feedProt!==F.prot.k+G.season){G.feedProt=F.prot.k+G.season;feedPush(F.prot.k==='ultra'?(fans.find(x=>x.ul)||fans[0]):fans[5]||fans[0],F.prot.k==='ultra'?'Banners up at the next home game. We are tired of excuses.':`Tickets at ${CUR()} ${G.fin.ticket}? Families can't afford this club anymore.`,{tone:-1,hot:1});}
+  // board pressure
+  if((G.warn||G.ulti)&&G.feedWarn!==G.season+':'+(G.ulti?'u':'w')){G.feedWarn=G.season+':'+(G.ulti?'u':'w');feedPush(feedPress(),G.ulti?`Sources: ${U.name}'s board has given ${G.mgr||'the coach'} an ultimatum.`:`The mood in the ${U.name} boardroom is cooling. ${G.mgr||'The coach'} needs results.`,{tone:-1,hot:1});}
+}
+// league news about clubs in the user's competition (skipped in the summer round-up)
+function feedWire(subj){if(!G||G.demo||G.ndg||!G.teams[G.user])return;const U=G.teams[G.user];if(G.fdWireDay===G.day&&(G.fdWireN||0)>=1)return;
+  const T=G.teams.filter(t=>t.dom===U.dom&&t.dom!=='GONE'),hit=T.find(t=>t.name&&subj.includes(t.name));if(!hit)return;
+  G.fdWireN=G.fdWireDay===G.day?(G.fdWireN||0)+1:1;G.fdWireDay=G.day;feedPush(FEED_WIRE,subj,{tid:hit.id,tone:0});}
+function feedUnread(){const s=G.feedSeen||0;return (G.feed||[]).filter(p=>p.id>s).length;}
