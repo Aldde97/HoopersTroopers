@@ -1688,6 +1688,43 @@ const LIVEPLAY={iso:{n:'Isolation',d:'Your best player goes one on one',pm:p=>.0
   three:{n:'Three for the shooter',d:'Your best shooter takes a three',pm:()=>.03},post:{n:'Post up',d:'Inside, draws more fouls',pm:()=>.025},
   hold:{n:'Run the clock',d:'Uses up to 24 seconds, shoots late',pm:()=>-.01},quick:{n:'Quick shot',d:'Shoots within 7 seconds, lower quality',pm:()=>-.03}};
 // Doubling a player takes the ball out of his hands and hurts his shot, but his team-mates get better looks, the more so the better he passes.
+/* ===================== Playbook ===================== */
+// Named plays a team runs on part of its half-court attacks (PB_RATE) and the user can call in a live game at any time.
+// PBM: fit(ps) 0-100 from the players (top of the order), mode '2' / '3' / 'any' (shot type), to = turnover change,
+// vs = bonus against man / zone / press, pick = who takes the shot. Bonus per possession: LIVEPLAY pm (half when the play
+// runs by itself) + counter + (fit-60)*.0006 + practice*.001 - overuse (defenses adjust after a play has been run 8+ times).
+// G.pb = the user's playbook (max PB_MAX keys, null = the best-fitting three), G.pbFam = practice 0-10 per play.
+Object.assign(LIVEPLAY,{horns:{n:'Horns',d:'Two bigs at the elbows, a playmaker reads the defense',pm:()=>.02},
+  flex:{n:'Flex cuts',d:'Screen after screen until a cutter is open at the rim',pm:()=>.02},
+  spain:{n:'Spain pick and roll',d:'A back-screen on top of the pick and roll frees the shooter',pm:()=>.025},
+  over:{n:'Zone overload',d:'Overload one side and hit the gaps of a zone',pm:()=>.012}});
+LIVEPLAY.hold.cr=1;LIVEPLAY.quick.cr=1;
+const PB_RATE=.3,PB_MAX=4;
+const pbTop=(ps,f,n)=>{const v=ps.map(f).sort((a,b)=>b-a).slice(0,n);return v.length?v.reduce((a,b)=>a+b,0)/v.length:60;};
+const pbBig=p=>p.pos==='C'||p.pos==='PF',pbG=p=>p.pos==='PG'||p.pos==='SG';
+const PBM={
+  pnr:{mode:'2',to:-.015,vs:{man:.01,zone:-.005,press:0},fit:ps=>(pbTop(ps.filter(pbG),p=>p.a.pas,1)+pbTop(ps.filter(pbBig),p=>p.a.ins*.6+p.a.ath*.4,1))/2,beats:'man'},
+  iso:{mode:'any',to:.015,vs:{man:.005,zone:-.015,press:0},fit:ps=>pbTop(ps,p=>p.o,1),beats:'man'},
+  post:{mode:'2',to:0,vs:{man:.012,zone:-.02,press:0},fit:ps=>pbTop(ps.filter(pbBig),p=>p.a.ins,1),beats:'man'},
+  three:{mode:'3',to:0,vs:{man:0,zone:.015,press:-.005},fit:ps=>pbTop(ps,p=>p.a.sht,2),beats:'zone'},
+  horns:{mode:'any',to:-.01,vs:{man:.006,zone:.006,press:0},fit:ps=>pbTop(ps,p=>p.a.pas,3),pick:o=>o.on.reduce((a,b)=>(b.a.pas*.3+b.a.ins*.35+b.a.sht*.35)>(a.a.pas*.3+a.a.ins*.35+a.a.sht*.35)?b:a),beats:'man,zone'},
+  flex:{mode:'2',to:.005,vs:{man:.02,zone:-.02,press:.01},fit:ps=>pbTop(ps,p=>p.a.ath,4),pick:o=>o.on.reduce((a,b)=>(b.a.ath+b.a.ins)>(a.a.ath+a.a.ins)?b:a),beats:'man,press'},
+  spain:{mode:'any',to:-.005,vs:{man:.015,zone:-.01,press:0},fit:ps=>(pbTop(ps.filter(pbBig),p=>p.a.pas,1)+pbTop(ps,p=>p.a.sht,2))/2,pick:o=>o.on.reduce((a,b)=>(b.a.sht+b.a.ins*.6)>(a.a.sht+a.a.ins*.6)?b:a),beats:'man'},
+  over:{mode:'3',to:0,vs:{man:-.02,zone:.04,press:-.01},fit:ps=>pbTop(ps,p=>p.a.sht,3),pick:o=>o.on.reduce((a,b)=>b.a.sht>a.a.sht?b:a),beats:'zone'}};
+const PB_KEYS=Object.keys(PBM);
+const pbPlayers=tid=>roster(tid).filter(p=>p.inj<=0).slice(0,8);
+function pbFit(k,ps){if(!PBM[k]||!ps.length)return 50;return Math.round(clamp((PBM[k].fit(ps)-48)*1.6,0,100));}
+function pbAI(ps){return PB_KEYS.map(k=>[k,pbFit(k,ps)]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);}
+function pbUser(){const v=(G.pb||[]).filter(k=>PBM[k]);return v.length?v:pbAI(pbPlayers(G.user));}
+function pbFam(k){return clamp((G.pbFam&&G.pbFam[k])||0,0,10);}
+function pbOf(m,i){const s=m.s[i],ps=s.ord.slice(0,8);if(s.tid===G.user&&m.ntU==null)return pbUser();return pbAI(ps);}
+function pbAuto(m,oi){const L=m.pb[oi];if(!L||!L.length)return null;const ps=m.s[oi].on;return wpick(L,k=>Math.max(5,pbFit(k,ps)));}
+function pbOveruse(m,oi,pl){const n=(m.pu[oi][pl]||0);return Math.min(.03,Math.max(0,n-8)*.0025);}
+function pbBonus(m,oi,pl,sh,d){const L=LIVEPLAY[pl];let v=(m.pa[oi]?.5:1)*L.pm(sh);const P=PBM[pl];if(!P)return v;
+  const own=m.s[oi].tid===G.user&&m.ntU==null;v+=(P.vs[d.tac.def]||0)+(pbFit(pl,m.s[oi].on)-60)*.0006+(own?pbFam(pl):6)*.001;return v;}
+// after each game of the user's club: plays in the playbook get practice, the others slowly fade
+function pbPractice(){G.pbFam=G.pbFam||{};const L=pbUser();for(const k of PB_KEYS){const f=G.pbFam[k]||0;G.pbFam[k]=L.includes(k)?Math.min(10,f+(f<4?1:.5)):Math.max(0,f-.25);}}
+
 const dblOpen=p=>.002+Math.max(0,p.a.pas-70)*.0008;
 const NSFOUL=.14;
 // planned seconds for a player: his place in the order, or the minutes the user set for him in the squad screen
@@ -1705,7 +1742,7 @@ class Match{
     this.heat={};this.feed=null;this.rested={};if(this.kind!=='pre')matchCtx(this,h,a);
     if(G.rivalFire&&G.rivalFire.s===G.season&&G.day-G.rivalFire.d<=12&&this.kind!=='pre')for(const s of this.s)if(s.tid===G.rivalFire.opp)s.adj=(s.adj||0)+.008;
     this.gp=[null,null];this.gpS=[null,null];this.gpW=[null,null];if(G.plan&&this.kind!=='pre'){for(let ui=0;ui<2;ui++){const me=this.s[ui].tid;if((me===G.user||me===this.ntU)&&G.plan.opp===this.s[1-ui].tid){this.gp[ui]=G.plan.k;this.gpS[ui]=G.plan.star;this.gpW[ui]=G.plan.weak;if(G.plan.leak&&Math.random()<.5){this.gp[ui]=null;continue;}if(G.plan.k==='run')this.s[ui].fk=(this.s[ui].fk||1)*1.12;if(G.plan.k==='star')this.s[ui].fk=(this.s[ui].fk||1)*1.05;}}}
-    this.run_=[0,0];this.play=[null,null];this.lastPlay=[null,null];this.foul=[false,false];this.manual=-1;
+    this.run_=[0,0];this.play=[null,null];this.lastPlay=[null,null];this.foul=[false,false];this.manual=-1;this.pa=[false,false];this.pu=[{},{}];try{this.pb=[0,1].map(i=>pbOf(this,i));}catch(err){this.pb=null;}
     if(this.log)this.add(-1,'period','Tip-off');
   }
   side(tid,home){
@@ -1746,9 +1783,11 @@ class Match{
     if(this.done)return;
     this.rotate();
     const oi=this.poss,o=this.s[oi],d=this.s[1-oi];
-    const before=[this.s[0].pts,this.s[1].pts],fl=this.foulDue(oi),pl=fl?null:this.play[oi],lead=o.pts-d.pts,late=this.q>=4&&this.clock<=60;
+    const before=[this.s[0].pts,this.s[1].pts],fl=this.foulDue(oi),lead=o.pts-d.pts,late=this.q>=4&&this.clock<=60;let pl=fl?null:this.play[oi];this.pa[oi]=false;
+    if(pl&&this.log&&LIVEPLAY[pl])this.add(oi,'period',`Play call: ${LIVEPLAY[pl].n}`);
+    if(!pl&&!fl&&!late&&this.pb&&Math.random()<PB_RATE){pl=pbAuto(this,oi);if(pl)this.pa[oi]=true;}
     let dur=clamp(Math.round(rf(11,21)+this.bx.p+PACE[o.tac.pace]+PACE[d.tac.pace]*.4+GPD(this.gp[oi],1)+GPD(this.gp[1-oi],.5)),4,24);
-    this.nsf=!fl&&!pl&&!late&&Math.random()<0.15*this.bx.f;
+    this.nsf=!fl&&!(pl&&!this.pa[oi])&&!late&&Math.random()<0.15*this.bx.f;
     if(fl)dur=rnd(2,5);else if(this.nsf)dur=rnd(2,6);else if(pl==='hold')dur=rnd(20,24);else if(pl==='quick')dur=rnd(4,7);else if(this.q>=4&&this.clock<=24&&lead<0&&oi===this.manual)dur=rnd(4,8);else if(late&&oi!==this.manual)dur=lead>0?(this.clock<=24?this.clock:rnd(16,24)):lead<0?rnd(5,11):dur;
     if(dur>this.clock)dur=this.clock;
     for(const s of this.s){for(const p of s.on)s.box[p.id].sec+=dur;for(const p of s.ord)s.fat[p.id]=s.on.includes(p)?(s.fat[p.id]||0)+dur*(s.fk||1):Math.max(0,(s.fat[p.id]||0)-dur*1.5);}
@@ -1771,16 +1810,16 @@ class Match{
     if(last){this.add(oi,m?'score':'miss',`${G.teams[d.tid].short} foul on purpose \u2013 ${N} makes ${m} of 2`,m);return false;}
     const orb=Math.random()<.2,sd=orb?o:d,rb=wpick(sd.on,p=>p.a.reb**2.2);sd.box[rb.id].reb++;
     this.add(oi,m?'score':'miss',`${G.teams[d.tid].short} foul on purpose \u2013 ${N} makes ${m} of 2, ${orb?'offensive ':''}rebound ${sname(rb)}`,m);return orb;}
-  playPick(o,pl){const by=f=>o.on.reduce((a,b)=>f(b)>f(a)?b:a);return pl==='iso'?by(p=>p.o):pl==='three'?by(p=>p.a.sht):pl==='post'?by(p=>p.a.ins):pl==='pnr'?by(p=>p.a.ins+p.a.ath*.5):null;}
+  playPick(o,pl){const by=f=>o.on.reduce((a,b)=>f(b)>f(a)?b:a);if(pl&&PBM[pl]&&PBM[pl].pick)return PBM[pl].pick(o);return pl==='iso'?by(p=>p.o):pl==='three'?by(p=>p.a.sht):pl==='post'?by(p=>p.a.ins):pl==='pnr'?by(p=>p.a.ins+p.a.ath*.5):null;}
   resolve(o,d,oi,pl){
     if(this.nsf){const X=this.defPick(d),n=sname(X);this.charge(d,X,1-oi);if(d.tf<5){this.add(oi,'to',`Foul on ${n}`);return true;}
       const sh=wpick(o.on,p=>Math.pow(Math.max(2,p.o-45),1.4)),B=o.box[sh.id];let m=0,last=false;for(let i=0;i<2;i++){B.fta++;last=Math.random()<ftp(sh);if(last){B.ftm++;m++;}}B.pts+=m;o.pts+=m;
       if(!last){const rb=wpick(d.on,p=>p.a.reb**2.2);d.box[rb.id].reb++;}this.add(oi,m?'score':'miss',`Team foul by ${n} \u2013 ${sname(sh)} makes ${m} of 2`,m);return false;}
     const dDef=avg(d.on.map(p=>p.a.def)),oPas=avg(o.on.map(p=>p.a.pas));
     let bonus=(o.home&&!this.neutral?(this.homeB!=null?this.homeB:.012)+this.crowd:0)+(o.hc||0)+(o.adj||0);if(this.mom[oi]>0){bonus+=.03;this.mom[oi]--;}
-    const toP=.15-(oPas-65)*.0016+(avg(d.on.map(p=>p.a.def*.5+p.a.ath*.5))-65)*.0013+(d.tac.def==='press'?.035:0)+(o.tac.pace==='fast'?.01:0)+(pl==='iso'?.015:pl==='pnr'?-.015:0)+(this.gp[oi]==='run'?.012:this.gp[oi]==='slow'?-.012:0);
+    const toP=.15-(oPas-65)*.0016+(avg(d.on.map(p=>p.a.def*.5+p.a.ath*.5))-65)*.0013+(d.tac.def==='press'?.035:0)+(o.tac.pace==='fast'?.01:0)+(pl&&PBM[pl]?PBM[pl].to:0)+(this.gp[oi]==='run'?.012:this.gp[oi]==='slow'?-.012:0);
     const dblId=this.dbl[1-oi],dblP=dblId!=null?o.on.find(p=>p.id===dblId):null;
-    const read=pl&&pl===this.lastPlay[oi];if(pl)this.lastPlay[oi]=pl;
+    const read=pl&&!this.pa[oi]&&pl===this.lastPlay[oi];if(pl&&!this.pa[oi])this.lastPlay[oi]=pl;if(pl)this.pu[oi][pl]=(this.pu[oi][pl]||0)+1;
     const sh=this.playPick(o,pl)||wpick(o.on,p=>Math.pow(Math.max(2,p.o-45),1.6)*(.5+p.energy/200)*(p.promise&&o.tid===G.user&&o.ord.indexOf(p)===0?1.25:1)*(p.id===dblId?.45:1)*(this.gp[1-oi]==='star'&&p.id===this.gpS[1-oi]?.72:1)*(o.tid===G.user&&pRole(p)==='star'?1.15:1)*(oi===this.manual&&this.feed&&this.feed.id===p.id?1.7:1));
     if(oi===this.manual&&this.feed&&--this.feed.left<=0)this.feed=null;
     const B=o.box[sh.id],N=sname(sh);
@@ -1791,10 +1830,10 @@ class Match{
       return false;
     }
     const tpr=clamp(({PG:.42,SG:.45,SF:.38,PF:.24,C:.08})[sh.pos]+this.bx.t+(sh.a.sht-70)*.006+({perimeter:.12,balanced:0,inside:-.12})[o.tac.focus]+(this.gp[oi]==='paint'?-.12:this.gp[oi]==='three'?.1:0)+(d.tac.def==='zone'?.06:0),.02,.75);
-    const three=pl==='three'||(pl!=='pnr'&&pl!=='post'&&Math.random()<tpr),en=(sh.energy-85)*.001-(sh.unhappy?.02:0)-(sh.fragile?.015:0)+((sh.mood==null?60:sh.mood)-60)*.0004+(this.chem[sh.tid]||0)-Math.min(.05,Math.max(0,(o.fat[sh.id]||0)-480)*.00007),val=three?3:2;
+    const pmd=pl&&PBM[pl]?PBM[pl].mode:null,three=pmd==='3'||(pmd!=='2'&&Math.random()<tpr),en=(sh.energy-85)*.001-(sh.unhappy?.02:0)-(sh.fragile?.015:0)+((sh.mood==null?60:sh.mood)-60)*.0004+(this.chem[sh.tid]||0)-Math.min(.05,Math.max(0,(o.fat[sh.id]||0)-480)*.00007),val=three?3:2;
     let pm=three?.3413+(sh.a.sht-72)*.0019-(dDef-72)*.0017+(d.tac.def==='zone'?.012:0)
                :.4948+(sh.a.ins-72)*.0029-(dDef-72)*.0026-(d.tac.def==='zone'?.03:0)+(d.tac.def==='press'?.02:0)+(o.tac.focus==='inside'?.01:0);
-    pm+=bonus+en+(this.bx.e||0)+(pl?LIVEPLAY[pl].pm(sh):0)-(read?.035:0)+(dblP?(sh===dblP?-.09:dblOpen(dblP)):0)+this.gpAdj(o,d,oi,sh,three);
+    pm+=bonus+en+(this.bx.e||0)+(pl?pbBonus(this,oi,pl,sh,d):0)-(read?.035:0)-(pl?pbOveruse(this,oi,pl):0)+(dblP?(sh===dblP?-.09:dblOpen(dblP)):0)+this.gpAdj(o,d,oi,sh,three);
     const fouled=Math.random()<(three?.03:pl==='post'?.2:0.145*(this.gp[oi]==='paint'?1.22:1))*this.bx.f,made=Math.random()<pm*(fouled?.45:1);if(fouled)this.charge(d,this.defPick(d),1-oi);
     if(fouled&&!made){
       let m=0;for(let i=0;i<val;i++){B.fta++;if(Math.random()<ftp(sh)){B.ftm++;m++;}}
@@ -2954,6 +2993,7 @@ function userResult(m,r){
   const cb=s=>s.ord.filter(p=>s.box[p.id].sec>0).map(p=>{const b=s.box[p.id];return [p.id,Math.round(b.sec/60),b.pts,b.reb,b.ast,pir(b)];});
   G.lastGame={label:stepLabel(),h:r.h,a:r.a,hs:r.hs,as:r.as,qp:m.qp,top:top.id,box:[cb(m.s[0]),cb(m.s[1])]};
   try{feedResult(r,won,me,op,top,tb,m);}catch(e){console.error(e);}
+  if(r.kind!=='pre')try{pbPractice();}catch(e){}
 }
 function attendance(){return Math.max(attendance0(),stSold());}
 function attendance0(){const t=G.teams[G.user],bc=G.fg&&G.fg.prot&&G.fg.prot.k==='fam'?.82:1;if(isNBA(t))return Math.round(t.cap*bc*clamp((.78+G.fans*.0025-(G.fin.ticket-110)*.0035)*facMult().att,.3,1));return Math.round(t.cap*bc*clamp((.42+G.fans*.006-(G.fin.ticket-fanRef())*.012*30/fanRef())*facMult().att,.25,1));}

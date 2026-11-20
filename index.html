@@ -1241,6 +1241,24 @@ body.mfocus .main .inner{max-width:1500px}
 .fd-tr{display:flex;align-items:center;gap:12px;padding:6px;border:0;background:none;cursor:pointer;text-align:left;font:inherit;color:inherit;border-radius:3px}.fd-tr:hover{background:var(--soft)}
 .fd-tr b{display:block;font:800 15px var(--fd);text-transform:uppercase;letter-spacing:.03em}.fd-tr small{font-size:12.5px;color:var(--mut)}
 @media (max-width:600px){.fd-p{padding:12px 14px;gap:10px}.fd-av{width:36px;height:36px;font-size:13px}.fd-ch{padding:10px 14px}.fd-ft{gap:16px}.fd-rt em{font-size:20px}}
+
+/* playbook */
+.pb-n{font:600 13px var(--fb);color:var(--mut);text-transform:none;letter-spacing:0;margin-left:8px}
+.pb-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.pb-t{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:3px;background:var(--card)}
+.pb-t.on{border-color:var(--or);box-shadow:inset 0 3px var(--or)}
+.pb-t .pb-dg{width:100%;max-width:150px;height:auto;align-self:center}
+.pb-tx b{display:block;font:800 17px var(--fd);text-transform:uppercase;letter-spacing:.03em}.pb-tx small{display:block;font-size:13px;color:var(--mut);margin-top:2px}
+.pb-fr{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px}.pb-fr .mut{width:58px}
+.pb-fit{flex:1;height:7px;border-radius:4px;background:var(--soft);overflow:hidden}.pb-fit i{display:block;height:100%;border-radius:4px}.pb-fr b{font:800 15px var(--fd);width:24px;text-align:right}
+.pb-dots{display:flex;gap:4px}.pb-dots i{width:9px;height:9px;border-radius:50%;background:var(--line)}.pb-dots i.on{background:var(--or)}
+.pb-ch{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.pb-dg .c{fill:none;stroke:#b6bcc4;stroke-width:1.4}.pb-dg circle{fill:var(--or);stroke:none}.pb-dg circle.b{fill:var(--ink)}.pb-dg circle.g{fill:#c3c8cf}.pb-dg circle.c{fill:none;stroke:#b6bcc4}
+.pb-dg .a{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linecap:round;marker-end:none}.pb-dg .a.d{stroke-dasharray:4 3}.pb-dg .s{fill:none;stroke:var(--or);stroke-width:2.6;stroke-linecap:round}
+.pb-lg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;margin-bottom:6px}
+.pb-lb{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:3px;background:var(--card);cursor:pointer;text-align:left;font:inherit;color:inherit}
+.pb-lb:hover{border-color:var(--or)}.pb-lb.on{border-color:var(--or);background:var(--orS);box-shadow:inset 0 -3px var(--or)}
+.pb-lb .pb-dg{width:52px;height:auto;flex:none}.pb-lb b{display:block;font:800 14px var(--fd);text-transform:uppercase;letter-spacing:.03em}.pb-lb small{display:block;font-size:11.5px;color:var(--mut)}.pb-lb em{color:var(--r);font-style:normal;font-weight:700}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1295,7 +1313,7 @@ body.mfocus .main .inner{max-width:1500px}
 <div id="app"></div>
 <div id="toast" role="status" hidden></div>
 <script>__ld(0,0.0609,"Starting the match engine")</script>
-<script src="engine.js?v=439" charset="utf-8"></script>
+<script src="engine.js?v=440" charset="utf-8"></script>
 <script>__ld(0.0609,0.0610,"Hanging the club crests")</script>
 <script src="logos.js?v=323" charset="utf-8"></script>
 <script>__ld(0.0610,0.0618,"Taking the team photos")</script>
@@ -1335,5 +1353,5 @@ body.mfocus .main .inner{max-width:1500px}
 <script>__ld(0.9243,0.9688,"Raising the national flags")</script>
 <script src="flags.js?v=6" charset="utf-8"></script>
 <script>__ld(0.9688,1.0000,"Setting up the bench")</script>
-<script src="ui.js?v=435" charset="utf-8"></script>
+<script src="ui.js?v=436" charset="utf-8"></script>
 <script>__ld(1.0000,1.0000,"Opening the doors")</script>
