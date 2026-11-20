@@ -1713,7 +1713,8 @@ const PBM={
   over:{mode:'3',to:0,vs:{man:-.02,zone:.04,press:-.01},fit:ps=>pbTop(ps,p=>p.a.sht,3),pick:o=>o.on.reduce((a,b)=>b.a.sht>a.a.sht?b:a),beats:'zone'}};
 const PB_KEYS=Object.keys(PBM);
 const pbPlayers=tid=>roster(tid).filter(p=>p.inj<=0).slice(0,8);
-function pbFit(k,ps){if(!PBM[k]||!ps.length)return 50;return Math.round(clamp((PBM[k].fit(ps)-48)*1.6,0,100));}
+// fit compares the play's key skills with the team's own level (a Segunda FEB roster can fit a play as well as a EuroLeague one)
+function pbFit(k,ps){if(!PBM[k]||!ps.length)return 50;const base=ps.reduce((a,p)=>a+p.o,0)/ps.length;return Math.round(clamp(55+(PBM[k].fit(ps)-base)*2.4,0,100));}
 function pbAI(ps){return PB_KEYS.map(k=>[k,pbFit(k,ps)]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);}
 function pbUser(){const v=(G.pb||[]).filter(k=>PBM[k]);return v.length?v:pbAI(pbPlayers(G.user));}
 function pbFam(k){return clamp((G.pbFam&&G.pbFam[k])||0,0,10);}
@@ -1721,7 +1722,7 @@ function pbOf(m,i){const s=m.s[i],ps=s.ord.slice(0,8);if(s.tid===G.user&&m.ntU==
 function pbAuto(m,oi){const L=m.pb[oi];if(!L||!L.length)return null;const ps=m.s[oi].on;return wpick(L,k=>Math.max(5,pbFit(k,ps)));}
 function pbOveruse(m,oi,pl){const n=(m.pu[oi][pl]||0);return Math.min(.03,Math.max(0,n-8)*.0025);}
 function pbBonus(m,oi,pl,sh,d){const L=LIVEPLAY[pl];let v=(m.pa[oi]?.5:1)*L.pm(sh);const P=PBM[pl];if(!P)return v;
-  const own=m.s[oi].tid===G.user&&m.ntU==null;v+=(P.vs[d.tac.def]||0)+(pbFit(pl,m.s[oi].on)-60)*.0006+(own?pbFam(pl):6)*.001;return v;}
+  const own=m.s[oi].tid===G.user&&m.ntU==null;v+=(P.vs[d.tac.def]||0)+(pbFit(pl,m.s[oi].on)-55)*.0006+(own?pbFam(pl):6)*.001;return v;}
 // after each game of the user's club: plays in the playbook get practice, the others slowly fade
 function pbPractice(){G.pbFam=G.pbFam||{};const L=pbUser();for(const k of PB_KEYS){const f=G.pbFam[k]||0;G.pbFam[k]=L.includes(k)?Math.min(10,f+(f<4?1:.5)):Math.max(0,f-.25);}}
 
@@ -7272,16 +7273,16 @@ async function slotPut(id,payload,meta){await idbTx(['meta','data'],'readwrite',
 async function slotTxt(id){const r=await idbTx(['data'],'readonly',d=>d.get(id));if(!r)return null;if(r.z)return await gunz(r.z);return r.txt||null;}
 async function slotDelete(id){if(!IDB_OK)return;try{await idbTx(['meta','data'],'readwrite',(m,d)=>{m.delete(id);d.delete(id);});}catch(e){}SVL=SVL.filter(s=>s.id!==id);if(lsGet(SLOT_ACT)===id)lsSet(SLOT_ACT,null);}
 function slotsFull(){return IDB_OK&&SVL.length>=slotMax()&&!SVL.some(s=>s.id===SLOT_ID);}
-async function saveZ(txt,id){if(SAVE_BUSY){SAVE_NEXT={txt,id};return;}SAVE_BUSY=true;
-  try{if(IDB_OK&&id){const g=JSON.parse(txt);const payload=ZOK?{z:await gz(txt)}:{txt};await slotPut(id,payload,slotMetaOf(g,id));if(id===SLOT_ID)lsSet(SLOT_ACT,id);SAVE_WARNED=false;}
+async function saveZ(txt,id,meta){if(SAVE_BUSY){SAVE_NEXT={txt,id,meta};return;}SAVE_BUSY=true;
+  try{if(IDB_OK&&id){const payload=ZOK?{z:await gz(txt)}:{txt};await slotPut(id,payload,meta||slotMetaOf(JSON.parse(txt),id));if(id===SLOT_ID)lsSet(SLOT_ACT,id);SAVE_WARNED=false;}
     else if(ZOK){const z='gz1:'+b64(await gz(txt));try{localStorage.setItem(KEYZ,z);try{localStorage.removeItem(KEY);}catch(e){}SAVE_WARNED=false;}catch(e){saveFailed();}}
     else{try{localStorage.setItem(KEY,txt);}catch(e){saveFailed();}}}
   catch(e){saveFailed();}
-  finally{SAVE_BUSY=false;if(SAVE_NEXT!=null){const n=SAVE_NEXT;SAVE_NEXT=null;saveZ(n.txt,n.id);}}}
+  finally{SAVE_BUSY=false;if(SAVE_NEXT!=null){const n=SAVE_NEXT;SAVE_NEXT=null;saveZ(n.txt,n.id,n.meta);}}}
 let NT_DEMO=false;
 function save(){if(NT_DEMO||(G&&G.demo))return;ownerProtect();coachTick();arenaTick();let txt;try{txt=JSON.stringify(G);}catch(e){return;}SAVE_TXT=txt;
   if(IDB_OK&&!SLOT_ID){if(slotsFull())return;SLOT_ID=slotNewId();lsSet(SLOT_ACT,SLOT_ID);}
-  saveZ(txt,IDB_OK?SLOT_ID:null);}
+  saveZ(txt,IDB_OK?SLOT_ID:null,IDB_OK&&SLOT_ID?slotMetaOf(G,SLOT_ID):null);}
 function loadSave(){try{if(SAVE_TXT)return JSON.parse(SAVE_TXT);const s=lsGet(KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
 // deletes the career being played (Settings > Delete save)
 function wipeSave(){SAVE_TXT=null;SAVE_NEXT=null;const id=SLOT_ID;SLOT_ID=null;if(id)slotDelete(id);lsSet(KEY,null);lsSet(KEYZ,null);}
