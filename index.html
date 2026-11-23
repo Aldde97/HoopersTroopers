@@ -1272,10 +1272,16 @@ body.mfocus .main .inner{max-width:1500px}
 .gm3{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,380px);gap:18px;align-items:start}
 .gm3-main{display:flex;flex-direction:column;gap:18px;min-width:0;container-type:inline-size}
 .gm3-top{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
-.gm3-side{display:flex;flex-direction:column;gap:18px;min-width:0}
-@container (min-width:860px){.gm3-top{grid-template-columns:minmax(0,1.75fr) minmax(260px,1fr)}}
-.gm3-row{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(260px,1fr);gap:18px;align-items:start}
-.gm3-row .feed{max-height:520px}
+.gm3-l,.gm3-side{display:contents}
+.gm3-court{order:1}.gm3-side>:nth-child(1){order:2}.gm3-side>:nth-child(2){order:3}.gm3-pbp{order:4}.gm3-ac{order:5}
+.gm3-pbp .feed{max-height:520px}
+/* wide: court with play-by-play below it on the left; the feed stretches so both columns end level */
+@container (min-width:860px){
+  .gm3-top{grid-template-columns:minmax(0,1.75fr) minmax(260px,1fr);align-items:stretch}
+  .gm3-l,.gm3-side{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .gm3-pbp{flex:1 1 0;min-height:200px;display:flex;flex-direction:column}
+  .gm3-pbp .feed{flex:1 1 0;min-height:0;max-height:none;overflow:auto}
+}
 .gm3-court .smap{padding:12px 16px}
 .gm3-flow{display:flex;align-items:center;gap:12px;padding:0 16px 12px}
 .gm3-flow>small{flex:none;font:800 11px var(--fd);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
@@ -1322,7 +1328,6 @@ body.mfocus .main .inner{max-width:1500px}
 .br-f{position:absolute;top:0;right:6px;min-width:16px;height:16px;border-radius:8px;background:#e0a400;color:#121417;font:800 11px/16px var(--fd);font-style:normal;text-align:center}
 .br-f.r{background:#ff5a52;color:#fff}
 @media(max-width:1180px){.gm3{grid-template-columns:minmax(0,1fr) 320px}}
-@container (max-width:700px){.gm3-row{grid-template-columns:minmax(0,1fr)}}
 /* phones and tablets: the rail is a panel above the bottom bar; folded it shows speed and timeout, open it shows the tabs */
 @media(max-width:900px){
   .gm3{grid-template-columns:minmax(0,1fr);padding-bottom:150px}
@@ -1434,5 +1439,5 @@ body.mfocus .main .inner{max-width:1500px}
 <script>__ld(0.9243,0.9688,"Raising the national flags")</script>
 <script src="flags.js?v=6" charset="utf-8"></script>
 <script>__ld(0.9688,1.0000,"Setting up the bench")</script>
-<script src="ui.js?v=439" charset="utf-8"></script>
+<script src="ui.js?v=440" charset="utf-8"></script>
 <script>__ld(1.0000,1.0000,"Opening the doors")</script>
