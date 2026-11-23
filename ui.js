@@ -1410,16 +1410,7 @@ function sponsorModalHTML(){
 const SPEED={1:650,2:260,4:70};
 function clockStr(c){c=Math.max(0,Math.round(c));return `${String(Math.floor(c/60)).padStart(2,'0')}:${String(c%60).padStart(2,'0')}`;}
 const qName=q=>q<=4?`Q${q}`:`OT${q-4>1?q-4:''}`;
-function matchHTML(){const M=UI.match,m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,me=m.s[ui];
-  const seg=(key)=>`<div class="seg">${TAC[key].map(o=>`<button class="${(m.ntU!=null?ntTacs():G.tactics)[key]===o.v?'on':''}" data-act="tac:${key}:${o.v}">${o.l}</button>`).join('')}</div>`;
-  const ctl=m.done?`<div class="sec"><button class="btn p" data-act="matchdone">Continue</button><p class="mut">Results from the other games come in when you continue.</p></div>`:
-   `<div class="sec"><div class="lbl">Speed</div><div class="seg">${[1,2,4].map(s=>`<button class="${M.speed==s&&!M.paused?'on':''}" data-act="speed:${s}">${s}\u00d7</button>`).join('')}<button class="${M.paused?'on':''}" data-act="pause">${M.paused?'Paused':'Pause'}</button></div>
-   <div class="btns"><button class="btn sm" data-act="timeout" ${me.to<=0?'disabled':''}>Timeout (${me.to} left)</button><button class="btn sm" data-act="simend">Sim to end</button></div></div>
-   <div class="sec"><div class="lbl">Pace</div>${seg('pace')}<div class="lbl">Offense</div>${seg('focus')}<div class="lbl">Defense</div>${seg('def')}<div class="lbl">Double team</div><div class="seg" style="flex-wrap:wrap"><button class="${m.dbl[ui]==null?'on':''}" data-act="ldbl:">Nobody</button>${m.s[1-ui].ord.slice().sort((a,b)=>b.o-a.o).slice(0,4).map(p=>`<button class="${m.dbl[ui]===p.id?'on':''}" data-act="ldbl:${p.id}">${esc(sname(p))}</button>`).join('')}</div><p class="mut" style="font-size:13px">Changes apply from the next possession. A timeout pauses the game and gives your team a short boost, a bigger one when it stops a run of the other team.</p></div><div id="plays"></div><div id="crunch"></div>`;
-  return `<section class="sb" id="sb"></section>${M.paused&&!m.done?`<div class="m-res"><div><small>Game paused</small><b>${esc(M.why||(m.crunch()?'Crunch time: call a play under Bench controls, or play on.':'Change your line-up or tactics, then play on.'))}</b></div><button data-act="pause">Continue the game</button></div>`:''}<div id="mom"></div><div class="g-match gm2"><div class="stack"><div class="mo-court">${card('Shot map','<div class="smap" id="court"></div>')}</div><div class="mo-flow">${card('Game flow','<div class="cb" id="flow"></div>')}</div></div>
-  <div class="stack"><div class="mo-feed"><section class="card"><div class="ch"><h3>Play-by-play</h3></div><div class="feed" id="feed"></div></section></div>${m.done?'':'<div class="mo-ac" id="acoach"></div>'}<div class="mo-tst">${card('Team stats','<div class="cb" id="tst"></div>')}</div></div>
-  <div class="stack"><div class="mo-ctl">${card(m.done?'Full time':'Bench controls',ctl)}</div>${m.done||m.manual<0?'':'<div class="mo-subs" id="subs"></div>'}</div></div>
-  <div style="margin-top:20px">${card('Box score','<div id="box"></div>',`<div class="seg">${m.s.map((s,i)=>`<button class="${UI.boxSide===i?'on':''}" data-act="boxside:${i}">${G.teams[s.tid].short}</button>`).join('')}</div>`)}</div>`;}
+/* matchHTML: see the broadcast layout block before Boot */
 function sbHTML(m){const [h,a]=m.s,H=G.teams[h.tid],A=G.teams[a.tid],nq=m.qp[0].length;
   const qs=[];const maxQ=Math.max(4,m.q);for(let i=0;i<maxQ;i++)qs.push(i);
   const cell=(si,i)=>i<nq?m.qp[si][i]:i===m.q-1&&!m.done?m.s[si].pts-m.qp[si].reduce((x,y)=>x+y,0):'';
@@ -1487,7 +1478,7 @@ function updMatch(){const M=UI.match;if(!M)return;const m=M.m,$=id=>document.get
   $('sb').innerHTML=sbHTML(m);$('feed').innerHTML=feedHTML(m);$('flow').innerHTML=flowSVG(m);$('tst').innerHTML=tstHTML(m);$('box').innerHTML=boxHTML(m);
   const ac=$('acoach');if(ac){const x=coachHTML(m);if(x!==M.acH){M.acH=x;ac.innerHTML=x;}}
   const sb=$('subs');if(sb){const x=subsHTML(M);if(x!==M.sbH||!sb.innerHTML){M.sbH=x;sb.innerHTML=x;}}
-  const c=$('crunch');if(c){const h=crunchHTML(M);if(h!==M.crH){M.crH=h;c.innerHTML=h;}}const pq=$('plays');if(pq){const h=playsHTML(M);if(h!==M.pbH){M.pbH=h;pq.innerHTML=h;}}}
+  const c=$('crunch');if(c){const h=crunchHTML(M);if(h!==M.crH){M.crH=h;c.innerHTML=h;}}const pq=$('plays');if(pq){const h=playsHTML(M);if(h!==M.pbH){M.pbH=h;pq.innerHTML=h;}}const oc=$('oncourt');if(oc){const h=onCourtHTML(M);if(h!==M.ocH){M.ocH=h;oc.innerHTML=h;}}}
 // bench calls late in the game; the feed refreshes it, so it is only rewritten when something changed (a click must not lose its button)
 function coachHTML(m){const ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,I=assistantInfo(),L=I.max?assistantTips(m,ui):[],icon={tac:'✎',opp:'⚠',tired:'⏸',hot:'★',good:'✓'};
   return `<section class="ac"><header><span class="ac-m">AC</span><div><b>Assistant coach</b><small>${I.n?esc(I.n):'No assistant coach hired'}</small></div></header>${I.n?(L.length?L.map(t=>`<div class="ac-t ${t.ty}"><span class="ac-i">${icon[t.ty]}</span><p>${esc(t.t)}</p>${t.act?`<button data-act="${t.act}">${esc(t.l)}</button>`:''}</div>`).join(''):`<p class="ac-q">${m.gtime()<180?'Let me watch them for a few minutes, coach.':m.feed?`Good, the ball goes to ${esc(sname(G.players[m.feed.id]))} now.`:'Nothing to report, coach. Keep it going.'}</p>`):'<p class="ac-q">Hire an assistant coach to get advice during the game.</p>'}</section>`;}
@@ -2235,6 +2226,46 @@ ACT.pbtog=k=>{if(!PBM[k])return;let L=G.pb&&G.pb.length?G.pb.slice():pbUser().sl
 function playsHTML(M){const m=M.m;if(m.done||m.crunch())return '';const ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,me=m.s[ui],armed=m.play[ui],L=m.pb[ui]||[],def=m.s[1-ui].tac.def;
   const b=k=>{const f=pbFit(k,me.on),u=m.pu[ui][k]||0,rd=pbOveruse(m,ui,k)>0,v=PBM[k].vs[def]||0;return `<button class="pb-lb${armed===k?' on':''}" data-act="lplay:${k}" title="${esc(LIVEPLAY[k].d)}">${pbDiag(k)}<span><b>${LIVEPLAY[k].n}</b><small>Fit ${f}${v>.004?` · beats their ${pbDefN[def].toLowerCase()}`:v<-.004?` · weak vs ${pbDefN[def].toLowerCase()}`:''}</small><small>${u}× run${rd?' · <em>they read it</em>':''}</small></span></button>`;};
   return `<div class="sec"><div class="lbl">Call a play${armed?` · next attack: ${LIVEPLAY[armed].n}`:''}</div><div class="pb-lg">${L.map(b).join('')}</div><p class="mut" style="font-size:13px">The play runs on your next attack. Without a call the team picks from the playbook by itself on some attacks.</p></div>`;}
+
+/* ===================== Live match: broadcast layout (main stage + bench rail) ===================== */
+function matchHTML(){const M=UI.match,m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,me=m.s[ui];
+  // the screen is rebuilt: the live panels must be refilled by updMatch, so drop their caches
+  M.crH=M.pbH=M.sbH=M.acH=M.ocH=null;
+  const seg=(key)=>`<div class="seg">${TAC[key].map(o=>`<button class="${(m.ntU!=null?ntTacs():G.tactics)[key]===o.v?'on':''}" data-act="tac:${key}:${o.v}">${o.l}</button>`).join('')}</div>`;
+  const live=!m.done,lineup=live&&m.manual>=0;
+  // during crunch time the Plays tab opens by itself (until the coach picks another tab in this game)
+  let tab=UI.mTab||'plays';if(live&&m.crunch()&&UI.mTabCr!==M)tab='plays';if(tab==='lineup'&&!lineup)tab='plays';
+  const top=live?`<div class="br-sp">${[1,2,4].map(s=>`<button class="${M.speed==s&&!M.paused?'on':''}" data-act="speed:${s}">${s}×</button>`).join('')}<button class="${M.paused?'on':''}" data-act="pause" aria-label="${M.paused?'Paused':'Pause'}">${M.paused?'▶':'❚❚'}</button></div>
+    <div class="br-ab"><button class="br-to" data-act="timeout" ${me.to<=0?'disabled':''}>Timeout · ${me.to} left</button><button class="br-se" data-act="simend">Sim to end</button></div>`
+   :`<button class="br-go" data-act="matchdone">Continue</button><p class="br-n">Results from the other games come in when you continue.</p>`;
+  const tb=(k,l)=>`<button role="tab" aria-selected="${tab===k}" class="${tab===k?'on':''}" data-act="mtab:${k}">${l}</button>`;
+  const tactics=`<div class="lbl">Pace</div>${seg('pace')}<div class="lbl">Offense</div>${seg('focus')}<div class="lbl">Defense</div>${seg('def')}<div class="lbl">Double team</div><div class="seg" style="flex-wrap:wrap"><button class="${m.dbl[ui]==null?'on':''}" data-act="ldbl:">Nobody</button>${m.s[1-ui].ord.slice().sort((a,b)=>b.o-a.o).slice(0,4).map(p=>`<button class="${m.dbl[ui]===p.id?'on':''}" data-act="ldbl:${p.id}">${esc(sname(p))}</button>`).join('')}</div><p class="br-n">Changes apply from the next possession. A timeout gives a short boost, a bigger one when it stops a run of the other team.</p>`;
+  const rail=`<aside class="gm3-rail${UI.mSheet?' open':''}" aria-label="Bench">
+    <button class="br-hd" data-act="msheet" aria-expanded="${!!UI.mSheet}"><b>${live?'Bench':'Full time'}</b><small>${live?(UI.mSheet?'Tap to fold':'Tap for tactics, plays and line-up'):''}</small></button>
+    <div class="br-top">${top}</div>
+    ${live?`<div class="br-tabs" role="tablist">${tb('tactics','Tactics')}${tb('plays','Plays')}${lineup?tb('lineup','Line-up'):''}</div>
+    <div class="br-body">
+      <div class="br-pane" ${tab==='tactics'?'':'hidden'}>${tactics}</div>
+      <div class="br-pane" ${tab==='plays'?'':'hidden'}><div id="plays"></div><div id="crunch"></div></div>
+      ${lineup?`<div class="br-pane" ${tab==='lineup'?'':'hidden'}><div id="subs"></div></div>`:''}
+    </div>
+    <div class="br-on" id="oncourt"></div>`:''}
+  </aside>`;
+  return `<section class="sb" id="sb"></section>${M.paused&&!m.done?`<div class="m-res"><div><small>Game paused</small><b>${esc(M.why||(m.crunch()?'Crunch time: call a play in the bench rail, or play on.':'Change your line-up or tactics, then play on.'))}</b></div><button data-act="pause">Continue the game</button></div>`:''}<div id="mom"></div>
+  <div class="gm3"><div class="gm3-main">
+    <section class="card gm3-court"><div class="ch"><h3>Court</h3></div><div class="smap" id="court"></div></section>
+    <div class="gm3-row"><section class="card"><div class="ch"><h3>Play-by-play</h3></div><div class="feed" id="feed"></div></section>
+      <div class="stack">${m.done?'':'<div class="mo-ac" id="acoach"></div>'}${card('Team stats','<div class="cb" id="tst"></div>')}${card('Game flow','<div class="cb" id="flow"></div>')}</div></div>
+    ${card('Box score','<div id="box"></div>',`<div class="seg">${m.s.map((s,i)=>`<button class="${UI.boxSide===i?'on':''}" data-act="boxside:${i}">${G.teams[s.tid].short}</button>`).join('')}</div>`)}
+  </div>${rail}</div>`;}
+// the five on court with an energy ring around each portrait (fouls as small dots)
+function onCourtHTML(M){const m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G.user)?0:1,s=m.s[ui];if(!s.on||!s.on.length)return '';const lim=m.foulLimit();
+  const gas=p=>Math.round(clamp(100-(s.fat[p.id]||0)/12,0,100)),gc=g=>g>=70?'#3ecb7c':g>=40?'#e0a400':'#ff5a52';
+  return `<small>On court · energy</small><div class="br-five">${s.on.map(p=>{const g=gas(p),f=s.pf[p.id]||0;return `<button class="br-pl" data-act="mtab:lineup" title="${esc(pname(p))}: energy ${g}%, ${f} foul${f===1?'':'s'}"><span class="br-rg" style="background:conic-gradient(${gc(g)} 0 ${g}%,#2b3038 0)"><span class="avatar ph">${avatarIn(p,p.no)}</span></span><b>${esc(p.l||sname(p))}</b>${f?`<i class="br-f${f>=lim-1?' r':''}">${f}</i>`:''}</button>`;}).join('')}</div>`;}
+Object.assign(ACT,{
+  mtab(k){UI.mTab=k;if(UI.match)UI.mTabCr=UI.match;UI.mSheet=true;render();},
+  msheet(){UI.mSheet=!UI.mSheet;render();},
+});
 
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
