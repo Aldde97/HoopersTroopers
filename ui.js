@@ -2267,6 +2267,111 @@ Object.assign(ACT,{
   msheet(){UI.mSheet=!UI.mSheet;render();},
 });
 
+/* ===================== Scenario challenges ===================== */
+// Fixed starting points with one goal and a season limit. G.ch tracks the run; the best result per challenge
+// is kept in this browser (localStorage 'bm-ch-v1') so the picker can show it.
+// goal kinds: el = win the EuroLeague, dom = win the domestic title, reach = play in league `to`, stay = still in the starting league after season 1
+const CHAL=[
+  {id:'edt-up',club:'EDT',lv:1,n:1,g:'reach',to:'ACB',t:'Back where they belong',d:'Estudiantes are the favourites in Primera FEB. Win promotion to the Liga Endesa in your first season.'},
+  {id:'eis-bbl',club:'EIS',lv:2,n:2,g:'reach',to:'BBL',t:'Bundesliga or bust',d:'Bremerhaven want to return to the easyCredit BBL. Get out of ProA within two seasons.'},
+  {id:'lle-stay',club:'LLE',lv:2,n:1,g:'stay',bal:0,t:'Survival on a shoestring',d:'Lleida start as the weakest squad in the Liga Endesa and the board has no money for transfers. Avoid relegation.'},
+  {id:'ryt-lkl',club:'RYT',lv:2,n:2,g:'dom',t:'End the Žalgiris era',d:'Rytas have to beat Žalgiris to win the Lithuanian title. Do it within two seasons.'},
+  {id:'bud-aba',club:'BUD',lv:3,n:2,g:'dom',t:'Kings of the Adriatic',d:'Win the ABA League with Budućnost VOLI ahead of Partizan and Crvena zvezda, within two seasons.'},
+  {id:'pak-gbl',club:'PAK',lv:3,n:3,g:'dom',t:'Break the Athens grip',d:'Panathinaikos and Olympiacos share every Greek title. Win the Stoiximan GBL with PAOK within three seasons.'},
+  {id:'for-lba',club:'FOR',lv:3,n:3,g:'reach',to:'LBA',bal:-800000,t:'Fortitudo in debt',d:'Fortitudo Bologna start €800,000 in debt in Serie A2. Take them back to the LBA within three seasons.'},
+  {id:'vll-acb',club:'VLL',lv:4,n:4,g:'reach',to:'ACB',t:'Two divisions up',d:'Valladolid play in Segunda FEB. Win two promotions and reach the Liga Endesa within four seasons.'},
+  {id:'asv-el',club:'ASV',lv:4,n:3,g:'el',t:'The impossible Final Four',d:'LDLC ASVEL have the weakest squad in the EuroLeague. Win the EuroLeague within three seasons.'},
+  {id:'gsw-nba',club:'GSW',lv:4,n:3,g:'dom',t:'One last ring',d:'Golden State start with the weakest roster in the NBA. Win the NBA title within three seasons.'},
+  {id:'ksu-ncaa',club:'KSU',lv:4,n:4,g:'dom',t:'Cinderella in March',d:'Kansas State are the weakest team in the NCAA field. Win the national title within four seasons.'},
+];
+const CH_LV=['','Easy','Medium','Hard','Legend'];
+const chDef=id=>CHAL.find(c=>c.id===id);
+const chLg=()=>{const t=G.teams[G.user];return t?(t.dom||'EL'):null;};
+function chBest(){try{return JSON.parse(localStorage.getItem('bm-ch-v1')||'{}')||{};}catch(e){return {};}}
+function chBestSet(id,n){try{const B=chBest();if(!B[id]||n<B[id].n){B[id]={n,d:Date.now()};localStorage.setItem('bm-ch-v1',JSON.stringify(B));}}catch(e){}}
+const chLgName=k=>k==='EL'?'EuroLeague':(window.NLCFG&&NLCFG[k]?NLCFG[k].name:(CS_LG[k]||[k])[0]);
+function chGoalText(c){return c.g==='el'?'Win the EuroLeague':c.g==='dom'?'Win the '+(c.club==='BUD'?'ABA League':c.club==='GSW'?'NBA title':c.club==='KSU'?'national title':'league title'):c.g==='reach'?'Reach the '+chLgName(c.to):'Avoid relegation';}
+const CH_IC={el:'<path d="M7 4h10v3a5 5 0 0 1-10 0z"/><path d="M7 5H4v1a3 3 0 0 0 3 3M17 5h3v1a3 3 0 0 1-3 3M12 12v4M8 20h8M9 16h6v4H9z"/>',
+  dom:'<path d="M7 4h10v3a5 5 0 0 1-10 0z"/><path d="M7 5H4v1a3 3 0 0 0 3 3M17 5h3v1a3 3 0 0 1-3 3M12 12v4M8 20h8M9 16h6v4H9z"/>',
+  reach:'<path d="M12 20V5M6 11l6-6 6 6"/><path d="M5 20h14"/>',stay:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>'};
+const chIcon=(g,s=22)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${CH_IC[g]}</svg>`;
+const chPips=(lv)=>`<span class="ch-lv lv${lv}" title="${CH_LV[lv]}">${[1,2,3,4].map(k=>`<i class="${k<=lv?'on':''}"></i>`).join('')}<b>${CH_LV[lv]}</b></span>`;
+
+// start screen: Career | Challenges switch
+function chModeTabs(cur){return `<div class="chm" role="tablist"><button role="tab" aria-selected="${cur!=='ch'}" class="${cur!=='ch'?'on':''}" data-act="csmode:car">Career</button><button role="tab" aria-selected="${cur==='ch'}" class="${cur==='ch'?'on':''}" data-act="csmode:ch">Challenges</button></div>`;}
+function chStartHTML(){const D=csData(),all=D.nats.flatMap(x=>x.clubs),B=chBest();
+  const L=CHAL.map(c=>({c,cl:all.find(x=>x.short===c.club)})).filter(x=>x.cl);
+  const sel=(L.find(x=>x.c.id===UI.chSel)||L[0]);UI.chSel=sel.c.id;
+  const done=CHAL.filter(c=>B[c.id]).length;
+  const card=({c,cl})=>{const b=B[c.id];return `<button class="ch-card${c.id===sel.c.id?' on':''}" data-act="chsel:${c.id}" style="--c1:${cl.c1}">
+    <span class="ch-top">${crest(cl,'dk')}<span class="ch-club"><b>${esc(cl.name)}</b><small>${esc(chLgName(cl.lg.startsWith('CUP_')?cl.lg:cl.lg))}</small></span>${b?`<span class="ch-done" title="Completed in ${b.n} season${b.n>1?'s':''}">★ ${b.n}</span>`:''}</span>
+    <span class="ch-t">${esc(c.t)}</span>
+    <span class="ch-goal"><span class="ch-gi g-${c.g}">${chIcon(c.g,18)}</span>${esc(chGoalText(c))}</span>
+    <span class="ch-meta">${chPips(c.lv)}<span class="ch-sn">${c.n} season${c.n>1?'s':''}</span></span></button>`;};
+  const c=sel.c,cl=sel.cl,b=B[c.id];
+  const lim=`${Array.from({length:c.n},(_,k)=>`<i></i>`).join('')}`;
+  const cont=slStartHTML()||'';
+  return `<div class="cs"><div class="cs-bg" id="csBg" aria-hidden="true"></div><div class="cs-veil"></div><div class="cs-in">${cont}${chModeTabs('ch')}
+  <div class="cs-crumb">Challenges · ${done} of ${CHAL.length} completed</div><h1 class="cs-h">Pick a challenge</h1><p class="cs-sub">A real club, one goal and a deadline. Beat it as fast as you can, then share your result.</p>
+  <div class="ch-wrap"><div class="ch-grid">${L.map(card).join('')}</div>
+    <aside class="ch-sel" style="--c1:${cl.c1}"><div class="ch-sh">${crest(cl,'cs-big dk')}<div><small>${esc(cl.name)}</small><h2>${esc(c.t)}</h2></div></div>
+      <p>${esc(c.d)}</p><p class="ch-note">The board backs you until the deadline: you cannot be sacked during the challenge.</p>
+      <div class="ch-rows"><div class="ch-r"><span class="ch-gi g-${c.g}">${chIcon(c.g)}</span><div><small>Goal</small><b>${esc(chGoalText(c))}</b></div></div>
+        <div class="ch-r"><span class="ch-lim">${lim}</span><div><small>Deadline</small><b>${c.n} season${c.n>1?'s':''}</b></div></div>
+        <div class="ch-r">${chPips(c.lv)}</div>
+        ${c.bal!=null?`<div class="ch-r"><span class="ch-gi g-money">€</span><div><small>Starting money</small><b class="${c.bal<0?'neg':''}">${c.bal<0?'Debt of '+eur(-c.bal):c.bal===0?'No transfer budget':eur(c.bal)}</b></div></div>`:''}
+        ${b?`<div class="ch-r ch-best"><span class="ch-gi g-best">★</span><div><small>Your best</small><b>Done in ${b.n} season${b.n>1?'s':''}</b></div></div>`:''}</div>
+    </aside></div>
+  <div class="cs-foot ch-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" maxlength="32" autocomplete="off"></label>${IDB_OK&&!gamePaid()&&SVL.length===1?`<span class="cs-warn">Free version: one save slot. Starting a challenge replaces ${esc(SVL[0].name||'your saved career')}.</span>`:IDB_OK&&SVL.length>=slotMax()?`<span class="cs-warn">${slotFullMsg()} Delete a career first.</span>`:''}<button class="cs-go" data-act="chgo">Start challenge</button></div>
+  </div></div>`;}
+{const _s=startHTML;startHTML=function(){if(UI.csMode==='ch')return chStartHTML();return _s().replace('<div class="cs-crumb">',chModeTabs('car')+'<div class="cs-crumb">');};}
+
+// apply the challenge's starting conditions to a new career
+function chSetup(c){if(c.bal!=null){G.fin.bal=c.bal;G.fin.hist=[{l:'Start',bal:G.fin.bal}];}
+  G.ch={id:c.id,club:c.club,s0:G.season,h0:G.history.length,lg0:chLg(),res:null,seen:false};
+  msg('Club President','Your challenge: '+c.t,`${c.d} Goal: ${chGoalText(c)}, within ${c.n} season${c.n>1?'s':''}.`,'board');}
+// checks the goal; runs after every render and after the season change
+const chSince=C=>G.history.slice(0,Math.max(0,G.history.length-C.h0)),chPlayed=C=>new Set(chSince(C).map(h=>h.season)).size;
+function chCheck(){const C=G&&G.ch;if(!C||C.res)return;const c=chDef(C.id);if(!c)return;
+  const t=G.teams[G.user],lost=G.sacked||!t||t.short!==C.club,played=chPlayed(C),turned=G.season-C.s0;
+  const win=n=>{C.res={ok:true,n,s:seasonStr()};chBestSet(c.id,n);msg('Club President','Challenge complete: '+c.t,`You did it in ${n} season${n>1?'s':''}. Share your result from the home screen, or keep managing the club.`,'board');},
+    fail=w=>{C.res={ok:false,why:w,s:seasonStr()};};
+  if(lost)return fail('You lost the job before the goal was reached.');
+  if(c.g==='el'||c.g==='dom'){const L=chSince(C);for(let k=L.length-1;k>=0;k--){const h=L[k];if(c.g==='el'?h.champ===G.user:(h.dom&&h.dom.champ===G.user))return win(Math.max(1,parseInt(h.season)-C.s0+1));}
+    if(played>=c.n)fail(`No title after ${c.n} season${c.n>1?'s':''}.`);return;}
+  if(c.g==='reach'){if(chLg()===c.to)return win(Math.max(1,turned));if(turned>=c.n)fail(`Still not in the ${chLgName(c.to)} after ${c.n} season${c.n>1?'s':''}.`);return;}
+  if(c.g==='stay'&&turned>=1){if(chLg()===C.lg0)return win(1);fail('Relegated.');}}
+{const _r=render;render=function(){if(G&&G.ch&&!G.ch.res){try{chCheck();}catch(e){console.error(e);}}return _r.apply(this,arguments);};}
+{const _n=newSeason;newSeason=function(){const r=_n.apply(this,arguments);try{chCheck();}catch(e){console.error(e);}return r;};}
+
+const chShield=()=>!!(G&&G.ch&&!G.ch.res&&!G.resigned);
+{const _s=simStep;simStep=function(){if(chShield()){G.board=Math.max(G.board,40);G.ulti=null;}const r=_s.apply(this,arguments);if(chShield()){G.board=Math.max(G.board,40);G.ulti=null;}return r;};}
+{const _b=boardScoreMeet;boardScoreMeet=function(){const r=_b.apply(this,arguments);if(chShield()){try{return Math.max(r,boardType().sack-crepPat()+1);}catch(e){return Math.max(r,60);}}return r;};}
+{const _f=seasonFinanceCheck;seasonFinanceCheck=function(){const sh=chShield(),r=_f.apply(this,arguments);if(sh&&G.bankrupt){const me=G.teams[G.user],W=teamCosts(G.user);G.bankrupt=false;me.bankrupt=false;G.fin.bal=r10k(-W*.1);G.fin.st='strain';G.fin.bailout=(G.fin.bailout||0)+2;msg('Club President','Rescued at the last minute','A new investor has taken over the club and cleared most of the debt. The challenge goes on, but the budget will be tight.','board');}return r;};}
+// home: goal, season pips and the result
+function chBarHTML(){const C=G&&G.ch;if(!C)return '';const c=chDef(C.id);if(!c)return '';const t=G.teams[G.user];
+  const played=Math.min(c.n,c.g==='reach'||c.g==='stay'?G.season-C.s0:chPlayed(C));
+  const pips=Array.from({length:c.n},(_,k)=>`<i class="${k<played?'p':k===played&&!C.res?'now':''}"></i>`).join('');
+  if(C.res&&C.hide)return '';
+  if(C.res&&C.res.ok)return `<section class="chb win"><span class="chb-ic">★</span><div class="chb-tx"><small>Challenge complete · ${CH_LV[c.lv]}</small><b>${esc(c.t)}</b><span>${esc(chGoalText(c))} in ${C.res.n} season${C.res.n>1?'s':''}${C.res.n<c.n?` (${c.n-C.res.n} to spare)`:''}.</span></div><div class="chb-bt"><button class="btn p" data-act="chshare">Share result</button><button class="btn" data-act="chhide">Hide</button></div></section>`;
+  if(C.res)return `<section class="chb lose"><span class="chb-ic">${chIcon(c.g)}</span><div class="chb-tx"><small>Challenge failed</small><b>${esc(c.t)}</b><span>${esc(C.res.why)} You can keep managing ${esc(t?t.name:'the club')} as a normal career.</span></div><div class="chb-bt"><button class="btn p" data-act="chretry">Try again</button><button class="btn" data-act="chhide">Hide</button></div></section>`;
+  return `<section class="chb"><span class="chb-ic g-${c.g}">${chIcon(c.g)}</span><div class="chb-tx"><small>Challenge · ${CH_LV[c.lv]}</small><b>${esc(chGoalText(c))}</b><span>${esc(c.t)}</span></div><div class="chb-pp" title="Season ${Math.min(played+1,c.n)} of ${c.n}"><span>${pips}</span><small>Season ${Math.min(played+1,c.n)} of ${c.n}</small></div></section>`;}
+{const _h=homeHTML;homeHTML=function(){return chBarHTML()+_h();};}
+
+function chShareText(){const C=G.ch,c=chDef(C.id),t=G.teams[G.user];return `Challenge complete: "${c.t}" (${CH_LV[c.lv]}). ${chGoalText(c)} with ${t.name} in ${C.res.n} season${C.res.n>1?'s':''}. Can you do it faster? #BasketballManager`;}
+Object.assign(ACT,{
+  csmode(k){UI.csMode=k==='ch'?'ch':'car';render();window.scrollTo(0,0);},
+  chsel(id){UI.chSel=id;render();},
+  chgo(){const c=chDef(UI.chSel);if(!c)return;UI.csSel=c.club;const had=G;ACT.startgame();if(G&&G!==had&&G.teams[G.user]&&G.teams[G.user].short===c.club){chSetup(c);save();render();}},
+  chshare(){const s=chShareText(),ok=()=>toast('Result copied. Paste it anywhere to share.');
+    try{if(navigator.share){navigator.share({text:s}).catch(()=>{});return;}}catch(e){}
+    try{navigator.clipboard.writeText(s).then(ok,()=>{UI.modal={kind:'chshare',s};render();});}catch(e){UI.modal={kind:'chshare',s};render();}},
+  chhide(){if(G&&G.ch){G.ch.hide=true;save();render();}},
+  chretry(){const id=G&&G.ch&&G.ch.id;slotDetach();G=null;UI.view='start';UI.csMode='ch';UI.chSel=id;render();window.scrollTo(0,0);},
+});
+// fallback when the clipboard is blocked: show the text to copy by hand
+{const _m=modalHTML;modalHTML=function(){const M=UI.modal;if(M&&M.kind==='chshare')return `<div class="ovl" data-act="ovl"><div class="modal" role="dialog" aria-modal="true" aria-label="Share result"><div class="ch"><h3>Share your result</h3><button class="lnk" data-act="close">Close ✕</button></div><div class="cb"><p class="mut">Copy this text and post it anywhere:</p><textarea class="ch-ta" readonly onclick="this.select()">${esc(M.s)}</textarea></div></div></div>`;return _m();};}
+
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}

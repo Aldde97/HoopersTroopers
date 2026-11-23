@@ -1345,6 +1345,76 @@ body.mfocus .main .inner{max-width:1500px}
 .gm3-court .smap svg{display:block;width:100%!important;height:auto;max-height:none}
 
 @media(max-width:900px){body.mlive .gm3-rail{bottom:0;padding-bottom:env(safe-area-inset-bottom,0px)}}
+
+/* ---------- scenario challenges ---------- */
+.chm{display:inline-flex;align-self:flex-start;background:#ffffff0d;border:1px solid #ffffff22;border-radius:999px;padding:4px;gap:4px}
+.chm button{border:0;background:transparent;color:#aab3bf;font:800 16px var(--fd);letter-spacing:.1em;text-transform:uppercase;padding:9px 22px;border-radius:999px;cursor:pointer}
+.chm button.on{background:var(--or);color:#fff}
+.ch-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,400px);gap:18px;align-items:start}
+.ch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;min-width:0}
+.ch-card{position:relative;display:flex;flex-direction:column;gap:10px;text-align:left;padding:14px 16px 14px 20px;background:rgba(24,29,37,.86);border:1px solid #ffffff14;color:#eef1f5;cursor:pointer;min-width:0;overflow:hidden}
+.ch-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c1)}
+.ch-card:hover{border-color:#ffffff40}
+.ch-card.on{border-color:var(--or);box-shadow:0 0 0 2px var(--or) inset,0 10px 30px #ff7a0026}
+.ch-top{display:flex;align-items:center;gap:10px;min-width:0}
+.ch-top .crest{width:38px;height:38px;flex:none}
+.ch-club{display:flex;flex-direction:column;min-width:0;flex:1}
+.ch-club b{font:700 14px var(--fb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-club small{font-size:12px;color:#aab3bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-done{flex:none;background:#e0a400;color:#121417;font:800 13px var(--fd);padding:3px 8px;border-radius:999px}
+.ch-t{font:italic 900 22px/1.05 var(--fd);text-transform:uppercase;letter-spacing:.01em}
+.ch-goal{display:flex;align-items:center;gap:8px;font-size:13.5px;color:#d6dbe2}
+.ch-gi{flex:none;display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#ffffff12;color:#fff;font:800 16px var(--fd)}
+.ch-goal .ch-gi{width:26px;height:26px}
+.ch-gi.g-el,.ch-gi.g-dom,.ch-gi.g-best{background:#e0a40026;color:#ffc93c}
+.ch-gi.g-reach{background:#1e9b5026;color:#4bd98a}
+.ch-gi.g-stay{background:#2f6fd626;color:#7fb0ff}
+.ch-gi.g-money{background:#d6342c26;color:#ff8a80}
+.ch-meta{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ch-sn{font:800 13px var(--fd);letter-spacing:.08em;text-transform:uppercase;color:#aab3bf}
+.ch-lv{display:inline-flex;align-items:center;gap:3px}
+.ch-lv i{width:14px;height:6px;border-radius:2px;background:#ffffff1f}
+.ch-lv.lv1 i.on{background:#4bd98a}.ch-lv.lv2 i.on{background:#ffc93c}.ch-lv.lv3 i.on{background:#ff8a1f}.ch-lv.lv4 i.on{background:#ff5a52}
+.ch-lv b{margin-left:6px;font:800 13px var(--fd);letter-spacing:.08em;text-transform:uppercase;color:#d6dbe2}
+.ch-sel{position:sticky;top:16px;background:rgba(24,29,37,.92);border:1px solid #ffffff14;border-top:5px solid var(--c1);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ch-sh{display:flex;align-items:center;gap:14px;min-width:0}
+.ch-sh .crest{width:64px;height:64px;flex:none}
+.ch-sh small{font-size:13px;color:#aab3bf}
+.ch-sh h2{margin:2px 0 0;font:italic 900 30px/1 var(--fd);text-transform:uppercase;color:var(--or2,#ff8a1f);text-wrap:balance}
+.ch-sel>p{margin:0;color:#d6dbe2;font-size:15px;line-height:1.5}
+.ch-sel>p.ch-note{font-size:13px;color:#aab3bf;margin-top:-6px}
+.ch-rows{display:flex;flex-direction:column;gap:10px}
+.ch-r{display:flex;align-items:center;gap:12px;padding:10px 12px;background:#ffffff08;border:1px solid #ffffff10}
+.ch-r small{display:block;font:800 11px var(--fd);letter-spacing:.14em;text-transform:uppercase;color:#aab3bf}
+.ch-r b{font:800 18px var(--fd);letter-spacing:.02em}
+.ch-r b.neg{color:#ff8a80}
+.ch-lim{display:inline-flex;gap:4px;width:30px;flex-wrap:wrap;justify-content:center}
+.ch-lim i{width:8px;height:8px;border-radius:50%;background:var(--or)}
+.ch-best{border-color:#e0a40055}
+@media(max-width:980px){.ch-wrap{grid-template-columns:minmax(0,1fr)}.ch-sel{position:static;order:-1}}
+@media(max-width:520px){.ch-grid{grid-template-columns:minmax(0,1fr)}.chm{align-self:stretch}.chm button{flex:1;padding:9px 10px}}
+/* home banner */
+.chb{display:flex;align-items:center;gap:16px;margin-bottom:18px;padding:14px 18px;background:var(--ink);color:var(--inkT,#eef1f5);border-left:5px solid var(--or);border-radius:3px;flex-wrap:wrap}
+.chb-ic{flex:none;display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:#ffffff12;color:#fff;font:800 24px var(--fd)}
+.chb-ic.g-el,.chb-ic.g-dom{color:#ffc93c}.chb-ic.g-reach{color:#4bd98a}.chb-ic.g-stay{color:#7fb0ff}
+.chb-tx{flex:1;min-width:200px;display:flex;flex-direction:column;gap:1px}
+.chb-tx small{font:800 11px var(--fd);letter-spacing:.14em;text-transform:uppercase;color:#aab3bf}
+.chb-tx b{font:italic 900 24px/1.05 var(--fd);text-transform:uppercase}
+.chb-tx span{font-size:13.5px;color:#c9d0d8}
+.chb-pp{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.chb-pp>span{display:flex;gap:5px}
+.chb-pp i{width:26px;height:8px;border-radius:2px;background:#ffffff1f}
+.chb-pp i.p{background:#aab3bf}.chb-pp i.now{background:var(--or)}
+.chb-pp small{font:800 12px var(--fd);letter-spacing:.1em;text-transform:uppercase;color:#aab3bf}
+.chb-bt{display:flex;gap:8px;flex-wrap:wrap}
+.chb .btn{background:transparent;color:#eef1f5;border-color:#3a3f47}
+.chb .btn.p{background:var(--or);border-color:var(--or);color:#fff}
+.chb.win{border-left-color:#e0a400;background:linear-gradient(90deg,#2a2210,var(--ink) 60%)}
+.chb.win .chb-ic{background:#e0a400;color:#121417}
+.chb.lose{border-left-color:#ff5a52}
+.chb.lose .chb-ic{color:#ff8a80}
+.ch-ta{width:100%;min-height:110px;font:15px/1.5 var(--fb);padding:10px;border:1px solid var(--line);border-radius:3px;resize:vertical;box-sizing:border-box}
+@media(max-width:980px){.ch-foot{position:sticky;bottom:0;z-index:5;margin-inline:-16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(#0d101400,#0d1014 30%)}.ch-foot .cs-name{flex:1;min-width:0}.ch-foot .cs-go{padding:12px 20px;font-size:24px}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1439,5 +1509,5 @@ body.mfocus .main .inner{max-width:1500px}
 <script>__ld(0.9243,0.9688,"Raising the national flags")</script>
 <script src="flags.js?v=6" charset="utf-8"></script>
 <script>__ld(0.9688,1.0000,"Setting up the bench")</script>
-<script src="ui.js?v=441" charset="utf-8"></script>
+<script src="ui.js?v=443" charset="utf-8"></script>
 <script>__ld(1.0000,1.0000,"Opening the doors")</script>
