@@ -2930,8 +2930,8 @@ function getFixtures(){
   if(P==='fin')return [{h:po.fin.h,a:po.fin.a,kind:'fin',ref:'fin',neutral:true}];
   return [];
 }
-const userFx=()=>G&&(preFx()||pokFx()||getFixtures().find(f=>f.h===G.user||f.a===G.user))||null;
-function stepLabel(){if(preOn())return preLabel();if(pokUserDue()){const P=pok();return `${NCUP[P.c].name} \u00b7 ${P.rounds[P.r].n}`;}if(G.leg==='aq')return aqLabel();if(G.leg==='ec')return ecLabel();if(G.leg==='bcl')return bclLabel();if(G.leg==='fec')return fecLabel();if(G.leg==='nl')return nlLabel(nlUser());if(G.leg==='bih')return bihLabel();if(G.leg==='kls')return klsLabel();if(G.leg==='dom2')return dom2Label();if(G.leg==='dom')return domLabel();const P=G.phase;
+const userFx=()=>G&&(preFx()||pokFx()||getFixtures().find(f=>f.h===G.user||f.a===G.user)||((userIsNL()&&G.leg!=='nl'&&nlUser()&&!userIs2())?nlFixtures(nlUser()).find(f=>f.h===G.user||f.a===G.user):null))||null;
+function stepLabel(){if(preOn())return preLabel();if(pokUserDue()){const P=pok();return `${NCUP[P.c].name} \u00b7 ${P.rounds[P.r].n}`;}if(userIsNL()&&G.leg!=='nl'&&nlUser()&&!userIs2())return nlLabel(nlUser());if(G.leg==='aq')return aqLabel();if(G.leg==='ec')return ecLabel();if(G.leg==='bcl')return bclLabel();if(G.leg==='fec')return fecLabel();if(G.leg==='nl')return nlLabel(nlUser());if(G.leg==='bih')return bihLabel();if(G.leg==='kls')return klsLabel();if(G.leg==='dom2')return dom2Label();if(G.leg==='dom')return domLabel();const P=G.phase;
   if(P==='reg')return `Round ${G.round+1}`;if(P==='pi1')return 'Play-In \u00b7 Day 1';if(P==='pi2')return 'Play-In \u00b7 Day 2';
   if(P==='qf'){const n=Math.min(...G.po.qf.filter(s=>s.win==null).map(s=>s.n).concat([4]))+1;return `Playoffs \u00b7 Game ${n}`;}
   if(P==='f4')return 'Final Four \u00b7 Semi-finals';if(P==='fin')return 'Final Four \u00b7 Championship';return 'Season complete';}
