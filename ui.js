@@ -1,5 +1,5 @@
 'use strict';
-const UI={view:'start',tab:'home',sel:null,comp:'table',tr:'market',trPos:'ALL',fixR:null,modal:null,match:null,msg:null,pick:null,mgr:'Aldin Petrovi\u0107',boxSide:0,ldr:'pts'};
+const UI={view:'start',tab:'home',sel:null,comp:'table',tr:'market',trPos:'ALL',fixR:null,modal:null,match:null,msg:null,pick:null,mgr:'',boxSide:0,ldr:'pts'};
 
 /* ===================== Small components ===================== */
 const SHAPES=['M50 4 L92 20 V66 C92 94 72 110 50 120 C28 110 8 94 8 66 V20Z','M10 8 H90 V64 C90 94 70 110 50 120 C30 110 10 94 10 64Z','M50 4 L94 26 V78 L50 120 L6 78 V26Z'];
@@ -1564,7 +1564,7 @@ function startHTML(){const slH=slStartHTML(),saved=slH?null:loadSave(),D=csData(
       <div class="cs-box cs-best"><small>Best players</small>${best}</div>
     </div>
   </div>
-  <div class="cs-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" maxlength="32" autocomplete="off"></label>${IDB_OK&&!gamePaid()&&SVL.length===1?`<span class="cs-warn">Free version: one save slot. Starting a new career replaces ${esc(SVL[0].name||'your saved career')}.</span>`:IDB_OK&&SVL.length>=slotMax()?`<span class="cs-warn">${slotFullMsg()} Delete a career first.</span>`:!IDB_OK&&saved?'<span class="cs-warn">Starting a new career replaces your saved game.</span>':''}<button class="cs-go" data-act="startgame">Start career</button></div>
+  <div class="cs-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" placeholder="Your name" maxlength="32" autocomplete="off"></label>${IDB_OK&&!gamePaid()&&SVL.length===1?`<span class="cs-warn">Free version: one save slot. Starting a new career replaces ${esc(SVL[0].name||'your saved career')}.</span>`:IDB_OK&&SVL.length>=slotMax()?`<span class="cs-warn">${slotFullMsg()} Delete a career first.</span>`:!IDB_OK&&saved?'<span class="cs-warn">Starting a new career replaces your saved game.</span>':''}<button class="cs-go" data-act="startgame">Start career</button></div>
   </div></div>`;}
 // keep the selected crest in view
 function csScroll(){const r=document.getElementById('csCrests');if(!r)return;const b=r.querySelector('.on');if(b)r.scrollLeft=b.offsetLeft-r.clientWidth/2+b.clientWidth/2;}
@@ -2322,7 +2322,7 @@ function chStartHTML(){const D=csData(),all=D.nats.flatMap(x=>x.clubs),B=chBest(
         ${c.bal!=null?`<div class="ch-r"><span class="ch-gi g-money">€</span><div><small>Starting money</small><b class="${c.bal<0?'neg':''}">${c.bal<0?'Debt of '+eur(-c.bal):c.bal===0?'No transfer budget':eur(c.bal)}</b></div></div>`:''}
         ${b?`<div class="ch-r ch-best"><span class="ch-gi g-best">★</span><div><small>Your best</small><b>Done in ${b.n} season${b.n>1?'s':''}</b></div></div>`:''}</div>
     </aside></div>
-  <div class="cs-foot ch-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" maxlength="32" autocomplete="off"></label>${IDB_OK&&!gamePaid()&&SVL.length===1?`<span class="cs-warn">Free version: one save slot. Starting a challenge replaces ${esc(SVL[0].name||'your saved career')}.</span>`:IDB_OK&&SVL.length>=slotMax()?`<span class="cs-warn">${slotFullMsg()} Delete a career first.</span>`:''}<button class="cs-go" data-act="chgo">Start challenge</button></div>
+  <div class="cs-foot ch-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" placeholder="Your name" maxlength="32" autocomplete="off"></label>${IDB_OK&&!gamePaid()&&SVL.length===1?`<span class="cs-warn">Free version: one save slot. Starting a challenge replaces ${esc(SVL[0].name||'your saved career')}.</span>`:IDB_OK&&SVL.length>=slotMax()?`<span class="cs-warn">${slotFullMsg()} Delete a career first.</span>`:''}<button class="cs-go" data-act="chgo">Start challenge</button></div>
   </div></div>`;}
 {const _s=startHTML;startHTML=function(){if(UI.csMode==='ch')return chStartHTML();return _s().replace('<div class="cs-crumb">',chModeTabs('car')+'<div class="cs-crumb">');};}
 
