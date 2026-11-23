@@ -2253,9 +2253,10 @@ function matchHTML(){const M=UI.match,m=M.m,ui=m.s[0].tid===(m.ntU!=null?m.ntU:G
   </aside>`;
   return `<section class="sb" id="sb"></section>${M.paused&&!m.done?`<div class="m-res"><div><small>Game paused</small><b>${esc(M.why||(m.crunch()?'Crunch time: call a play in the bench rail, or play on.':'Change your line-up or tactics, then play on.'))}</b></div><button data-act="pause">Continue the game</button></div>`:''}<div id="mom"></div>
   <div class="gm3"><div class="gm3-main">
-    <section class="card gm3-court"><div class="ch"><h3>Court</h3></div><div class="smap" id="court"></div></section>
+    <div class="gm3-top"><section class="card gm3-court"><div class="ch"><h3>Court</h3></div><div class="smap" id="court"></div></section>
+      <div class="gm3-side">${card('Team stats','<div class="cb" id="tst"></div>')}${card('Game flow','<div class="cb" id="flow"></div>')}</div></div>
     <div class="gm3-row"><section class="card"><div class="ch"><h3>Play-by-play</h3></div><div class="feed" id="feed"></div></section>
-      <div class="stack">${m.done?'':'<div class="mo-ac" id="acoach"></div>'}${card('Team stats','<div class="cb" id="tst"></div>')}${card('Game flow','<div class="cb" id="flow"></div>')}</div></div>
+      ${m.done?'':'<div class="stack"><div class="mo-ac" id="acoach"></div></div>'}</div>
     ${card('Box score','<div id="box"></div>',`<div class="seg">${m.s.map((s,i)=>`<button class="${UI.boxSide===i?'on':''}" data-act="boxside:${i}">${G.teams[s.tid].short}</button>`).join('')}</div>`)}
   </div>${rail}</div>`;}
 // the five on court with an energy ring around each portrait (fouls as small dots)
