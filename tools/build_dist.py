@@ -20,6 +20,8 @@ miss=[]
 for r in sorted(refs):
     if os.path.exists(G+r):shutil.copy(G+r,P+r)
     else:miss.append(r)
+# club crests: some paths are built in code ('logos/'+code+'.png'), so the whole folder goes along
+shutil.copytree(G+'logos',P+'logos')
 size=sum(os.path.getsize(os.path.join(d,f)) for d,_,fs in os.walk(OUT) for f in fs)
 n=sum(len(fs) for _,_,fs in os.walk(OUT))
 print(f'dist: {n} files, {size/1e6:.1f} MB; game scripts {len(files)-1}, sprites {len(refs)-len(miss)}; missing {miss[:8]}')
@@ -28,6 +30,8 @@ open(OUT+'_headers','w').write("""/play/*.js
   Cache-Control: public, max-age=31536000, immutable
 /play/sprites/*
   Cache-Control: public, max-age=31536000, immutable
+/play/logos/*
+  Cache-Control: public, max-age=2592000
 /assets/*
   Cache-Control: public, max-age=604800
 /*
