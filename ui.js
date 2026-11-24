@@ -1735,7 +1735,7 @@ const ACT={
   ntquit(){ntResign();UI.ntSub='m';toast('You resigned as national team coach');render();},
   ntpick(id){const e=ntPick(+id);if(e)toast(e);render();},
   ntauto(){ntAuto();render();},
-  ntlive(v){const m=ntLiveStart();if(!m){toast('No game to play');return;}UI.boxSide=m.s[0].tid===m.ntU?0:1;if(+v)m.manual=UI.boxSide;else m.run();UI.match={m,speed:[1,2,4].includes(+BMSET.speed)?+BMSET.speed:1,paused:false,timer:null};UI.view='match';render();window.scrollTo(0,0);if(+v)startTimer();},
+  ntlive(v){{const S=ntShortGame();if(S){const r=ntShortPlay(S);render();toast(`Simulated: ${ntName(r[0])} ${r[2]}–${r[3]} ${ntName(r[1])} (not enough players in the data)`);return;}}const m=ntLiveStart();if(!m){toast('No game to play');return;}UI.boxSide=m.s[0].tid===m.ntU?0:1;if(+v)m.manual=UI.boxSide;else m.run();UI.match={m,speed:[1,2,4].includes(+BMSET.speed)?+BMSET.speed:1,paused:false,timer:null};UI.view='match';render();window.scrollTo(0,0);if(+v)startTimer();},
   ntday(){ntPlayDay(false);toast(ntPend()?'Game 1 played':'Window complete');render();},
   ntdayall(){const P=ntPend(),t=P&&P.tour,cm=P&&P.camp;ntPlayDay(true);toast(cm?'Warm-up games played: time for the cuts':t?'Tournament complete':'Window complete');UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
   ntall(){UI.ntAll=!UI.ntAll;render();},

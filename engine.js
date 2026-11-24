@@ -1844,7 +1844,7 @@ class Match{
     if(made){
       B.fgm++;if(three)B.tpm++;B.pts+=val;o.pts+=val;
       let txt=three?pick([`${N} buries the three`,`${N} hits from downtown`,`Corner three by ${N}`,`${N} pulls up from deep \u2013 good`]):pick(SHOT2)(N);
-      if(Math.random()<(three?.8:.55)){const mates=o.on.filter(p=>p!==sh);const as=wpick(mates,p=>p.a.pas**2);o.box[as.id].ast++;txt+=` (assist ${sname(as)})`;}
+      if(Math.random()<(three?.8:.55)){const mates=o.on.filter(p=>p!==sh);const as=mates.length?wpick(mates,p=>p.a.pas**2):null;if(as){o.box[as.id].ast++;txt+=` (assist ${sname(as)})`;}}
       if(fouled){B.fta++;if(Math.random()<ftp(sh)){B.ftm++;B.pts++;o.pts++;txt+=' \u2013 and one!';}else txt+=' \u2013 misses the and-one';}
       this.add(oi,'score',txt,val);return false;
     }
@@ -5143,6 +5143,13 @@ function ntLiveStart(){const w=ntPend();if(!w)return null;const i=w.dd||0,g=ntUs
   const C=G.nt.cyc,c=G.nt.job.c,key=ntKey(w),opp=g[0]===c?g[1]:g[0],sq={[c]:w.camp?ntCampTop():ntUserSquad(c,ntWinF(w),key),[opp]:w.tour?ntTourSq(opp):ntPool(opp,ntWinF(w))};if(!ntWinF(w))for(const p of sq[c])p.energy=Math.max(p.energy==null?100:p.energy,92);
   if(G.nt.job.camp==='rec')for(const p of sq[c])p.energy=Math.min(100,(p.energy==null?100:p.energy)+12);const H=ntTempTeam(g[0],sq[g[0]],g[0]===c),A=ntTempTeam(g[1],sq[g[1]],g[1]===c),U=g[0]===c?H:A;
   const m=new Match(H.id,A.id,{kind:'pre',log:true,ntU:U.id,neutral:!!w.tour});m.ntInfo={day:i,h:g[0],a:g[1],lbl:w.camp?`${w.name} · ${w.rl[i]}`:w.tour?`${w.name} · ${ntRl(w,i,c)}`:`${ntCompLbl(C,c)} · ${w.lbl} · game ${i+1}`};return m;}
+function ntShortGame(){const w=ntPend();if(!w||w.camp)return null;const i=w.dd||0,g=ntUserPair(w,i);if(!g)return null;
+  const c=G.nt.job.c,opp=g[0]===c?g[1]:g[0],win=ntWinF(w),sq={[c]:ntUserSquad(c,win,ntKey(w)),[opp]:w.tour?ntTourSq(opp):ntPool(opp,win)};
+  const short=g.filter(x=>sq[x].length<5);return short.length?{w,i,g,sq,short}:null;}
+function ntShortPlay(S){const {w,i,g,sq}=S,c=G.nt.job.c,r=ntGame(g[0],g[1],{[g[0]]:ntStr(g[0],sq[g[0]]),[g[1]]:ntStr(g[1],sq[g[1]])},!!w.tour);
+  w.ovr=w.ovr||{};w.ovr[i]=r;const who=S.short.map(ntName).join(' and ');
+  msg(`${ntName(c)} Basketball Federation`,`Game simulated: ${ntName(g[0])} ${r[2]}–${r[3]} ${ntName(g[1])}`,`${who} ${S.short.length>1?'do':'does'} not have five players in the game's data for this game, so it could not be played as a match. The result was worked out from the strength of both squads.`,'nt');
+  if(w.tour){ntTourPlay(1);if(!G.nt.tour)ntAfterTour();}else{ntWindow(w,false,1);if(w.done&&w.day<0)ntSumNext();}save();return r;}
 function ntLiveDone(m){const w=ntPend(),I=m.ntInfo;ntTempClear();if(!w||!I)return;w.ovr=w.ovr||{};w.ovr[I.day]=[I.h,I.a,m.s[0].pts,m.s[1].pts];
   const c=G.nt.job.c,me=m.s[I.h===c?0:1],top=me.ord.filter(p=>me.box[p.id]&&me.box[p.id].sec>0).sort((x,y)=>me.box[y.id].pts-me.box[x.id].pts).slice(0,3).map(p=>`${pname(p)} ${me.box[p.id].pts} pts`);
   w.box=w.box||{};w.box[I.day]=top;if(w.camp){const X=G.nt.camp;X.live=X.live||{};const L=X.live[I.day]={};for(const p of me.ord){const B=me.box[p.id];if(B&&B.sec>0)L[p.id]=Math.round(clamp(5+pir(B)/4,3,10)*10)/10;}ntCampPlay(1);save();return top;}if(w.tour){ntTourPlay(1);if(!G.nt.tour)ntAfterTour();}else{ntWindow(w,false,1);if(w.done&&w.day<0)ntSumNext();}save();return top;}
