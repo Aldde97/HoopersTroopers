@@ -1432,6 +1432,33 @@ body.mfocus .main .inner{max-width:1500px}
 .cw-i{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;opacity:1!important}
 .cw-i svg{width:19px;height:19px;fill:currentColor}
 .cw-t.ok .cw-i{background:rgba(30,155,80,.12);color:var(--g)}.cw-t.no .cw-i{background:rgba(214,52,44,.1);color:var(--r)}
+
+/* college recruiting board */
+.rc-head{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.rc-k{display:flex;flex-direction:column;gap:5px;min-width:0}.rc-k b{font-size:18px}.rc-k small{font-size:12px;color:var(--mut)}.rc-nx{font-size:13.5px}
+.rc-dots{display:flex;flex-wrap:wrap;gap:4px}.rc-dots i{width:11px;height:11px;border-radius:50%;border:2px solid var(--or);box-sizing:border-box}.rc-dots i.f{background:var(--or)}
+.rc-dots.g i{border-color:var(--g)}.rc-dots.g i.f{background:var(--g)}.rc-dots.o i{border-color:#2b6cb0}.rc-dots.o i.f{background:#2b6cb0}
+.rc-sec{flex-direction:column;align-items:stretch;gap:8px}.rc-none{margin:0;font-size:13.5px}
+.rc-cls{display:flex;flex-wrap:wrap;gap:8px}.rc-c{display:flex;gap:8px;align-items:center;padding:6px 10px 6px 6px;border-radius:10px;background:var(--soft);border:1px solid var(--line)}
+.rc-c.sg{border-color:var(--g)}.rc-c b{display:block;font-size:13px}.rc-c span:not(.rc-av):not(.rc-st){display:block;font-size:11.5px;color:var(--mut)}
+.rc-f{display:flex;flex-wrap:wrap;gap:10px;padding:10px 20px;border-bottom:1px solid var(--line)}
+.rc-av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#1d2530;color:#fff;font-size:11px;font-weight:700;letter-spacing:.04em}
+.rc-st{display:inline-flex;gap:2px;margin-left:6px;vertical-align:1px}.rc-st i{width:9px;height:9px;background:#e8a317;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}.rc-st i.o{background:var(--line)}
+.rc-list{overflow-x:auto}
+.rc-row{display:grid;grid-template-columns:34px minmax(190px,1.7fr) 90px minmax(130px,1fr) 118px minmax(210px,auto);gap:12px;align-items:center;padding:9px 20px;border-bottom:1px solid var(--line);min-width:900px}
+.rc-row.mine{background:rgba(30,155,80,.06)}.rc-hd{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);padding-block:8px}
+.rc-rk{font-weight:700;color:var(--mut);text-align:right}.rc-n{display:flex;gap:10px;align-items:center;min-width:0}.rc-n b{font-size:14.5px}
+.rc-m{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mut);margin-top:2px}
+.rc-pri{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:rgba(255,107,0,.12);color:var(--or)}.rc-pri svg{width:12px;height:12px;fill:currentColor}.rc-pri.q{background:var(--soft);color:var(--mut);font-size:11px;font-weight:700}
+.rc-e{font-weight:700;font-size:14px}.rc-e small{display:block;font-weight:500;font-size:11.5px;color:var(--mut)}
+.rc-i{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rc-bar{flex:1;min-width:70px;height:8px;border-radius:4px;background:var(--soft);overflow:hidden}.rc-bar i{display:block;height:100%;background:var(--or)}.rc-bar i.lead{background:var(--g)}
+.rc-i b{font-size:13px;min-width:20px}.rc-of{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--g);font-weight:700;flex-basis:100%}
+.rc-ld{display:flex;gap:6px}.rc-ld span{display:flex;flex-direction:column;align-items:center;gap:1px;opacity:.85}.rc-ld span.me{opacity:1}.rc-ld small{font-size:10.5px;color:var(--mut)}.rc-ld span.me small{color:var(--g);font-weight:700}
+.rc-x{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center}.rc-cm{display:inline-flex;align-items:center;gap:4px}.rc-cm .crest{width:16px;height:16px}
+.rc-nx b{white-space:nowrap}
+@media (max-width:760px){.rc-head,.rc-f{padding-inline:14px}.rc-head{grid-template-columns:1fr 1fr}
+  .rc-row{min-width:0;padding-inline:14px;grid-template-columns:26px minmax(0,1fr) auto;row-gap:8px}.rc-hd{display:none}
+  .rc-i{grid-column:2/4}.rc-ld{grid-column:2/3}.rc-x{grid-column:2/4;justify-content:flex-start}.rc-e{text-align:right}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1486,7 +1513,7 @@ body.mfocus .main .inner{max-width:1500px}
 <div id="app"></div>
 <div id="toast" role="status" hidden></div>
 <script>__ld(0,0.0609,"Starting the match engine")</script>
-<script src="engine.js?v=448" charset="utf-8"></script>
+<script src="engine.js?v=449" charset="utf-8"></script>
 <script>__ld(0.0609,0.0610,"Hanging the club crests")</script>
 <script src="logos.js?v=323" charset="utf-8"></script>
 <script>__ld(0.0610,0.0618,"Taking the team photos")</script>
@@ -1526,5 +1553,5 @@ body.mfocus .main .inner{max-width:1500px}
 <script>__ld(0.9243,0.9688,"Raising the national flags")</script>
 <script src="flags.js?v=6" charset="utf-8"></script>
 <script>__ld(0.9688,1.0000,"Setting up the bench")</script>
-<script src="ui.js?v=451" charset="utf-8"></script>
+<script src="ui.js?v=452" charset="utf-8"></script>
 <script>__ld(1.0000,1.0000,"Opening the doors")</script>

@@ -984,8 +984,10 @@ function ncaaOffseason(){const L=G.nl&&G.nl.NCAA;if(!L)return;const U=G.user,T=G
   const pool=()=>G.fa.map(i=>G.players[i]).filter(p=>p&&p.portal===G.season).sort((a,b)=>b.o-a.o);
   for(const t of T.filter(t=>t.id!==U).sort((a,b)=>b.rep-a.rep)){const lv=teamLevel(t);let k=0;while(t.order.length<11&&k++<1){const P=pool().filter(p=>p.o<=lv+3);if(!P.length)break;const p=P[Math.min(P.length-1,rnd(0,2))];G.fa=G.fa.filter(i=>i!==p.id);delete p.portal;p.sal=ncNil(p);join(p,t);markNew(p,t);if(p.o>=72)news(`${pname(p)} transfers to ${t.name}`,`${pname(p)} (OVR ${p.o}) leaves ${p.last||'his school'} through the transfer portal and joins ${t.name}.`);}}
   const stars=T.slice().sort((a,b)=>b.rep**4*Math.random()-a.rep**4*Math.random()).slice(0,25);
-  for(const t of T){const want=t.id===U?12:13+(Math.random()<.4?1:0);let n=0;
-    if(stars.includes(t)){mine.rec.push(...(t.id===U?nilRec(ncRecruit(t,rnd(66,72),rnd(86,95)),mine):[]));if(t.id!==U)ncRecruit(t,rnd(66,72),rnd(86,95));n++;}
+  const RCJ=rcSpring(mine);   // the recruiting board's class signs first; without a board the old automatic classes are used
+  for(const t of T){if(t.id===U&&RCJ.user){while(t.order.length<10){const w=ncRecruit(t,rnd(44,50),rnd(54,64));w.walk=1;mine.rec.push(w);}t.order=autoOrder(t.order);continue;}
+    const want=t.id===U?12:13+(Math.random()<.4?1:0);let n=RCJ.n[t.id]||0;
+    if(!RCJ.board&&stars.includes(t)){mine.rec.push(...(t.id===U?nilRec(ncRecruit(t,rnd(66,72),rnd(86,95)),mine):[]));if(t.id!==U)ncRecruit(t,rnd(66,72),rnd(86,95));n++;}
     while(t.order.length<want||n<2){if(t.order.length>=15)break;const o=t.id===U&&(mine.lost||[]).length>=2?rnd(47,52):clamp(Math.round(54+(t.rep-60)*.3+rf(-3,4)),48,68),p=ncRecruit(t,o,o+rnd(12,24));if(t.id===U){mine.rec.push(...nilRec(p,mine));if((mine.lost||[]).length>=7)break;}n++;}
     t.order=autoOrder(t.order);}
   const ld=pool().slice(0,5);if(ld.length)news('Transfer portal',`Still in the portal: ${ld.map(p=>`${pname(p)} (OVR ${p.o}, from ${p.last||'?'})`).join(', ')}.`);
@@ -3013,7 +3015,7 @@ function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=
   else if(L.phase==='done')d=263;
   if(d!=null)G.day=Math.max(d0+1,d);}
 
-function simStep(um){if(G&&!G.sacked&&G.teams[G.user]&&!seasonOver()&&G.teams[G.user].order.length<5&&typeof fillRoster==='function')fillRoster();const d0=G?G.day:0;const r=simStep0(um);try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){if(G&&!G.sacked&&G.teams[G.user]&&!seasonOver()&&G.teams[G.user].order.length<5&&typeof fillRoster==='function')fillRoster();const d0=G?G.day:0;const r=simStep0(um);try{rcTick();}catch(e){console.error('recruiting',e);}try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -7399,3 +7401,99 @@ function feedWire(subj){if(!G||G.demo||G.ndg||!G.teams[G.user])return;const U=G.
   const T=G.teams.filter(t=>t.dom===U.dom&&t.dom!=='GONE'),hit=T.find(t=>t.name&&subj.includes(t.name));if(!hit)return;
   G.fdWireN=G.fdWireDay===G.day?(G.fdWireN||0)+1:1;G.fdWireDay=G.day;feedPush(FEED_WIRE,subj,{tid:hit.id,tone:0});}
 function feedUnread(){const s=G.feedSeen||0;return (G.feed||[]).filter(p=>p.id>s).length;}
+
+/* ===================== College recruiting ===================== */
+// The high school class for next season: a ranked board of prospects that the user and every other program chase during the season.
+// The user has a few staff contacts per week, five campus visits and a limited number of scholarships; prospects commit when one
+// school leads clearly, can decommit until they sign (early signing day in November, the rest in the spring), and join as freshmen.
+const RC_ST={CALB:'CA',CLEM:'SC',DUKE:'NC',FSU:'FL',LOU:'KY',NCSU:'NC',UNC:'NC',ND:'IN',PITT:'PA',SMU:'TX',STAN:'CA',SYR:'NY',WAKE:'NC',BC:'MA',MIAH:'FL',GT:'GA',UVA:'VA',VT:'VA',BTLR:'IN',CREI:'NE',DEP:'IL',GTWN:'DC',MARQ:'WI',PROV:'RI',HALL:'NJ',SJU:'NY',CONN:'CT',XAV:'OH',VILL:'PA',ILLI:'IL',IU:'IN',MD:'MD',MICH:'MI',MSU:'MI',MINN:'MN',NEB:'NE',NU:'IL',ORE:'OR',PSU:'PA',UCLA:'CA',USC:'CA',WASH:'WA',WIS:'WI',OSU:'OH',IOWA:'IA',PUR:'IN',RUTG:'NJ',ASU:'AZ',BYU:'UT',BAYL:'TX',CIN:'OH',COLO:'CO',UHOU:'TX',KU:'KS',OKST:'OK',TCU:'TX',TTU:'TX',UCF:'FL',UTAH:'UT',WVU:'WV',ARIZ:'AZ',KSU:'KS',ISU:'IA',FLA:'FL',UGA:'GA',MISS:'MS',MSST:'MS',TEX:'TX',VAN:'TN',ALA:'AL',OU:'OK',ARKA:'AR',AUB:'AL',UK:'KY',LSU:'LA',MIZ:'MO',SC:'SC',TENN:'TN',TAMU:'TX'};
+const RC_REGS={West:'CA OR WA AZ UT CO NV',South:'TX OK LA AR MS AL TN GA FL SC NC KY VA WV',Midwest:'IL IN OH MI WI MN IA NE KS MO',Northeast:'NY NJ PA MA CT RI MD DC DE'};
+const rcReg=st=>{for(const k in RC_REGS)if(st&&RC_REGS[k].split(' ').includes(st))return k;return '';};
+// where top high school players come from (rough share of national top-150 classes)
+const RC_HOME=[['CA',10],['TX',10],['FL',7],['GA',7],['NY',5],['NC',5],['IL',5],['MD',4],['VA',4],['NJ',4],['OH',4],['PA',3],['IN',3],['MI',3],['TN',3],['DC',2],['AL',2],['LA',2],['MS',2],['WA',2],['AZ',2],['MN',2],['KY',2],['SC',2],['MO',2],['NV',1],['WI',1],['OK',1],['KS',1],['MA',1],['CT',1],['CO',1],['UT',1],['OR',1],['AR',1]];
+// first and last names for American high school prospects (a wider pool than the generic generator, so a class of 140 has no twins)
+const RC_FN='Jaylen Jalen Cameron Isaiah Jeremiah Caleb Elijah Malik Darius Xavier Josiah Amari Jordan Tyrese Kobe Bryce Dylan Mason Jackson Cooper Carter Ethan Owen Gavin Logan Ty Trey Jace Zion Khalil Jamal Marcus Andre Terrence Devin Brandon Derrick Kendall Quentin Rashad Damian Micah Nolan Brady Colin Grant Reed Silas Kai Omari Tariq Dante Cedric Jaden Ayden Rylan Keon Isaac Dominic Myles Julian Aaron'.split(' ');
+const RC_LN='Johnson Williams Brown Jones Davis Miller Wilson Moore Taylor Anderson Thomas Jackson White Harris Martin Thompson Robinson Clark Lewis Walker Hall Allen Young King Wright Scott Green Baker Adams Nelson Mitchell Campbell Roberts Carter Phillips Evans Turner Parker Collins Edwards Stewart Morris Murphy Cook Rogers Morgan Cooper Peterson Bailey Reed Kelly Howard Brooks Gray Watson Russell Griffin Hayes Myers Ford Hamilton Graham Sullivan Wallace West Cole Jenkins Perry Long Patterson Hughes Washington Butler Simmons Foster Bennett Coleman Henderson Holmes Barnes Dawson Fields Harper Gaines Pryor Mack Battle Banks Freeman Lyons Vaughn'.split(' ');
+const RC_FAMOUS=['Isaiah Thomas','Andre Miller','Marcus Morris','Jordan Clark','Grant Hill','Kobe Bryant','Damian Jones','Derrick White','Caleb Martin','Cameron Johnson','Isaiah Jackson','Jalen Williams','Jaylen Brown','Myles Turner','Kobe Brown','Isaiah Collins','Aaron Harris'];
+const RC_PRI={pt:'Playing time',win:'Winning',nil:'NIL money',home:'Close to home',pro:'NBA pipeline'};
+const RC_PN={PG:'point guard',SG:'shooting guard',SF:'small forward',PF:'power forward',C:'center'};
+const RC_EARLY=42,RC_CALLS=5,RC_VIS=5;   // early signing day: 12 November (day 42 after 1 October)
+const rcOn=()=>!!(G&&G.teams&&G.teams[G.user]&&isCol(G.teams[G.user])&&G.nl&&G.nl.NCAA);
+const rcName=r=>`${r.f} ${r.l}`;
+const rcState=t=>t&&RC_ST[t.short]||'';
+const rcLead=r=>Object.keys(r.i).map(id=>({id:+id,v:r.i[id]})).sort((a,b)=>b.v-a.v);
+const rcHome=r=>r.st||({CAN:'Canada',AUS:'Australia',FRA:'France',NGR:'Nigeria',SRB:'Serbia',GER:'Germany',LTU:'Lithuania',ESP:'Spain',SEN:'Senegal',GBR:'Great Britain',CMR:'Cameroon',BAH:'Bahamas'})[r.nat]||r.nat;
+function rcW(L){let s=0;for(const x of L)s+=x[1];let k=Math.random()*s;for(const x of L){k-=x[1];if(k<=0)return x[0];}return L[0][0];}
+// open scholarships next season: the roster limit minus players with eligibility left after this season
+function rcSpots(){return Math.max(1,NC_ROST-roster(G.user).filter(p=>!p.loan&&p.yrs>1).length);}
+const rcCommits=R=>R.board.filter(r=>r.c===G.user&&!r.gone).length;
+const rcOffers=R=>R.board.filter(r=>r.off[G.user]&&!r.gone&&!(r.sg&&r.c!==G.user)).length;
+const rcMaxOff=()=>rcSpots()+5;
+function rcFit(t,r){if(!t)return 0;const st=rcState(t),pres=((t.rep||60)-60)/3,home=r.st&&st===r.st?10:r.st&&rcReg(st)===rcReg(r.st)?4:0,
+  win=((t.w||0)+1)/((t.w||0)+(t.l||0)+2)*20-10,ret=roster(t.id).filter(p=>p.pos===r.pos&&p.yrs>1&&p.o>=r.o-2).length,pt=ret===0?8:ret===1?3:-4,
+  nil=pres*.6+(t.id===G.user&&G.nil?((G.nil.boost||50)-50)/8:0),pro=pres*.5+((t.rep||0)>=85?4:0),v={pt,win,nil,home,pro};
+  return pres*.8+home*.6+win*.4+pt*.6+nil*.4+v[r.pri]*1.2;}
+function rcBoard(){const T=G.teams.filter(isCol),B=[],names=new Set(Object.values(G.players).map(p=>p.f+' '+p.l));let n=0;
+  for(const [s,k,o1,o2,p1,p2] of [[5,12,66,72,86,94],[4,33,60,67,78,87],[3,65,54,61,70,80],[2,30,48,55,60,71]]){const L=[];
+    for(let i=0;i<k;i++){const intl=Math.random()<.08,nat=intl?pick(['CAN','AUS','FRA','NGR','SRB','GER','LTU','ESP','SEN','GBR','CMR','BAH']):'USA',pos=pick(POS);let q;
+      for(let j=0;j<60;j++){q=genPlayer(55,pos,nat,18);delete G.players[q.id];if(nat==='USA'){q.f=pick(RC_FN);q.l=pick(RC_LN);}const nm=q.f+' '+q.l;if(!window.PHOTOS[nm]&&!names.has(nm)&&!RC_FAMOUS.includes(nm))break;}
+      names.add(q.f+' '+q.l);const o=rnd(o1,o2);
+      L.push({id:++n,f:q.f,l:q.l,pos,nat,ht:q.ht,st:intl?'':rcW(RC_HOME),o,pot:Math.max(o+6,rnd(p1,p2)),stars:s,pri:pick(Object.keys(RC_PRI)),e:rnd(-3,3),ep:rnd(-4,4),i:{},off:{},c:null,sg:0,k:0});}
+    L.sort((a,b)=>(b.pot*.7+b.o*.3)-(a.pot*.7+a.o*.3));B.push(...L);}
+  B.forEach((r,i)=>r.rank=i+1);
+  const by=T.slice().sort((a,b)=>b.rep-a.rep);
+  for(const r of B){const pool=(r.stars===5?by.slice(0,16):r.stars===4?by.filter(t=>t.rep>=62).slice(0,40):r.stars===3?by.filter(t=>t.rep>=48&&t.rep<=84):by.filter(t=>t.rep<=72)).filter(t=>t.id!==G.user);
+    const k=r.stars===5?rnd(4,6):r.stars===4?rnd(3,5):r.stars===3?rnd(2,4):rnd(1,2);
+    for(const {t} of pool.map(t=>({t,w:Math.random()*(rcState(t)===r.st?3:rcReg(rcState(t))===rcReg(r.st)?1.6:1)})).sort((a,b)=>b.w-a.w).slice(0,k)){r.i[t.id]=rnd(4,22);r.off[t.id]=1;}
+    r.i[G.user]=clamp(Math.round(rcFit(G.teams[G.user],r)*.6+rnd(0,8)),0,30);}
+  return B;}
+function rcEnsure(){if(!rcOn())return null;const U=G.user;
+  if(G.rc&&G.rc.s===G.season&&!G.rc.done){if(G.rc.tid!==U){G.rc.tid=U;for(const r of G.rc.board)if(r.i[U]==null)r.i[U]=clamp(Math.round(rcFit(G.teams[U],r)*.6+rnd(0,8)),0,30);}return G.rc;}
+  if(G.rc&&G.rc.s===G.season&&G.rc.done)return null;
+  G.rc={s:G.season,tid:U,wk:Math.floor(G.day/7),calls:RC_CALLS,vis:RC_VIS,called:{},early:G.day>=RC_EARLY?1:0,board:rcBoard()};
+  return G.rc;}
+function rcTick(){if(!rcOn()||seasonOver()||preOn())return;const R=rcEnsure();if(!R)return;const wk=Math.floor(G.day/7);if(wk<=R.wk)return;
+  const n=Math.min(4,wk-R.wk);R.wk=wk;for(let i=0;i<n;i++)rcWeek(R);R.calls=RC_CALLS;R.called={};
+  if(!R.early&&G.day>=RC_EARLY){R.early=1;rcEarly(R);}}
+function rcWeek(R){const U=G.user,me=G.teams[U],ev=[];
+  for(const r of R.board){if(r.sg||r.gone)continue;
+    for(const id of Object.keys(r.i)){const tid=+id,t=G.teams[tid];if(!t)continue;
+      if(tid===U){if(r.off[U])r.i[U]+=.8+rcFit(me,r)*.12+rf(0,1.5);else r.i[U]-=.6;}
+      else if(r.off[tid])r.i[tid]+=(r.c!=null&&r.c!==tid?.45:1)*(1+rcFit(t,r)*.15+rf(0,2.2));
+      r.i[id]=clamp(r.i[id],0,r.off[id]?100:45);}
+    const L=rcLead(r);
+    if(r.c==null){const minW=r.stars===5?5:r.stars===4?3:2,a=L[0],b=L[1];
+      if(R.wk>=minW&&a&&r.off[a.id]&&a.v>=60&&a.v-(b?b.v:0)>=8&&Math.random()<[0,0,.4,.3,.2,.13][r.stars]){
+        if(a.id===U&&rcCommits(R)>=rcSpots()){r.i[U]-=6;continue;}   // he wants to come, but we have no scholarship left
+        r.c=a.id;r.cw=R.wk;ev.push(['c',r]);}}
+    else{const cv=r.i[r.c]||0,b=L.find(x=>x.id!==r.c);
+      if(b&&r.off[b.id]&&b.v>cv+10&&Math.random()<.3){const was=r.c;r.c=null;r.dc=was;r.i[was]=Math.max(0,cv-8);ev.push(['d',r,was]);}}}
+  for(const [k,r,was] of ev){const nm=rcName(r),S='★'.repeat(r.stars),t=r.c!=null?G.teams[r.c]:null,mine=r.off[U]||(r.i[U]||0)>=30;
+    if(k==='c'&&r.c===U)msg('Assistant Coach',`${nm} commits to us!`,`${S} ${RC_PN[r.pos]} ${nm} (No. ${r.rank} nationally, from ${rcHome(r)}) has committed to ${me.name}. He has not signed yet: until signing day other schools can still try to flip him, so keep in touch.`,'staff');
+    else if(k==='c'&&mine)msg('Assistant Coach',`${nm} commits to ${t.name}`,`${S} ${nm} (No. ${r.rank}) chose ${t.name}. Until he signs we can still try to flip him, but it gets harder every week.`,'staff');
+    else if(k==='d'&&was===U)msg('Assistant Coach',`${nm} decommits`,`${S} ${nm} has reopened his recruitment. ${G.teams[rcLead(r)[0].id].name} have been pushing hard. He is back on the board.`,'staff');
+    else if(k==='d'&&mine)msg('Assistant Coach',`${nm} is back on the market`,`${S} ${nm} has decommitted from ${G.teams[was].name}. This is our chance.`,'staff');
+    if(r.stars===5&&k==='c')news(`${nm} commits to ${t.name}`,`Five-star ${RC_PN[r.pos]} ${nm}, the No. ${r.rank} prospect in the class, commits to ${t.name}.`);}}
+function rcEarly(R){const U=G.user,mine=[],wait=[];
+  for(const r of R.board){if(r.c==null||r.sg||r.gone)continue;if(Math.random()<.85){r.sg=1;if(r.c===U)mine.push(r);}else if(r.c===U)wait.push(r);}
+  const L=x=>x.map(r=>`${rcName(r)} (${'★'.repeat(r.stars)}, ${r.pos})`).join(', ');
+  msg('Assistant Coach','Early signing day',mine.length?`Signed letters of intent: ${L(mine)}. They are ours and join next season.${wait.length?` ${L(wait)} will wait for the spring signing period.`:''}`:`Nobody signed with us in the early period.${wait.length?` ${L(wait)} will wait for the spring.`:' Offer scholarships and get prospects on campus: the spring signing period is at the end of the season.'}`,'staff');}
+// actions on the board (return a short text for a toast)
+function rcGet(id){const R=rcEnsure();return R?[R,R.board.find(r=>r.id===+id)]:[null,null];}
+function rcOffer(id){const [R,r]=rcGet(id),U=G.user;if(!r||r.gone)return 'He is no longer on the board.';if(r.sg)return r.c===U?`${rcName(r)} has already signed with us.`:`${rcName(r)} has signed with ${G.teams[r.c].name}.`;
+  if(r.off[U]){delete r.off[U];if(r.c===U){r.c=null;r.i[U]=10;return `You pulled the scholarship. ${rcName(r)} is no longer committed to us.`;}r.i[U]=Math.min(r.i[U]||0,40);return `Offer to ${rcName(r)} withdrawn.`;}
+  if(rcOffers(R)>=rcMaxOff())return `You already have ${rcOffers(R)} offers out for ${rcSpots()} open scholarships. Pull an offer first.`;
+  r.off[U]=1;r.i[U]=clamp((r.i[U]||0)+rf(3,7),0,100);return `Scholarship offered to ${rcName(r)}. ${r.i[U]>=40?'He is excited.':'It is a start: keep in touch and get him on campus.'}`;}
+function rcCall(id){const [R,r]=rcGet(id),U=G.user;if(!r||r.gone||r.sg)return 'He is no longer recruitable.';if(R.calls<=0)return 'Your staff has no contacts left this week.';if(R.called[r.id])return 'Your staff already talked to him this week.';
+  R.calls--;R.called[r.id]=1;const k0=r.k;r.k=Math.min(2,r.k+1);const g=rf(2.5,5)+rcFit(G.teams[U],r)*.1;r.i[U]=clamp((r.i[U]||0)+g,0,r.off[U]?100:45);
+  return `${rcName(r)} took the call.${k0===0?` What matters most to him: ${RC_PRI[r.pri].toLowerCase()}.`:''}${!r.off[U]&&r.i[U]>=44?' Without a scholarship offer he will not get more interested.':''}`;}
+function rcVisit(id){const [R,r]=rcGet(id),U=G.user;if(!r||r.gone||r.sg)return 'He is no longer recruitable.';if(!r.off[U])return 'Prospects only take official visits to schools that offered them.';if(r.vis)return `${rcName(r)} has already visited.`;if(R.vis<=0)return 'You have used all campus visits for this class.';
+  R.vis--;r.vis=1;r.k=2;const me=G.teams[U],hot=(me.form||[]).slice(-1)[0],g=8+rcFit(me,r)*.35+(hot==='W'?4:0)+rf(0,4);r.i[U]=clamp((r.i[U]||0)+g,0,100);
+  return `${rcName(r)} visited campus${me.arena?` and watched a game at ${me.arena}`:''}. ${g>=16?'He loved it.':g>=10?'It went well.':'He was polite but not blown away.'}`;}
+// spring signing period (in the summer step): commitments sign, the best uncommitted prospects pick their leading offer, then all join
+function rcMake(r,t){const p=genPlayer(r.o,r.pos,r.nat,18);p.f=r.f;p.l=r.l;if(r.ht)p.ht=r.ht;p.pot=clamp(r.pot,p.o,96);p.yrs=4;p.sal=ncNilR(p);p.rec=G.season;p.hs=rcHome(r);p.rcS=r.stars;p.rcR=r.rank;join(p,t);return p;}
+function rcSpring(mine){const R=G.rc,U=G.user,res={user:false,board:false,n:{}};if(!R||R.done||R.s!==G.season-1)return res;R.done=1;res.board=true;res.user=R.tid===U&&isCol(G.teams[U]);
+  for(const r of R.board){if(r.gone)continue;let to=r.c;if(to==null){const a=rcLead(r).filter(x=>r.off[x.id])[0];if(r.stars>=3&&a&&a.v>=35)to=a.id;}
+    const t=to!=null?G.teams[to]:null;if(!t||!isCol(t)||t.order.length>=NC_ROST)continue;
+    const p=rcMake(r,t);res.n[to]=(res.n[to]||0)+1;if(to===U&&res.user)mine.rec.push(p);}
+  return res;}
