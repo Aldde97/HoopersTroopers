@@ -275,7 +275,7 @@ function agReleased(p){const a=agentOf(p);if(!a)return;const i=AGENTS.indexOf(a)
 // can be unsettled (ego more than professional). The user answers in public: "not for sale", "every player has a price", or no comment.
 const RUM_H=[(p,t)=>`${t.name} eye ${pname(p)}`,(p,t)=>`${pname(p)} on ${t.name}'s shortlist`,(p,t)=>`${t.name} prepare an offer for ${pname(p)}`,(p,t)=>`${pname(p)} wanted by ${t.name}`,(p,t)=>`${t.name} scouts watch ${pname(p)} again`,(p,t)=>`${pname(p)} to ${t.name}? Talks reported`];
 const rumOpen=()=>(G.rum||[]).filter(r=>r.st==='open'&&G.players[r.pid]&&G.players[r.pid].tid===G.user);
-function rumourTick(){if(!G||G.sacked||G.bankrupt||preOn()||seasonOver()||userNBA()||!G.teams[G.user]||G.phase!=='reg'&&!userNotEL())return;G.rum=G.rum||[];const me=G.teams[G.user];
+function rumourTick(){if(!G||G.sacked||G.bankrupt||preOn()||seasonOver()||userNBA()||isCol(G.teams[G.user])||!G.teams[G.user]||G.phase!=='reg'&&!userNotEL())return;G.rum=G.rum||[];const me=G.teams[G.user];
   // resolve links whose time has come
   for(const r of G.rum){if(r.st==='done'||G.day<r.due)continue;const p=G.players[r.pid],t=G.teams[r.tid];
     if(!p||!t||p.tid!==G.user){r.st='done';r.out='He has left';continue;}
@@ -319,7 +319,7 @@ const treqOpen=p=>!!(p&&p.treq&&p.treq.st==='open'&&p.tid===G.user);
 const treqList=()=>roster(G.user).filter(treqOpen);
 const TR_WHY={unhappy:'He is unhappy at the club',minutes:'He wants more minutes',ambition:'He feels he has outgrown the club',bid:'A bigger club wanted him and you said no',promise:'He feels you broke your promise'};
 function treqStar(p){return roster(G.user).slice().sort((a,b)=>b.o-a.o).indexOf(p)<3||(G.captain===p.id);}
-function treqMake(p,why,tid){if(!p||p.tid!==G.user||treqOpen(p)||p.loan||p.short||p.ten)return;if(p.treq&&p.treq.s===G.season&&p.treq.st==='withdrawn'&&G.day-p.treq.d<30)return;
+function treqMake(p,why,tid){if(!p||isCol(G.teams[G.user])||p.tid!==G.user||treqOpen(p)||p.loan||p.short||p.ten)return;if(p.treq&&p.treq.s===G.season&&p.treq.st==='withdrawn'&&G.day-p.treq.d<30)return;
   const t=tid!=null?G.teams[tid]:null;p.treq={s:G.season,d:G.day,why,tid:t?t.id:null,st:'open',talkD:null};const nm=pname(p),ps=persOf(p);
   const L={unhappy:[`Coach, I have thought about this for a long time. I am not happy here and I want to leave. I am handing in a formal transfer request.`,`I don't want to make a scene, but I need a change. Please accept my transfer request.`],
     minutes:[`I came here to play, not to watch. I want a transfer to a club where I get real minutes.`,`At my age every season counts. I am asking you to let me go somewhere I will play.`],
@@ -968,6 +968,7 @@ function ncObjMet(L){const f=ncFinish(L,G.user),lv=['Champions','Runner-up','Fin
 // what blocks a move between college and pro basketball (null = allowed)
 function colLock(p){if(!p||!G||!G.teams)return null;const me=G.teams[G.user],at=p.tid!=null?G.teams[p.tid]:null;if(!me)return null;
   if(at&&isCol(at)&&p.tid!==G.user)return isCol(me)?`${pname(p)} plays for ${at.name}. College players change schools only through the transfer portal in the summer.`:`${pname(p)} plays college basketball at ${at.name}. College players cannot be signed by pro clubs; they turn pro through the NBA draft or when their eligibility ends.`;
+  if(at&&!isCol(at)&&p.tid!==G.user&&isCol(me))return `${pname(p)} is a professional at ${at.name}. College programs cannot buy players from pro clubs or the NBA, and there are no transfer fees in college basketball. New players come as recruits each summer or from the transfer portal.`;
   if(p.tid==null&&p.portal&&!isCol(me))return `${pname(p)} is in the transfer portal and only talks to college programs.`;
   if(p.tid==null&&!p.portal&&isCol(me)&&!p.prospect)return `College programs cannot sign professional players. New players come as recruits each summer or from the transfer portal.`;
   return null;}
@@ -3071,9 +3072,9 @@ function betweenRounds(){
   G.fin.hist.push({l:stepLabel(),bal:G.fin.bal});if(G.fin.hist.length>80)G.fin.hist.shift();
   for(const t of G.teams)if(t.id!==G.user&&!(userNBA()&&isNBA(t))){t.order=autoOrder(t.order);aiFix(t);}if(!userNBA()){try{nbaPlanTick();}catch(e){}aiTradeIdea();}
   if(reg){
-    if(!userNBA())for(const pid of G.listed)if(Math.random()<.3){const p=G.players[pid];const b=pick(ELT().filter(t=>t.id!==G.user&&teamFinState(t.id)==='ok'));if(!b)continue;const fee=r10k(value(p)*rf(.75,1.15));
+    if(!userNBA()&&!isCol(G.teams[G.user]))for(const pid of G.listed)if(Math.random()<.3){const p=G.players[pid];const b=pick(ELT().filter(t=>t.id!==G.user&&teamFinState(t.id)==='ok'));if(!b)continue;const fee=r10k(value(p)*rf(.75,1.15));
       msg(b.name,`Offer for ${pname(p)}`,`${b.name} would like to sign ${pname(p)} (${p.pos}, ${p.age}, OVR ${p.o}) and offer a transfer fee of ${eur(fee)}.`,'offer',{pid,tid:b.id,fee});}
-    if(!userNBA()&&Math.random()<.07){const top=roster(G.user).filter(p=>!p.loan).sort((a,b)=>b.o-a.o).slice(0,4);const p=pick(top);const b=pick(ELT().filter(t=>t.id!==G.user&&t.rep>=G.teams[G.user].rep-3&&teamFinState(t.id)==='ok'));
+    if(!userNBA()&&!isCol(G.teams[G.user])&&Math.random()<.07){const top=roster(G.user).filter(p=>!p.loan).sort((a,b)=>b.o-a.o).slice(0,4);const p=pick(top);const b=pick(ELT().filter(t=>t.id!==G.user&&t.rep>=G.teams[G.user].rep-3&&teamFinState(t.id)==='ok'));
       if(p&&b){const fee=r10k(value(p)*rf(1.05,1.45));msg(b.name,`Bid for ${pname(p)}`,`${b.name} have made an unsolicited bid of ${eur(fee)} for ${pname(p)}. Their sporting director is open to talks about the fee.`,'offer',{pid:p.id,tid:b.id,fee});}}
     if(G.round===29){const ex=roster(G.user).filter(p=>p.yrs<=1);if(ex.length)msg('Sporting Director','Contracts expiring this summer',`These contracts end after the season: ${ex.map(p=>`${pname(p)} (OVR ${p.o})`).join(', ')}. Open a player's profile in Squad to offer an extension, or let them leave for free.`,'fin');}
   }
@@ -7070,7 +7071,8 @@ const fillPool=()=>G.fa.map(i=>G.players[i]).filter(x=>x&&!x.nfa&&!x.prospect&&!
 // offers still waiting for an answer count: they are only decided on game days, so the block must not stop those days
 const squadGap=()=>Math.max(0,SQUADMIN-G.teams[G.user].order.length-Object.keys(G.faBid||{}).length);
 const squadShort=()=>!!G&&!G.sacked&&squadGap()>0&&fillPool().length>0&&!(typeof nbaFAOpen==='function'&&nbaFAOpen())&&!seasonOver();
-function fillRoster(){const ut=G.teams[G.user],L=[];while(ut.order.length<SQUADMIN){const c=fillPool()[0];if(!c)break;G.fa=G.fa.filter(i=>i!==c.id);c.sal=salaryFor(c);c.yrs=1;join(c,ut);L.push(pname(c));}if(L.length)msg('Sporting Director','Emergency signings',`On your instruction I signed ${L.join(', ')} on one-year minimum deals.`,'fin');return L;}
+function fillRoster(){const ut=G.teams[G.user],L=[],col=isCol(ut);let wk=0;while(ut.order.length<SQUADMIN){const c=fillPool().find(x=>!col||!colLock(x));if(!c){if(!col)break;const w=ncRecruit(ut,rnd(44,50),rnd(54,64));w.walk=1;wk++;L.push(pname(w));continue;}G.fa=G.fa.filter(i=>i!==c.id);c.sal=salaryFor(c);c.yrs=col?Math.max(1,c.elig||c.yrs||1):1;delete c.portal;join(c,ut);L.push(pname(c));}
+  if(L.length)msg(col?'Assistant Coach':'Sporting Director',col?'Roster filled':'Emergency signings',col?`On your instruction we added ${L.join(', ')}${wk?` (${wk} walk-on${wk>1?'s':''} from campus tryouts)`:''}. College programs can only add transfer portal players and walk-ons.`:`On your instruction I signed ${L.join(', ')} on one-year minimum deals.`,col?'staff':'fin');return L;}
 // reminders for players whose contract ends this summer: inbox in January and in April, a card on the home screen, and a last look before the new season starts
 const expiring=()=>roster(G.user).filter(p=>p.yrs<=1&&!p.short&&!p.ten&&!(p.loan&&p.loan.in)).sort((a,b)=>b.o-a.o);
 function contractTick(){if(!G||G.sacked||preOn())return;const R=G.ctR&&G.ctR.s===G.season?G.ctR:(G.ctR={s:G.season,st:0}),st=G.day>=180?2:G.day>=90?1:0;if(st<=R.st)return;R.st=st;const L=expiring();if(!L.length)return;
@@ -7103,8 +7105,8 @@ function sellOnMoves(){for(const p of Object.values(G.players)){if(!p.sellOn||p.
 // deadline day: the last two EuroLeague regular season rounds before the window closes (not for NBA clubs): clubs offer more for your
 // players, and some sell cheaply to clear their books.
 const ddLeft=()=>G.schedule.length-G.round;
-const ddOn=()=>!!(G&&G.phase==='reg'&&!userNBA()&&!preOn()&&ddLeft()<=2);
-function ddTick(){if(userNBA())return;
+const ddOn=()=>!!(G&&G.phase==='reg'&&!userNBA()&&!isCol(G.teams[G.user])&&!preOn()&&ddLeft()<=2);
+function ddTick(){if(userNBA()||isCol(G.teams[G.user]))return;
   if(G.dd&&G.dd.season===G.season&&G.phase!=='reg'&&!G.dd.closed){G.dd.closed=1;msg('Sporting Director','Transfer window closed','The transfer window has closed for this season.','fin');}
   if(!ddOn()||(G.dd&&G.dd.season===G.season))return;const me=G.teams[G.user],mine=roster(G.user).slice().sort((a,b)=>b.o-a.o),ten=mine[9]?mine[9].o:mine[mine.length-1].o,top=mine[0].o;
   const deals=shuffle(G.teams.filter(t=>t.id!==G.user&&!clauseFree(t)&&t.dom!=='GONE'&&t.dom!=='FOUND'&&!t.bankrupt&&t.order.length>11).flatMap(t=>roster(t.id).filter(p=>!p.loan&&!justJoined(p)&&p.o>=ten-1&&p.o<=top+2))).slice(0,5).map(p=>({pid:p.id,tid:p.tid,fee:r10k(askPrice(p)*rf(.65,.8))}));

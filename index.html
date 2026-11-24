@@ -1424,6 +1424,14 @@ body.mfocus .main .inner{max-width:1500px}
 @keyframes snavb{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
 @media (prefers-reduced-motion:reduce){.snav-more svg{animation:none}}
 @media (max-height:820px){.snav{gap:2px;padding-block:6px 24px}.snav-b{height:36px}.snav h6{padding:6px 22px 2px}.snav-g+.snav-g{padding-top:2px}}
+
+/* college Transfers: the ways onto a college roster */
+.cw{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.cw-t{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+.cw-t b{display:block;font-size:14px}.cw-t span{font-size:12.5px;opacity:.75}
+.cw-i{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;opacity:1!important}
+.cw-i svg{width:19px;height:19px;fill:currentColor}
+.cw-t.ok .cw-i{background:rgba(30,155,80,.12);color:var(--g)}.cw-t.no .cw-i{background:rgba(214,52,44,.1);color:var(--r)}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1478,7 +1486,7 @@ body.mfocus .main .inner{max-width:1500px}
 <div id="app"></div>
 <div id="toast" role="status" hidden></div>
 <script>__ld(0,0.0609,"Starting the match engine")</script>
-<script src="engine.js?v=447" charset="utf-8"></script>
+<script src="engine.js?v=448" charset="utf-8"></script>
 <script>__ld(0.0609,0.0610,"Hanging the club crests")</script>
 <script src="logos.js?v=323" charset="utf-8"></script>
 <script>__ld(0.0610,0.0618,"Taking the team photos")</script>
@@ -1518,5 +1526,5 @@ body.mfocus .main .inner{max-width:1500px}
 <script>__ld(0.9243,0.9688,"Raising the national flags")</script>
 <script src="flags.js?v=6" charset="utf-8"></script>
 <script>__ld(0.9688,1.0000,"Setting up the bench")</script>
-<script src="ui.js?v=450" charset="utf-8"></script>
+<script src="ui.js?v=451" charset="utf-8"></script>
 <script>__ld(1.0000,1.0000,"Opening the doors")</script>
