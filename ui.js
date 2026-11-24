@@ -63,7 +63,7 @@ function topbRing(l,v,full){v=Math.round(clamp(v||0,0,100));const C=2*Math.PI*15
   return `<div class="topb-r" title="${full||l}: ${v}%" role="img" aria-label="${full||l} ${v} percent"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" class="bg"/><circle cx="18" cy="18" r="15" class="fg" style="stroke:${col};stroke-dasharray:${(C*v/100).toFixed(1)} ${C.toFixed(1)}"/></svg><b>${v}</b><small>${l}</small></div>`;}
 function topbId(){const nt=typeof ntMode==='function'&&ntMode();let mark,name,sub,R;
   if(nt){const J=G.nt.job,c=J.c;mark=`<span class="topb-fl">${ntFlag(c,40)}</span>`;name=esc(ntName(c));sub=`${esc(G.mgr)} · National team head coach`;R=[['Trust',J.trust==null?60:J.trust,'Federation trust'],['Fans',J.fans==null?60:J.fans,'Fans'],['Chem',ntChem(),'Chemistry']];}
-  else{const t=G.teams[G.user];mark=crest(t,'dk');name=esc(clubDisplayName(t));sub=`${esc(G.mgr)} · Head Coach`;R=[['Board',G.board,'Board confidence'],['Fans',G.fans,'Fans'],['Morale',clubMorale(),'Team morale']];}
+  else{const t=G.teams[G.user];mark=crest(t,'dk');name=esc(clubDisplayName(t));sub=`${esc(G.mgr)} · Head Coach`;R=[[isCol(t)?'AD':'Board',G.board,isCol(t)?'Athletic director confidence':'Board confidence'],['Fans',G.fans,'Fans'],['Morale',clubMorale(),'Team morale']];}
   return `<div class="topb-id">${mark}<div class="topb-nm"><b title="${name}">${name}</b><small>${sub}</small></div><div class="topb-rg">${R.map(r=>topbRing(...r)).join('')}</div></div>`;}
 function topbTools(){const nt=typeof ntMode==='function'&&ntMode(),J=G&&G.nt&&G.nt.job;let sw='';
   if(nt)sw=`<button class="topb-b topb-sw" data-act="ntmode" title="Back to club">${crest(G.teams[G.user])}<span>Club</span></button>`;
@@ -141,7 +141,7 @@ function headerHTML(){const t=G.teams[G.user],room=G.fin.wageBudget-wageBill(G.u
 function clubHTML(){const t=G.teams[G.user],unread=G.inbox.filter(m=>!m.read).length,inj=roster(G.user).filter(p=>p.inj>0).length;
   const rs=roster(G.user),morale=clamp((50+t.form.filter(x=>x==='W').length*10-t.form.filter(x=>x==='L').length*6+(rs.length?rs.reduce((s,p)=>s+moodOf(p),0)/rs.length:60))/2,10,100);
   return `<div class="club gut">${crest(t,'dk')}<div><h2>${esc(clubDisplayName(t))}</h2><div class="who"><span>${esc(G.mgr)} \u00b7 Head Coach</span></div></div>
-  <div class="meters">${[['Board',G.board],['Fans',G.fans],['Morale',morale]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
+  <div class="meters">${[[isCol(G.teams[G.user])?'AD':'Board',G.board],['Fans',G.fans],['Morale',morale]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
   <div class="icons"><button class="ic" data-act="savegame">${IC.save}<span>Save</span></button></div></div>`;}
 const TABS=[['home','Home'],['squad','Squad'],['tactics','Tactics'],['training','Training'],['staff','Staff'],['transfers','Transfers'],['finances','Finances'],['club','Club'],['business','Business'],['comp','Competitions'],['inbox','Inbox']];
 const NI={
@@ -405,7 +405,7 @@ function ibIcon(m){const t=m.type,f=m.from||'';
   if(t==='talk')return ['var(--b)','chat','Player talk'];
   if(t==='res')return ['var(--g)','ball','Match report'];
   if(t==='media')return ['var(--ink3)','news','Press'];
-  if(t==='board')return f==='Club President'?['var(--ink)','board','Board']:['var(--ink3)','news','News'];
+  if(t==='board')return f==='Club President'||f==='Athletic Director'?['var(--ink)','board',f==='Athletic Director'?'AD':'Board']:['var(--ink3)','news','News'];
   if(/Coach/.test(f))return ['var(--b)','whistle','Coaching staff'];
   return ['var(--ink3)','club','Club'];}
 function msgRow(m){const [c,ic,lb]=ibIcon(m);return `<button class="msg${m.read?'':' u'}${UI.msg===m.id&&UI.tab==='inbox'?' on':''}" data-act="msg:${m.id}"><span class="mi mi-i" style="background:${c}" title="${lb}">${iIc(ic)}</span><span><b>${esc(m.subj)}</b><small>${esc(m.from)} \u00b7 ${m.date}${m.done?' \u00b7 '+m.done:''}</small></span>${ibNeeds(m)?'<i class="ib-do">Decide</i>':''}</button>`;}
@@ -444,7 +444,7 @@ function presserModal(){const S=G.prS;if(!S){UI.modal=null;return '';}const T=G.
   const chat=`<div class="sec pr-chat" id="negchat">${S.log.map(l=>l.sys?`<div class="pr-sys">${esc(l.t)}</div>`:l.you?`<div class="pr-me"><div>${esc(l.t)}</div></div>`:`<div class="pr-j"><div><b>${esc(l.j[0])} <small>${esc(l.j[1])}</small></b>${esc(l.t)}</div></div>`).join('')}</div>`;
   const opts=S.over?'':S.follow?S.follow.a.map((a,i)=>`<button class="pr-o" data-act="prsans:${i}"><span>${esc(a.t)}</span></button>`).join(''):M.a.map((a,i)=>`<button class="pr-o" data-act="prsans:${i}"><small>${esc(PR_TONE[a.k]||'')}</small><span>${esc(prPick(a.t,q.av[i]))}</span></button>`).join('');
   const ch=(l,v)=>v?`<span class="pill ${v>0?'g':'r'}">${l} ${v>0?'▲':'▼'}</span>`:'';const P=S.fx.p||{};
-  const sum=S.over?`<div class="sec"><div class="lbl">Reaction</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${ch('Dressing room',S.fx.t)}${ch('Board',S.fx.b)}${ch('Fans',S.fx.f)}${ch('Press',S.fx.m)}${Object.keys(P).map(id=>ch(sname(G.players[id]),P[id])).join('')}${S.bet?'<span class="pill y">Your words will be judged by the result</span>':''}${S.rival?'<span class="pill o">Rivals fired up</span>':''}${S.fine?`<span class="pill r">League fine ${eur(S.fine)}</span>`:''}</div><div class="btns" style="margin-top:12px"><button class="btn p" data-act="close">Leave the press room</button></div></div>`
+  const sum=S.over?`<div class="sec"><div class="lbl">Reaction</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${ch('Dressing room',S.fx.t)}${ch(isCol(G.teams[G.user])?'AD':'Board',S.fx.b)}${ch('Fans',S.fx.f)}${ch('Press',S.fx.m)}${Object.keys(P).map(id=>ch(sname(G.players[id]),P[id])).join('')}${S.bet?'<span class="pill y">Your words will be judged by the result</span>':''}${S.rival?'<span class="pill o">Rivals fired up</span>':''}${S.fine?`<span class="pill r">League fine ${eur(S.fine)}</span>`:''}</div><div class="btns" style="margin-top:12px"><button class="btn p" data-act="close">Leave the press room</button></div></div>`
     :`<div class="sec"><div class="lbl">${S.follow?'Follow-up':`Question ${S.i+1} of ${S.qs.length}`}</div><div class="pr-os">${opts}</div></div>`;
   return `<div class="ovl" data-act="ovl"><div class="modal pr" role="dialog" aria-modal="true" aria-label="Press conference" style="max-width:720px"><div class="pr-h" style="--pc1:${lum(T.c1)>.85?T.c2:T.c1}"><span class="pc-mic">${MICSVG}</span><div><small>${S.type==='pre'?'Pre-game':S.type==='post'?'Post-game':'Media day'} press conference</small><b>${esc(T.name)}</b></div><button class="lnk" data-act="close" style="color:#fff">Close ✕</button></div>${chat}${sum}</div></div>`;}
 function protestCard(){const P=fg().prot;if(!P)return '';return `<section class="fn-pr"><div><small>${P.k==='ultra'?'Ultras':'Families'} protesting · ${P.g} home game${P.g>1?'s':''} left</small><b>${esc(P.why)}</b></div><button data-act="tab:club">Talk to them</button></section>`;}
@@ -2441,7 +2441,7 @@ function rcPage(){const R=rcEnsure();
   const PG=20,total=L.length,pages=Math.max(1,Math.ceil(total/PG)),pg=clamp(UI.rcPg||0,0,pages-1);L=L.slice(pg*PG,pg*PG+PG);
   const next=!R.early?`Early signing day <b>12 Nov</b>`:`Spring signing <b>after the season</b>`;
   const head=`<div class="rc-head">
-    <div class="rc-k"><span class="lbl">Class of ${G.season+1}</span><b>${cm.length} committed</b></div>
+    <div class="rc-k"><span class="lbl">Class of ${G.season+1}</span><b>${cm.length} committed</b>${(()=>{const C=rcClassRanks();return C&&cm.length?`<small>Class rank No. ${C.rk[U]} of ${C.n}</small>`:'';})()}</div>
     <div class="rc-k"><span class="lbl">Scholarships</span>${rcDots(cm.length,spots,'g')}<small>${cm.length}/${spots} · ${rcOffers(R)}/${rcMaxOff()} offers out</small></div>
     <div class="rc-k"><span class="lbl">Contacts this week</span>${rcDots(R.calls,RC_CALLS)}<small>${R.calls} left · reset each week</small></div>
     <div class="rc-k"><span class="lbl">Campus visits</span>${rcDots(R.vis,RC_VIS,'o')}<small>${R.vis} of ${RC_VIS} left</small></div>

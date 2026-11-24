@@ -996,7 +996,7 @@ function ncNext(L,P,W){const o=(a,b)=>ncOrd(L,a,b),U=G.user,n=NCCONF().length;if
   if(P.stage==='cf'){L.auto=W.slice();try{nilConf(W)}catch(e){}W.forEach((id,c)=>{if(id===U){G.board=clamp(G.board+3,0,100);msg('Club President',`${NCCONF()[c]} tournament champions!`,`We won the ${NCCONF()[c]} tournament and take the automatic bid to the NCAA Tournament.`,'board');}});news('Conference champions',NCCONF().map((c,i)=>`${c}: ${G.teams[W[i]].name}`).join(' · '));ncSelect(L);return;}
   if(P.stage==='r32'||P.stage==='s16'||P.stage==='e8'||P.stage==='f4'){const nx={r32:'s16',s16:'e8',e8:'f4',f4:'fin'}[P.stage],S=[];for(let i=0;i<W.length;i+=2)S.push(o(W[i],W[i+1]));L.po={stage:nx,ser:domSeries(S,1)};
     if(nx==='f4')news('Final Four',`${W.map(i=>`${G.teams[i].name} (${NCREG[L.seed[i].r]})`).join(', ')} reach the Final Four${ncFFSite()?` in ${ncFFSite().replace(' · ',', ')}`:''}.`);return;}
-  L.champ=W[0];L.phase='done';L.down=[];try{nilSeasonEnd(L)}catch(e){}if(L.code==='NCAA'&&L.ap){try{apFinal(L);}catch(e){console.error(e);}}
+  L.champ=W[0];L.phase='done';L.down=[];try{nilSeasonEnd(L)}catch(e){}if(L.code==='NCAA'&&L.ap){try{apFinal(L);}catch(e){console.error(e);}}if(L.code==='NCAA'){try{ncCarousel(L);}catch(e){console.error('carousel',e);}}
   if(L.champ===U){G.board=clamp(G.board+8,0,100);msg('Club President','National champions!',`We won the ${G.season+1} NCAA Tournament. One shining moment for the whole school.`,'board');}
   news(`${G.teams[L.champ].name}: national champions`,`${G.teams[L.champ].name} won the ${seasonStr()} NCAA Tournament.`);}
 function ncRegText(L,U){const g=G.teams[U].grp,i=(L.final[g]||[]).indexOf(U),c=ncRec(L,U);return `${c[0]}–${c[1]} in conference play. ${i<8?`We play the ${g} tournament as the No. ${i+1} seed.`:'We missed the conference tournament.'}`;}
@@ -1021,7 +1021,7 @@ function ncGrad(p,left){const t=G.teams[p.tid];if(p.tid===G.user)left.push(pname
   leave(p);G.fa=G.fa.filter(i=>i!==p.id);delete G.players[p.id];}
 function ncRecruit(t,o,pot){const nat=Math.random()<.88?'USA':pick(['CAN','AUS','FRA','NGR','SRB','GER','LTU','ESP','SEN','GBR']);let p;
   for(let i=0;i<8;i++){p=genPlayer(o,pick(POS),nat,18);const nm=pname(p);if(i===7||(!window.PHOTOS[nm]&&!Object.values(G.players).some(q=>q!==p&&q.f===p.f&&q.l===p.l)))break;delete G.players[p.id];}p.pot=clamp(pot,p.o,96);p.yrs=4;p.sal=ncNilR(p);p.rec=G.season;join(p,t);return p;}
-function ncaaOffseason(){const L=G.nl&&G.nl.NCAA;if(!L)return;const U=G.user,T=G.teams.filter(isCol),mine={out:[],rec:[]};try{nilSummer0()}catch(e){}
+function ncaaOffseason(){const L=G.nl&&G.nl.NCAA;if(!L)return;try{ncCarFill();}catch(e){}const U=G.user,T=G.teams.filter(isCol),mine={out:[],rec:[]};try{nilSummer0()}catch(e){}
   for(const id of G.fa.slice()){const p=G.players[id];if(!p||!p.portal||p.portal>=G.season)continue;delete p.portal;if(p.o<52){G.fa=G.fa.filter(i=>i!==id);delete G.players[id];}else p.sal=salaryFor(p);}
   for(const t of T){const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);ps.forEach((p,k)=>{if(p.loan||p.yrs<1)return;const q=t.id===U?nilQ(p,k):k>=9?.45:k>=5?.2:.06;if(Math.random()>q)return;if(t.id===U)mine.out.push(pname(p));toFA(p);p.portal=G.season;p.elig=p.yrs;p.sal=ncNil(p);});}
   const pool=()=>G.fa.map(i=>G.players[i]).filter(p=>p&&p.portal===G.season).sort((a,b)=>b.o-a.o);
@@ -2453,7 +2453,7 @@ function jobOffers(){
   G.jobOffers=old.concat(more).sort((a,b)=>b.rep-a.rep).slice(0,10).map(t=>t.id);return G.jobOffers;
 }
 function takeJob(tid,deal){
-  const old=G.teams[G.user],nw=G.teams[tid];
+  const old=G.teams[G.user],nw=G.teams[tid];if(isCol(old)&&!G.sacked&&G.coach){const b=adBuyout();if(b>0)msg('Athletic Director','Buyout paid',`${nw.name} pay your buyout of ${eur(b)} to ${old.name}. Good luck.`,'board');}
   coachTick();
   for(const p of loanedOut())returnLoan(p,false);
   const pool=G.staffFA.filter(x=>x.role==='HC').sort((a,b)=>b.o-a.o);const hc=pool[0];
@@ -5413,7 +5413,7 @@ function nlUserCatchUp(L){
 }
 function seasonEndNL(){
   const L=nlUser(),C=NLCFG[L.code],met=nlObjMet(L),fin=nlFinish(L),LC=L.code==='RL'?(L.ch||{})[rlRegion(G.teams[G.user].grp)]:L.champ;
-  G.board=clamp(G.board+(met?20:-25)+(LC===G.user?10:0)-(L.down.includes(G.user)?15:0),0,100);
+  G.board=clamp(G.board+(L.code==='NCAA'?adReview(L,met):(met?20:-25)+(LC===G.user?10:0)-(L.down.includes(G.user)?15:0)),0,100);
   seasonFinanceCheck();resolveInterims();
   G.history.unshift({season:seasonStr(),champName:G.teams[G.po.champ].name,champ:G.po.champ,rank:nlRank(L,G.user),finish:fin,obj:'dom',objText:nlObjText(L),met,league:C.short,dom:{name:L.code==='RL'?`${C.name} ${rlRegion(G.teams[G.user].grp)}`:C.name,champ:LC,champName:LC!=null?G.teams[LC].name:'',finish:fin}});
   msg('Club President',met?'Objective achieved':'Objective missed',met?`You delivered: ${nlObjText(L).toLowerCase()}.${L.up.includes(G.user)?` Next season we play in the ${NLCFG[C.up].name}!`:''}`:`The target was to ${nlObjText(L).toLowerCase()}. The board expects a clear improvement next season.`,'board');
@@ -5465,6 +5465,7 @@ function jobOfferRound(met){
   const up=good?cand.filter(t=>t.rep>R0&&t.rep<=R0+(champ?12:7)):[];
   const side=cand.filter(t=>!!t.dom!==!!cur.dom&&t.rep>=R0-8&&t.rep<=R0+1);
   const offers=[];
+  if(isCol(cur)&&good&&G.ncCar&&G.ncCar.s===G.season){const V=(G.ncCar.vac||[]).filter(i=>!staffOf(i,'HC').length);if(V.length&&Math.random()<.8)offers.push(G.teams[pick(V)]);}
   if(up.length&&Math.random()<(champ?.85:.5))offers.push(pick(up));
   const s=side.filter(t=>!offers.includes(t));if(s.length&&Math.random()<(cur.dom?(good?.5:.1):(met?.35:.6)))offers.push(pick(s));
   // NBA teams also look at European coaches after a good season at a strong club (more often after a title); smaller franchises first
@@ -7691,3 +7692,45 @@ function apFinOrd(L){const H=L.hist||{},rnk=[];const add=i=>{if(i!=null&&!rnk.in
   for(const st of ['fin','f4','e8','s16']){const S=(H[st]||[]).flatMap(s=>[s.hi,s.lo]).filter(i=>i!=null).sort((a,b)=>L.ap.v[b]-L.ap.v[a]);S.forEach(add);}return rnk;}
 function apFinal(L){const A=L.ap;if(A.fin)return;A.fin=1;apPublish(L,true);}
 function apMatchTag(f){const a=apRank(f.h),b=apRank(f.a);return a&&b&&a<=10&&b<=10?'TOP-10 MATCHUP':a&&b?'RANKED MATCHUP':'';}
+
+/* ===================== College: the Athletic Director ===================== */
+// In college the coach answers to the athletic director, not a club board. At the end of the season the AD grades the tournament run,
+// the final AP ranking, the recruiting class and attendance. Fired coaches get their severance (existing system); a school that hires a coach away
+// pays his buyout to the old school. In March the coaching carousel turns: underperforming programs fire their coaches and the best
+// openings poach successful coaches from smaller schools (or wait for the user after a good season).
+const isColU=()=>!!(G&&G.teams&&G.teams[G.user]&&isCol(G.teams[G.user]));
+const AD_FROM={'Club President':'Athletic Director','Owner':'Athletic Director','Board':'Athletic Director','Sporting Director':'Associate AD'};
+const adWords=s=>typeof s!=='string'?s:s.replace(/\bBoard confidence\b/g,'AD confidence').replace(/\bboard confidence\b/g,'AD confidence').replace(/\bThe board\b/g,'The athletic director').replace(/\bthe board\b/g,'the athletic director').replace(/\bThe club\b/g,'The program').replace(/\bthe club\b/g,'the program');
+{const M0=msg;msg=function(from,subj,body,type,act){if(isColU()){from=AD_FROM[from]||from;subj=adWords(subj);body=adWords(body);}return M0(from,subj,body,type,act);};}
+// recruiting class rank: committed and signed prospects, weighted by stars
+function rcClassRanks(){const R=G.rc;if(!R||!R.board)return null;const sc={};for(const r of R.board){if(r.c==null||r.gone)continue;sc[r.c]=(sc[r.c]||0)+r.stars*r.stars;}
+  const ids=G.teams.filter(isCol).map(t=>t.id).sort((a,b)=>(sc[b]||0)-(sc[a]||0)),rk={};ids.forEach((id,k)=>rk[id]=k+1);return {rk,sc,n:ids.length};}
+function adReview(L,met){const U=G.user,fin=ncFinish(L,U),T={Champions:15,'Runner-up':12,'Final Four':10,'Elite Eight':7,'Sweet 16':5,'Round of 32':3,'First Four':1}[fin],ap=typeof apRank==='function'?apRank(U):0,C=rcClassRanks(),cr=C?C.rk[U]:0,
+    t=G.teams[U],fill=t.cap?attendance()/t.cap:.7,rows=[];
+  const add=(l,v,d)=>{rows.push([l,v,d]);return d;};let d=0;
+  d+=add('NCAA Tournament',T!=null?fin:'Missed the field',T!=null?T:-6);
+  d+=add('Final AP poll',ap?`No. ${ap}`:'Unranked',ap?(ap<=10?5:3):0);
+  d+=add('Recruiting class',cr?`No. ${cr} of ${C.n}`:'None',!cr?0:cr<=10?5:cr<=25?2:cr>C.n/2?-2:0);
+  d+=add('Attendance',`${Math.round(fill*100)}% full`,fill>=.9?3:fill>=.75?1:fill<.6?-3:0);
+  d+=add('Season target',met?'Met':'Missed',met?8:-12);
+  msg('Athletic Director','Season review',rows.map(([l,v,x])=>`${l}: ${v} (${x>0?'+':''}${x})`).join(' · ')+`. AD confidence ${d>=0?'+':''}${d}.`,'board');return d;}
+// buyouts: what is left of the coach's contract, at 75%
+const adBuyout=()=>G.coach?r10k(Math.max(1,(G.coach.until||G.season+1)-G.season)*(G.coach.sal||0)*.75):0;
+// March: the coaching carousel
+function ncCarousel(L){const U=G.user,uc=isColU(),cur=uc?G.teams[U]:null,good=uc&&(!!(L.seed&&L.seed[U])||G.board>=65),exp={},ids=L.ids.slice().sort((a,b)=>strength(b)-strength(a));ids.forEach((id,k)=>exp[id]=k+1);
+  const lvl=id=>['Champions','Runner-up','Final Four','Elite Eight','Sweet 16','Round of 32','First Four'].indexOf(ncFinish(L,id)),inF=id=>lvl(id)>=0;
+  const bad=[];for(const id of L.ids){if(id===U)continue;const t=G.teams[id];if(!staffOf(id,'HC').length)continue;let q=0;
+    const cf=(L.final[t.grp]||[]).indexOf(id),cn=(L.groups[t.grp]||[]).length;if(exp[id]<=30&&!inF(id))q=.5;else if(!inF(id)&&cf>=cn-3)q=.3;else if(!inF(id)&&cf>=cn/2)q=.08;
+    t.ncBad=q?(t.ncBad||0)+1:0;if(t.ncBad>=2)q=Math.max(q,.5);if(q&&Math.random()<q)bad.push(id);}
+  const fired=shuffle(bad).slice(0,rnd(4,8)),vac=[],moves=[];
+  for(const id of fired){const t=G.teams[id],old=staffOf(id,'HC')[0];t.staff=t.staff.filter(x=>x!==old);old.from=t.name;G.staffFA.push(old);const b=r10k(coachSalFor(t)*rnd(2,4)*.75);
+    news(`${t.name} fire ${old.f} ${old.l}`,`${t.name} parted ways with head coach ${old.f} ${old.l} after missing expectations. The school owes him a buyout of ${eur(b)}.`);}
+  for(const id of fired.sort((a,b)=>G.teams[b].rep-G.teams[a].rep)){const t=G.teams[id];
+    if(uc&&good&&t.rep>cur.rep&&vac.length<2){vac.push(id);continue;}   // the opening waits: the user may get the call
+    const C=L.ids.filter(i=>i!==U&&i!==id&&!fired.includes(i)&&G.teams[i].rep<t.rep-4&&lvl(i)>=0&&lvl(i)<=4&&staffOf(i,'HC').length).sort((a,b)=>lvl(a)-lvl(b));
+    if(C.length&&Math.random()<.55){const from=G.teams[C[0]],hc=staffOf(from.id,'HC')[0];from.staff=from.staff.filter(x=>x!==hc);hc.from=from.name;t.staff.unshift(hc);moves.push(`${hc.f} ${hc.l}: ${from.name} → ${t.name}`);hcFor(from);
+      news(`${t.name} hire ${hc.f} ${hc.l}`,`${t.name} hired ${hc.f} ${hc.l} away from ${from.name} after his ${ncFinish(L,from.id)} run. ${t.name} pay his buyout to ${from.name}.`);}
+    else{const nw=hcFor(t);news(`${t.name} hire ${nw.f} ${nw.l}`,`${t.name} named ${nw.f} ${nw.l} as their new head coach.`);}}
+  G.ncCar={s:G.season,vac,fired:fired.length};
+  if(fired.length)news('Coaching carousel',`${fired.length} programs changed coaches this March: ${fired.map(i=>G.teams[i].name).join(', ')}.${vac.length?` Still open: ${vac.map(i=>G.teams[i].name).join(', ')}.`:''}`);}
+function ncCarFill(){const C=G.ncCar;if(!C||C.done)return;C.done=1;for(const id of C.vac||[]){const t=G.teams[id];if(t&&id!==G.user&&!staffOf(id,'HC').length)hcFor(t);}}
