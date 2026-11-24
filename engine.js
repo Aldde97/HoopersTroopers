@@ -627,7 +627,7 @@ const tbName=()=>G&&G.teams&&isCol(G.teams[G.user])?'program funds':'transfer bu
 const nilBoostLbl=b=>b>=75?'Fired up':b>=58?'Generous':b>=42?'Steady':b>=25?'Restless':'Closing their wallets';
 // spring: talks are about next season, so room is next season's projected budget minus the deals of the players who return
 const nilSpring=()=>nilOn()&&G.nil.talk===G.season;
-const nilStays=p=>p.yrs>1&&!p.prospect&&!p.ncOut&&!p.loan&&!(p.nk&&p.nk.st==='go');
+const nilStays=p=>(p.yrs>1||(p.rsS===G.season&&p.yrs>=1))&&!p.prospect&&!p.ncOut&&!p.loan&&!(p.nk&&p.nk.st==='go');
 function nilProj(){const N=G.nil,P=nilParts(50+(N.boost-50)*.7);return P.rs+P.coll+(N.pln||0);}
 const nilCommit=()=>roster(G.user).filter(nilStays).reduce((s,p)=>s+p.sal,0);
 const nilRoom=()=>nilSpring()?nilProj()-nilCommit():G.fin.wageBudget-wageBill(G.user);
@@ -931,7 +931,7 @@ const NCSTAGE={cq:'Conference tournament quarter-finals',cs:'Conference tourname
 const NCREG=['East','South','Midwest','West'];
 const NCCONF=()=>NLCFG.NCAA.groups;
 const ncNil=p=>r5k(clamp(20000*Math.exp((p.o-55)/5.5),15000,4000000));
-const ncClass=p=>['','Senior','Junior','Sophomore','Freshman'][clamp(p.yrs||1,1,4)];
+const ncClass=p=>(p.rsS===G.season?'Redshirt ':p.rsUsed?'RS ':'')+['','Senior','Junior','Sophomore','Freshman'][clamp(p.yrs||1,1,4)];
 const ncRec=(L,id)=>{L.ct=L.ct||{};return L.ct[id]||(L.ct[id]=[0,0,0,0]);};
 function ncSchedule(L){const g=L.groups,confs=Object.keys(g),conf=i=>G.teams[i].grp,met=new Set(),out=[];
   for(let r=0;r<11;r++){const left=shuffle(L.ids.slice()),rd=[];
@@ -1110,7 +1110,7 @@ function faTrend(p){if(!G||p.tid!=null||p.nfa||p.prospect||(G.teams&&isNBA(G.tea
 function faTick(){if(!G||!G.fa)return;const now=faAbs();
   for(const id of G.fa){const p=G.players[id];if(!p||p.prospect||p.nfa||p.o<64)continue;if(p.faHot&&p.faHot<=now)delete p.faHot;if(!p.faHot&&Math.random()<.025)p.faHot=now+rnd(10,16);}}
 function autoOrder(ids){
-  const ps=ids.map(i=>G.players[i]);const ok=ps.filter(p=>p.inj<=0).sort((a,b)=>b.o-a.o),inj=ps.filter(p=>p.inj>0).sort((a,b)=>b.o-a.o);
+  const ps=ids.map(i=>G.players[i]);const ok=ps.filter(p=>p.inj<=0&&p.rsS!==G.season).sort((a,b)=>b.o-a.o),inj=ps.filter(p=>p.inj>0||p.rsS===G.season).sort((a,b)=>b.o-a.o);
   const st=[];
   const ADJ={PG:['SG'],SG:['PG','SF'],SF:['SG','PF'],PF:['SF','C'],C:['PF']};
   for(const pos of POS){const rest=ok.filter(p=>!st.includes(p));if(!rest.length)break;const c=rest.find(p=>p.pos===pos)||rest.find(p=>ADJ[pos].includes(p.pos));st.push(c||rest[0]);}
@@ -1597,7 +1597,7 @@ function vDay(t){return t.vd!=null&&G.day<=t.vd&&t.vd-G.day<20?t.vd+2:G.day;}
 const recK=()=>{const tr=G.training;return (22+(tr.focus==='conditioning'?6:0)+({light:6,normal:0,hard:-6})[tr.intensity])/22;};
 function recoverTo(t,day){if(!t)return;if(t.rcd==null||t.rcd>day+20){t.rcd=day;return;}const d=Math.min(12,day-t.rcd);if(d<=0)return;t.rcd=day;const k=t.id===G.user?recK():1;
   for(const id of t.order){const p=G.players[id];if(!p)continue;const def=100-p.energy;p.energy=clamp(p.energy+(def*(1-Math.pow(.8,d))+3*d)*ageRec(p.age||27)*k,0,100);}}
-function injTickTeam(t){for(const id of t.order){const p=G.players[id];if(!p||p.inj<=0)continue;p.inj--;if(p.inj===0&&p.tid===G.user)msg('Team Doctor',`${pname(p)} is fit again`,`${pname(p)} has completed his rehab and is available for selection.`,'med');}}
+function injTickTeam(t){for(const id of t.order){const p=G.players[id];if(!p||p.inj<=0)continue;p.inj--;if(t.dom==='NCAA')p.injD=(p.injD||0)+1;if(p.inj===0&&p.tid===G.user)msg('Team Doctor',`${pname(p)} is fit again`,`${pname(p)} has completed his rehab and is available for selection.`,'med');}}
 function teamCtx(tid,home,code,neutral,oth){const t=G.teams[tid],vday=vDay(t),rest=t.vd!=null&&vday-t.vd<30?vday-t.vd:null;
   const b2b=rest===1||schedB2B(code,tid),short=false;
   let trav=0;if(!home&&!neutral){trav=TRV[code]!=null?TRV[code]:.0015;const far=FAR[code];if(far&&(far.includes(t.short)||far.includes(G.teams[oth].short)))trav+=.002;}
@@ -1756,7 +1756,7 @@ class Match{
     if(this.log)this.add(-1,'period','Tip-off');
   }
   side(tid,home){
-    const t=G.teams[tid];let ord=forDress(t.order.map(id=>G.players[id]).filter(p=>p.inj<=0&&!(p.rest&&tid===G.user)),t,kindRule(t,this.kind));
+    const t=G.teams[tid];let ord=forDress(t.order.map(id=>G.players[id]).filter(p=>p.inj<=0&&p.rsS!==G.season&&!(p.rest&&tid===G.user)),t,kindRule(t,this.kind));
     if(ord.length<5)ord=ord.concat(t.order.map(id=>G.players[id]).filter(p=>p.inj>0)).slice(0,Math.max(5,ord.length));
     const box={},tgt={},k=this.ql/600;ord.forEach((p,i)=>{box[p.id]=blank();tgt[p.id]=minTgt(p,i,tid,k);});
     return {tid,home,ord,box,tgt,on:[],pts:0,tac:tid===this.ntU?ntTacs():tid===G.user?G.tactics:(t.tac=aiStyle(t)),to:this.ql===720?4:2,hc:hcBonus(tid)+finMalus(tid),pf:{},out:{},fat:{},tf:0,man:false};
@@ -2965,7 +2965,7 @@ function applyResult(m,f){
   if(f.kind==='dom'||f.kind==='d2'){th.dw+=hw?1:0;th.dl+=hw?0:1;ta.dw+=hw?0:1;ta.dl+=hw?1:0;th.dpf+=h.pts;th.dpa+=a.pts;ta.dpf+=a.pts;ta.dpa+=h.pts;}
   if(f.kind==='reg'){th.w+=hw?1:0;th.l+=hw?0:1;ta.w+=hw?0:1;ta.l+=hw?1:0;th.pf+=h.pts;th.pa+=a.pts;ta.pf+=a.pts;ta.pa+=h.pts;}
   th.form.push(hw?'W':'L');ta.form.push(hw?'L':'W');if(th.form.length>5)th.form.shift();if(ta.form.length>5)ta.form.shift();
-  if(m.kind!=='pre')for(const s of m.s)for(const id of G.teams[s.tid].order){const q=G.players[id];if(!q)continue;q.dvt=(q.dvt||0)+1;const bx=s.box[id];if(bx&&bx.sec>0)q.dvm=(q.dvm||0)+bx.sec/60;}
+  if(m.kind!=='pre')for(const s of m.s)for(const id of G.teams[s.tid].order){const q=G.players[id];if(!q)continue;q.dvt=(q.dvt||0)+1;const bx=s.box[id];if(bx&&bx.sec>0){q.dvm=(q.dvm||0)+bx.sec/60;if(G.teams[s.tid].dom==='NCAA')q.cgp=(q.cgp||0)+1;}}
   for(const s of m.s)for(const p of s.ord){const b=s.box[p.id];if(b.sec<=0)continue;
     const st=f.kind==='pok'?(p.pst||(p.pst=blank())):(isEcK(f.kind)||isBclK(f.kind)||isFecK(f.kind))?(p.est||(p.est=blank())):isNatK(f.kind)?(p.kst||(p.kst=blank())):isDomK(f.kind)?(p.dst||(p.dst=blank())):p.st;for(const k in b)st[k]+=b[k];st.gp++;
     // a player loaned out by the user: his games at the other club, whatever competition they are in
@@ -3333,6 +3333,7 @@ function newSeason(){
   tenSeasonEnd();
   if(typeof dpEnsure==='function'){try{dpEnsure();while(dpOpen())dpWeek();}catch(e){console.error('draft return',e);}}
   if(G.nl&&G.nl.NBA){if(!(G.draft&&G.draft.ee&&G.draft.ee.y===G.season+1))eeDeclare();if(G.draft&&G.draft.ee&&!G.draft.ee.wd)eeWithdraw();}
+  try{rsSummer();}catch(e){console.error('redshirt',e);}
   G.season++;
   nbaDraftRun();eeStashTick();
   ownerSeason();
@@ -3351,7 +3352,7 @@ function newSeason(){
     const g=(p.age<=22?rnd(1,5):p.age<=25?rnd(0,3):p.age<=29?rnd(-1,1):p.age<=32?rnd(-3,0):rnd(-5,-1))+(p.age>=30&&p.age<=34&&p.o>=80&&Math.random()<.3?1:0)+(p.age>=30&&p.age<=34&&p.o>=85&&Math.random()<.15?1:0)+lgDrift(p)+devSummer(p)-(gDrift>.15&&p.age>=23?(Math.random()<clamp(gDrift*1.5,0,.95)*clamp((84-p.o)/14,0,1)?1:0)+(gDrift>1&&p.o<80&&Math.random()<.5?1:0):0)+(gDrift<-.2&&p.age<=24&&Math.random()<clamp(-gDrift*1.2,0,.9)?1:0);
     for(let i=0;i<Math.abs(g)*2;i++){const k=pick(ATTR);if(g>0&&p.o<p.pot)p.a[k]=Math.min(99,p.a[k]+1);else if(g<0)p.a[k]=Math.max(25,p.a[k]-1);upd(p);}
     if(G.retV===G.season-1?(p.retAt===G.season-1||p.age>=47):Math.random()<retireP(p)){afterCareer(p);if(p.tid===G.user){retired.push(pname(p));noteExit(p,'Retired',`${G.season-1}/${String(G.season).slice(2)}`);}leave(p);G.fa=G.fa.filter(i=>i!==p.id);delete G.players[id];continue;}
-    if(p.tid!=null&&isCol(G.teams[p.tid])){p.yrs--;if(p.yrs<=0||p.ncOut)ncGrad(p,ncl);continue;}
+    if(p.tid!=null&&isCol(G.teams[p.tid])){if(p.rsKeep){rsKeepYear(p);continue;}p.yrs--;if(p.yrs<=0||p.ncOut)ncGrad(p,ncl);continue;}
     if(p.tid!=null){p.yrs--;if(p.yrs<=0&&isNBA(G.teams[p.tid])){nbaToFA(p);continue;}if(p.yrs<=0){if(p.tid===G.user){left.push(pname(p));if(p.pressKeep===G.season-1){G.fans=clamp(G.fans-4,0,100);G.board=clamp(G.board-3,0,100);msg('Press Review','A promise broken',`You told the press ${pname(p)} would stay. He left on a free transfer. Fans −4, board −3.`,'board');}noteExit(p,'Contract ended',`${G.season-1}/${String(G.season).slice(2)}`);toFA(p);}else if(Math.random()<aiStay(p,G.teams[p.tid])){p.yrs=rnd(1,3);p.sal=salaryFor(p);}else toFA(p);}}
   }
   ncaaOffseason();acadSeason();try{aiAcSeason();}catch(e){}merchSeason();
@@ -7438,7 +7439,7 @@ const rcLead=r=>Object.keys(r.i).map(id=>({id:+id,v:r.i[id]})).sort((a,b)=>b.v-a
 const rcHome=r=>r.st||({CAN:'Canada',AUS:'Australia',FRA:'France',NGR:'Nigeria',SRB:'Serbia',GER:'Germany',LTU:'Lithuania',ESP:'Spain',SEN:'Senegal',GBR:'Great Britain',CMR:'Cameroon',BAH:'Bahamas'})[r.nat]||r.nat;
 function rcW(L){let s=0;for(const x of L)s+=x[1];let k=Math.random()*s;for(const x of L){k-=x[1];if(k<=0)return x[0];}return L[0][0];}
 // open scholarships next season: the roster limit minus players with eligibility left after this season
-function rcSpots(){return Math.max(1,NC_ROST-roster(G.user).filter(p=>!p.loan&&p.yrs>1).length);}
+function rcSpots(){return Math.max(1,NC_ROST-roster(G.user).filter(p=>!p.loan&&(p.yrs>1||(p.rsS===G.season&&p.yrs>=1))).length);}
 const rcCommits=R=>R.board.filter(r=>r.c===G.user&&!r.gone).length;
 const rcOffers=R=>R.board.filter(r=>r.off[G.user]&&!r.gone&&!(r.sg&&r.c!==G.user)).length;
 const rcMaxOff=()=>rcSpots()+5;
@@ -7592,3 +7593,25 @@ function dpDecide(){const F=G.dp,D=G.draft,back=[],gone=[];F.done=1;
   if(back.length)msg('Assistant Coach',`${back.map(pname).join(' and ')} ${back.length>1?'are':'is'} coming back!`,`${back.map(pname).join(' and ')} withdrew from the ${D.y} NBA Draft before the deadline and will play for us next season.`,'staff');
   if(gone.length)msg('Assistant Coach',`${gone.map(pname).join(' and ')} stay${gone.length>1?'':'s'} in the draft`,`${gone.map(pname).join(' and ')} kept ${gone.length>1?'their':'his'} name in the ${D.y} NBA Draft and signed with an agent. ${gone.length>1?'Their':'His'} college career is over; good luck to ${gone.length>1?'them':'him'}.`,'staff');
   if(D.ee&&!D.ee.wd)eeWithdraw();}
+
+/* ===================== Redshirts ===================== */
+// NCAA: five years to play four seasons. A player who plays no game in a season keeps that year of eligibility, once in his
+// career (redshirt). A player whose season ended early through injury, after at most 30% of the games, gets a medical hardship
+// waiver. The coach can redshirt a player before he plays: he practices with the team, develops a little faster and plays no games.
+// official college games this season (friendlies do not count); older saves fall back on minutes played
+const rsGp=p=>(p.cgp||0)||((p.dvm||0)>0?1:0);
+const rsOn=p=>!!(p&&G&&p.rsS===G.season);
+function rsCan(p){if(!p||p.tid!==G.user||!isCol(G.teams[G.user]))return 'Only your college players can redshirt.';if(p.loan)return 'Not for players on loan.';
+  if(p.rsUsed)return `${pname(p)} has already used his redshirt year.`;if(rsGp(p)>0)return `${pname(p)} has already played this season. A redshirt year means no games at all.`;if(p.yrs<1)return 'He has no eligibility left.';return null;}
+function rsToggle(pid){const p=G.players[+pid],t=G.teams[G.user];if(!p)return '';
+  if(rsOn(p)){delete p.rsS;t.order=autoOrder(t.order);save();return `${pname(p)} is available again. As soon as he plays a game, this season counts.`;}
+  const e=rsCan(p);if(e)return e;if(roster(G.user).filter(q=>q.inj<=0&&!rsOn(q)&&q.id!==p.id).length<9)return 'You need at least 9 available players.';
+  p.rsS=G.season;t.order=autoOrder(t.order);save();return `${pname(p)} redshirts this season: he practices with the team but plays no games, and keeps his year of eligibility.`;}
+function rsSummer(){const U=G.user,mine=[],med=[];
+  for(const t of G.teams){if(!isCol(t))continue;const n=Math.max(0,...t.order.map(i=>G.players[i]?G.players[i].cgp||0:0));   // the team's games: its most-used player
+    for(const id of t.order){const p=G.players[id];if(!p||p.rsUsed||p.loan||p.yrs<1)continue;const gp=rsGp(p);
+      if(gp===0&&n>0){p.rsKeep=1;if(t.id===U)mine.push(p);}
+      else if(n>0&&gp<=.3*n&&(p.injD||0)>=45){p.rsKeep=1;p.rsMed=1;if(t.id===U)med.push(p);}}}
+  for(const p of Object.values(G.players)){delete p.injD;delete p.rsS;delete p.cgp;}
+  if(mine.length||med.length)msg('Assistant Coach','Eligibility: years kept',`${mine.length?`Redshirt year: ${mine.map(pname).join(', ')} did not play and keep${mine.length>1?'':'s'} a year of eligibility.`:''}${med.length?` Medical hardship waiver: ${med.map(pname).join(', ')} missed most of the season injured and get${med.length>1?'':'s'} the year back.`:''} Each player can do this once.`.trim(),'staff');}
+function rsKeepYear(p){delete p.rsKeep;p.rsUsed=1;if(!p.rsMed)for(let i=0;i<10&&p.o<p.pot;i++){const k=pick(ATTR);p.a[k]=Math.min(99,p.a[k]+1);upd(p);}delete p.rsMed;}
