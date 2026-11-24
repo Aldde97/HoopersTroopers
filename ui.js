@@ -2197,7 +2197,7 @@ function socialFeedHTML(){const all=G.feed||[],F=fg(),flt=UI.fdF||'all';UI.fdSee
   <div class="stack">${card('Fan mood',`<div class="cb fd-ms">${fdMeter('Overall',mood,mood>=65?'Buzzing':mood>=40?'Patient':'Restless')}${fdMeter(FANG.ultra.n,F.ultra,FANG.ultra.d)}${fdMeter(FANG.fam.n,F.fam,FANG.fam.d)}<div class="fd-st ${st>0?'w':st<0?'l':''}"><b>${st>0?st+' W':st<0?-st+' L':'–'}</b><span>${st>0?'winning streak':st<0?'losing streak':'no streak'}</span></div></div>`)}
   ${tr?card('Trending',`<div class="cb fd-trl">${tr}</div>`):''}</div></div>`;}
 function feedCard(){const L=(G.feed||[]).filter(p=>p.a.t!=='stat').slice(0,3);if(!L.length)return '';const n=feedUnread();
-  return card(`Social${n?` · ${n} new`:''}`,`<div class="fd-l mini">${L.map(p=>fdPost(p,true)).join('')}</div>`,`<button class="lnk" data-act="tab:feed">Open ›</button>`);}
+  return card(`Social${n?` · ${n} new`:''}`,`<div class="fd-l fdm">${L.map(p=>fdPost(p,true)).join('')}</div>`,`<button class="lnk" data-act="tab:feed">Open ›</button>`);}
 ACT.fdf=k=>{UI.fdF=k;render();};
 
 /* ===================== Playbook ===================== */
