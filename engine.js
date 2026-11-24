@@ -3023,7 +3023,7 @@ function simStep0(um){
   if(userIsKls())G.leg='kls';
   if(userIsBih())G.leg='bih';
   if(userIsNL())G.leg='nl';
-  const natLeg=G.leg==='kls'||G.leg==='bih'||(G.leg==='nl'&&userIs2());
+  const natLeg=G.leg==='kls'||G.leg==='bih'||(G.leg==='nl'&&(userIs2()||(userIsDom()&&!userIsNL())));
   if(userIsDom()&&!natLeg)G.leg='dom';
   if(userIs2()&&!natLeg)G.leg='dom2';
   const fx=getFixtures(),lbl=stepLabel(),out=[];
@@ -3034,11 +3034,12 @@ function simStep0(um){
   else if(G.leg==='nl'){domBetween();const L=nlUser();nlAdvance(L,out);if(userIsNL())nlUserCatchUp(L);if(userNBA()){try{nbaStepAI();}catch(e){console.error(e);}}
     // an ABA League 2 club that also plays its national league (MZT, TFT): back to the ABA League 2 next, or on in the national league once that is over
     else if(userIs2()){if(G.dom2&&G.dom2.phase!=='done')G.leg='dom2';else{if(L.phase==='wait')nlStartPO(L);if(!(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L)))){nlFinishSilent(L);G.leg='dom2';endOrKls();}}}
+    else if(userIsDom()&&!userIsNL()){if(G.dom&&G.dom.phase!=='done')G.leg='dom';else{if(L.phase==='wait')nlStartPO(L);if(!(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L)))){nlFinishSilent(L);G.leg='dom';endOrKls();}}}
     else if(G.phase!=='done'){G.leg='el';}else if(L.phase==='done'||!nlUserIn(L)){nlFinishSilent(L);G.leg='el';endOrKls();}}
   else if(G.leg==='bih'&&userIsBih()){domBetween();bihAdvance(out);bihUserCatchUp();}
   else if(G.leg==='bih'){domBetween();bihAdvance(out);if(G.bih.phase==='done'||!bihUserIn()){bihFinishSilent();G.leg=userIs2()?'dom2':userIsDom()?'dom':'el';endOrKls();}}
   else if(G.leg==='dom2'){domBetween();dom2Advance(out);dom2UserCatchUp();{const L=nlUser();if(L&&!userIsNL()&&G.leg==='dom2'&&G.dom2.phase!=='done'){if(L.phase==='wait')nlStartPO(L);if(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L)))G.leg='nl';}}}
-  else if(G.leg==='dom'){domBetween();domAdvance(out);if(userIsDom())domUserCatchUp();else domNextLeg(false);}
+  else if(G.leg==='dom'){domBetween();domAdvance(out);if(userIsDom())domUserCatchUp();else domNextLeg(false);{const L=nlUser();if(L&&userIsDom()&&!userIsNL()&&G.leg==='dom'&&G.dom.phase!=='done'){if(L.phase==='wait')nlStartPO(L);if(L.phase==='reg'||(L.phase==='po'&&nlUserIn(L)))G.leg='nl';}}}
   else{const wasReg=G.phase==='reg';betweenRounds();advanceStep(out);domAfterEL(wasReg);{const L=nlUser();if(wasReg&&L&&!userIsNL()&&L.phase==='reg'&&G.leg==='el')G.leg='nl';}}
   cupHook();
   if(G.board<=5&&!G.sacked&&!G.ulti&&!seasonOver()){G.sacked=true;}
@@ -4049,7 +4050,7 @@ const NLCFG={
   SBN:{name:'Serie B Nazionale',short:'Serie B',country:'Italy',groups:['A','B'],po:'sbn',prize:20000,title:'Serie B Nazionale playoff winners',up:'A2',down:null,nDown:0,safeRank:13},
   GBL:{name:'Stoiximan GBL',short:'GBL',country:'Greece',el:['PAO','OLY'],po:'gbl',prize:200000,title:'Greek champions',up:null,down:'GEL',nDown:2,elWait:true},
   GEL:{name:'Elite League',short:'Elite League',country:'Greece',po:'gel',prize:40000,title:'Elite League playoff winners',up:'GBL',down:null,nDown:0},
-  AUT:{name:'win2day Basketball Superliga',short:'Superliga',country:'Austria',guest:['VIE'],po:'aut',prize:40000,title:'Austrian champions',up:null,down:null,nDown:0,safeRank:9},
+  AUT:{name:'win2day Basketball Superliga',short:'Superliga',country:'Austria',guest:['VIE'],guestPlay:1,po:'aut',prize:40000,title:'Austrian champions',up:null,down:null,nDown:0,safeRank:9},
   NBA:{name:'NBA',short:'NBA',country:'USA',groups:['East','West'],po:'nba',prize:400000,title:'NBA champions',up:null,down:null,nDown:0,safeRank:12},
   GL:{name:'NBA G League',short:'G League',country:'USA',groups:['East','West'],po:'gl',prize:30000,title:'G League champions',up:null,down:null,nDown:0,safeRank:12},
   BSL:{name:'T\xfcrkiye Sigorta Basketbol S\xfcper Ligi',short:'BSL',country:'Turkey',el:['FEN','EFS','BJK'],po:'bsl',prize:200000,title:'Turkish champions',up:null,down:'TBL',nDown:2,safeRank:14,elWait:true},
