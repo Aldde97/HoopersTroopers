@@ -996,7 +996,7 @@ function ncNext(L,P,W){const o=(a,b)=>ncOrd(L,a,b),U=G.user,n=NCCONF().length;if
   if(P.stage==='cf'){L.auto=W.slice();try{nilConf(W)}catch(e){}W.forEach((id,c)=>{if(id===U){G.board=clamp(G.board+3,0,100);msg('Club President',`${NCCONF()[c]} tournament champions!`,`We won the ${NCCONF()[c]} tournament and take the automatic bid to the NCAA Tournament.`,'board');}});news('Conference champions',NCCONF().map((c,i)=>`${c}: ${G.teams[W[i]].name}`).join(' · '));ncSelect(L);return;}
   if(P.stage==='r32'||P.stage==='s16'||P.stage==='e8'||P.stage==='f4'){const nx={r32:'s16',s16:'e8',e8:'f4',f4:'fin'}[P.stage],S=[];for(let i=0;i<W.length;i+=2)S.push(o(W[i],W[i+1]));L.po={stage:nx,ser:domSeries(S,1)};
     if(nx==='f4')news('Final Four',`${W.map(i=>`${G.teams[i].name} (${NCREG[L.seed[i].r]})`).join(', ')} reach the Final Four${ncFFSite()?` in ${ncFFSite().replace(' · ',', ')}`:''}.`);return;}
-  L.champ=W[0];L.phase='done';L.down=[];try{nilSeasonEnd(L)}catch(e){}
+  L.champ=W[0];L.phase='done';L.down=[];try{nilSeasonEnd(L)}catch(e){}if(L.code==='NCAA'&&L.ap){try{apFinal(L);}catch(e){console.error(e);}}
   if(L.champ===U){G.board=clamp(G.board+8,0,100);msg('Club President','National champions!',`We won the ${G.season+1} NCAA Tournament. One shining moment for the whole school.`,'board');}
   news(`${G.teams[L.champ].name}: national champions`,`${G.teams[L.champ].name} won the ${seasonStr()} NCAA Tournament.`);}
 function ncRegText(L,U){const g=G.teams[U].grp,i=(L.final[g]||[]).indexOf(U),c=ncRec(L,U);return `${c[0]}–${c[1]} in conference play. ${i<8?`We play the ${g} tournament as the No. ${i+1} seed.`:'We missed the conference tournament.'}`;}
@@ -3059,7 +3059,7 @@ function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=
   else if(L.phase==='done')d=263;
   if(d!=null)G.day=Math.max(d0+1,d);}
 
-function simStep(um){if(typeof pwOpen==='function'&&pwOpen()){while(pwOpen())pwDay();}if(G&&!G.sacked&&G.teams[G.user]&&!seasonOver()&&G.teams[G.user].order.length<5&&typeof fillRoster==='function')fillRoster();const d0=G?G.day:0;const r=simStep0(um);try{if(seasonOver())dpEnsure();}catch(e){console.error('draft return',e);}try{rcTick();}catch(e){console.error('recruiting',e);}try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){if(typeof pwOpen==='function'&&pwOpen()){while(pwOpen())pwDay();}if(G&&!G.sacked&&G.teams[G.user]&&!seasonOver()&&G.teams[G.user].order.length<5&&typeof fillRoster==='function')fillRoster();const d0=G?G.day:0;const r=simStep0(um);try{apTick();}catch(e){console.error('AP poll',e);}try{if(seasonOver())dpEnsure();}catch(e){console.error('draft return',e);}try{rcTick();}catch(e){console.error('recruiting',e);}try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -7481,7 +7481,7 @@ function rcSpots(){return Math.max(1,NC_ROST-roster(G.user).filter(p=>!p.loan&&(
 const rcCommits=R=>R.board.filter(r=>r.c===G.user&&!r.gone).length;
 const rcOffers=R=>R.board.filter(r=>r.off[G.user]&&!r.gone&&!(r.sg&&r.c!==G.user)).length;
 const rcMaxOff=()=>rcSpots()+5;
-function rcFit(t,r){if(!t)return 0;const st=rcState(t),pres=((t.rep||60)-60)/3,home=r.st&&st===r.st?10:r.st&&rcReg(st)===rcReg(r.st)?4:0,
+function rcFit(t,r){if(!t)return 0;const st=rcState(t),ar=typeof apRank==='function'?apRank(t.id):0,pres=((t.rep||60)-60)/3+(ar?(26-ar)/4:0),home=r.st&&st===r.st?10:r.st&&rcReg(st)===rcReg(r.st)?4:0,
   win=((t.w||0)+1)/((t.w||0)+(t.l||0)+2)*20-10,ret=roster(t.id).filter(p=>p.pos===r.pos&&p.yrs>1&&p.o>=r.o-2).length,pt=ret===0?8:ret===1?3:-4,
   nil=pres*.6+(t.id===G.user&&G.nil?((G.nil.boost||50)-50)/8:0),pro=pres*.5+((t.rep||0)>=85?4:0),v={pt,win,nil,home,pro};
   return pres*.8+home*.6+win*.4+pt*.6+nil*.4+v[r.pri]*1.2;}
@@ -7653,3 +7653,41 @@ function rsSummer(){const U=G.user,mine=[],med=[];
   for(const p of Object.values(G.players)){delete p.injD;delete p.rsS;delete p.cgp;}
   if(mine.length||med.length)msg('Assistant Coach','Eligibility: years kept',`${mine.length?`Redshirt year: ${mine.map(pname).join(', ')} did not play and keep${mine.length>1?'':'s'} a year of eligibility.`:''}${med.length?` Medical hardship waiver: ${med.map(pname).join(', ')} missed most of the season injured and get${med.length>1?'':'s'} the year back.`:''} Each player can do this once.`.trim(),'staff');}
 function rsKeepYear(p){delete p.rsKeep;p.rsUsed=1;if(!p.rsMed)for(let i=0;i<10&&p.o<p.pot;i++){const k=pick(ATTR);p.a[k]=Math.min(99,p.a[k]+1);upd(p);}delete p.rsMed;}
+
+/* ===================== AP Top 25 ===================== */
+// A weekly media poll for college basketball. Voters start from a preseason view (roster and program prestige), move slowly
+// (mostly last week's opinion, and they keep ranked teams unless given a reason), react to the week's results (losing to an unranked team hurts, beating a ranked one helps) and
+// lean more on the record and the NET as the season goes on. Ranked teams lift booster mood and recruit interest.
+const apL=()=>G&&G.nl&&G.nl.NCAA;
+const apRank=id=>{const L=apL(),A=L&&L.ap;if(!A||A.s!==G.season)return 0;const i=A.top.indexOf(id);return i>=0?i+1:0;};
+function apMerit(L,id){const r=nlRec(L,id),g=r[0]+r[1],base=(strength(id)-60)*.9+((G.teams[id].rep||60)-70)*.25;if(!g)return base;
+  const N=(L.gl||[]).length?ncNet(L):null,w=Math.min(1,g/12);return base*(1-w*.7)+w*((N?N.sc[id]:0)*.6+55*(r[0]/g-.5));}
+// voters rarely rank a team that is barely above .500
+const apOK=(L,id)=>{const r=nlRec(L,id),g=r[0]+r[1];return g<8||r[0]/g>=.55;};
+function apTick(){const L=apL();if(!L||!L.ids||preOn())return;
+  if(!L.ap||L.ap.s!==G.season){if(L.phase!=='reg')return;L.ap={s:G.season,wk:0,v:{},top:[],prev:{},d:G.day,gi:(L.gl||[]).length};for(const i of L.ids)L.ap.v[i]=apMerit(L,i)+rf(-1,1);apPublish(L);return;}
+  const A=L.ap;if(A.fin||G.day-A.d<7)return;if(L.phase==='done'){apFinal(L);return;}if(L.phase==='po'&&L.po&&!['cq','cs','cf'].includes(L.po.stage))return;
+  const adj={},gl=L.gl||[];for(let k=A.gi||0;k<gl.length;k++){const [h,a,hp,ap]=gl[k],w=hp>ap?h:a,l=hp>ap?a:h,rw=apRank(w),rl=apRank(l);
+    if(rl&&!rw){adj[l]=(adj[l]||0)-(rl<=10?7:5);adj[w]=(adj[w]||0)+4;}else if(rl&&rw){adj[l]=(adj[l]||0)-(rw<rl?1.5:3.5);adj[w]=(adj[w]||0)+(rl<=10?4:2.5);}
+    else if(rw)adj[w]=(adj[w]||0)+.5;}
+  A.gi=gl.length;for(const i of L.ids)A.v[i]=.88*A.v[i]+.12*apMerit(L,i)+.4*(adj[i]||0);A.d=G.day;apPublish(L);}
+function apPublish(L,final){const A=L.ap,U=G.user,was=A.top.slice(),old=apRank(U);A.prev={};was.forEach((id,k)=>A.prev[id]=k+1);
+  const inc=i=>A.v[i]+(was.includes(i)?2.5:0);   // voters keep ranked teams unless they give a reason
+  let ord=L.ids.slice().sort((a,b)=>inc(b)-inc(a));if(!final)ord=ord.filter(i=>apOK(L,i)).concat(ord.filter(i=>!apOK(L,i)));if(final){const f=apFinOrd(L);ord=f.concat(ord.filter(i=>!f.includes(i)));}
+  A.top=ord.slice(0,25);A.wk++;const v1=A.v[A.top[0]],v25=A.v[A.top[24]],sp=Math.max(1,v1-v25);
+  A.pts={};A.top.forEach((id,k)=>A.pts[id]=final?Math.round(1550-k*58):Math.round(1550-(v1-A.v[id])/sp*1400));A.fpv=final?62:clamp(Math.round(30+(v1-A.v[A.top[1]])*8),24,62);
+  const nm=i=>G.teams[i].name,head=A.top[0],nw=A.top.filter(i=>!A.prev[i]),gone=was.filter(i=>!A.top.includes(i));
+  if(A.wk===1&&!final)news('AP Top 25: preseason poll',`${nm(head)} start the season at No. 1, ahead of ${A.top.slice(1,5).map(nm).join(', ')}.`);
+  else news(final?'Final AP Top 25':`AP Top 25 · Week ${A.wk-1}`,`${was[0]===head?`${nm(head)} stay No. 1`:`${nm(head)} move to No. 1`}.${nw.length?` New: ${nw.map(nm).join(', ')}.`:''}${gone.length?` Out: ${gone.map(nm).join(', ')}.`:''}`);
+  if(!L.ids.includes(U)||!isCol(G.teams[U]))return;const r=apRank(U);
+  const N=typeof nilOn==='function'&&nilOn()?G.nil:null;if(N&&!final){N.boost=clamp(N.boost+(r?(r<=10?1.2:.6):old?-2:0),0,100);}
+  const me=G.teams[U].name;
+  if(r&&!old&&A.wk>1)msg('Media',`${me} enter the AP Top 25`,`We are ranked No. ${r} in this week's AP poll. Boosters love it, and so do recruits.`,'media');
+  else if(!r&&old)msg('Media',`${me} drop out of the AP Top 25`,`After this week's results we fell out of the poll (No. ${old} last week). The boosters are restless.`,'media');
+  else if(r===1&&old!==1)msg('Media',`${me} are No. 1!`,`For the first time this season we are the No. 1 team in the AP poll (${A.fpv} first-place votes).`,'media');
+  else if(r&&r<=10&&old>10&&!A.m10&&(A.m10=1))msg('Media',`${me} crack the top 10`,`We moved up to No. ${r} in the AP poll.`,'media');}
+// final poll after the national championship: the tournament reshapes the top
+function apFinOrd(L){const H=L.hist||{},rnk=[];const add=i=>{if(i!=null&&!rnk.includes(i))rnk.push(i);};add(L.champ);
+  for(const st of ['fin','f4','e8','s16']){const S=(H[st]||[]).flatMap(s=>[s.hi,s.lo]).filter(i=>i!=null).sort((a,b)=>L.ap.v[b]-L.ap.v[a]);S.forEach(add);}return rnk;}
+function apFinal(L){const A=L.ap;if(A.fin)return;A.fin=1;apPublish(L,true);}
+function apMatchTag(f){const a=apRank(f.h),b=apRank(f.a);return a&&b&&a<=10&&b<=10?'TOP-10 MATCHUP':a&&b?'RANKED MATCHUP':'';}
