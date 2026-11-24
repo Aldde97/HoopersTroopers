@@ -194,7 +194,7 @@ function render(){try{const r=render0();try{matchFocus();tblFit();homeTrim();}ca
 function render0(){
   if(G&&typeof tidFix==='function'&&!(render0.fx||(render0.fx=new WeakSet())).has(G)){render0.fx.add(G);try{tidFix();}catch(err){console.error(err);}}
   const app=document.getElementById('app');
-  if(!G||UI.view==='start'){app.innerHTML=startHTML()+`<button class="set-fab" data-act="settings" title="Settings" aria-label="Settings">${iIc('gear')}</button>`+(UI.modal&&UI.modal.kind==='settings'?settingsModal():'');csScroll();try{csPlates();}catch(e){}if(window.csBgMount)csBgMount();return;}
+  if(!G||UI.view==='start'){app.innerHTML=startHTML()+`<button class="set-fab" data-act="settings" title="Settings" aria-label="Settings">${iIc('gear')}</button>`+(UI.modal&&UI.modal.kind==='settings'?settingsModal():'');csScroll();try{csCardFix();csStripFix();}catch(e){}if(window.csBgMount)csBgMount();return;}
   if(G.sacked||G.bankrupt){app.innerHTML=careerHTML()+modalHTML();return;}
   let body;
   if(UI.view==='prematch'&&userFx())body=prematchHTML();
@@ -1570,7 +1570,7 @@ function startHTML(){const slH=slStartHTML(),saved=slH?null:loadSave(),D=csData(
   <div class="cs-crumb">Manager career › New career</div><h1 class="cs-h">Choose your club</h1><p class="cs-sub">Pick the club you will manage. Every club has its own budget, squad and board expectations – from the EuroLeague down to the Regionalliga.</p>
   ${nav('nat','csnat',D.nats.map(x=>x.n),natK)}${nav('lg','cslg',lgs,lgK)}${strip}
   <div class="cs-grid">
-    <div class="cs-card" style="background:${sel.c1};color:${fg(sel)}">${crest(sel,'cs-big')}<h2>${esc(sel.name)}</h2><div class="cs-stars">${stars}</div>
+    <div class="cs-card" data-c1="${sel.c1}" data-c2="${sel.c2||''}" style="background:${sel.c1};color:${fg(sel)}">${crest(sel,'cs-big'+(tcol(sel)==='#ffffff'?' dk':''))}<h2>${esc(sel.name)}</h2><div class="cs-stars">${stars}</div>
       <div class="cs-kv"><span>Board expectation</span><b>${csExpect(sel)}</b></div>${sel.dom==='NCAA'||lgK==='NCAA'?`<div class="cs-kv"><span>NIL pool</span><b>${eur(Math.max(nilBase(sel),r10k(20.5e6*Math.pow(1.04,Math.max(0,((G&&G.season)||2026)-2025))*nilShare(sel))+nilBase(sel)*.25)).replace('€','$')} / season</b></div><div class="cs-kv"><span>Transfer fees</span><b>None in college</b></div>`:`<div class="cs-kv"><span>Transfer budget</span><b>${eur(sel.budget)}</b></div><div class="cs-kv"><span>Wage budget</span><b>${eur(sel.wages)} / season</b></div>`}</div>
     <div class="cs-mid">
       <div class="cs-two">${box('Location',esc(sel.city||'–'),CS_NAT[sel.nat]||sel.nat,'acc')}${box('League',esc(lgName(lgK)),sel.grp?esc(sel.grp):'')}</div>
@@ -1586,19 +1586,21 @@ function startHTML(){const slH=slStartHTML(),saved=slH?null:loadSave(),D=csData(
   <div class="cs-foot"><label class="cs-name"><span>Manager</span><input id="mgrName" value="${esc(UI.mgr)}" placeholder="Your name" maxlength="32" autocomplete="off"></label>${IDB_OK&&!gamePaid()&&SVL.length===1?`<span class="cs-warn">Free version: one save slot. Starting a new career replaces ${esc(SVL[0].name||'your saved career')}.</span>`:IDB_OK&&SVL.length>=slotMax()?`<span class="cs-warn">${slotFullMsg()} Delete a career first.</span>`:!IDB_OK&&saved?'<span class="cs-warn">Starting a new career replaces your saved game.</span>':''}<button class="cs-go" data-act="startgame">Start career</button></div>
   </div></div>`;}
 // keep the selected crest in view
-// club crests that blend into the colour behind them (a red logo on a red card) get a round plate: the logo's pixels are compared
-// with the background once per image; when a large share is close to it, the plate is white, or dark for mostly white logos
-const PLATE={};
-function plateNeed(img,bg,lim){const k=img.currentSrc||img.src;if(PLATE[k]!==undefined&&PLATE[k].bg===bg)return PLATE[k].v;let v='';
-  try{const N=48,c=document.createElement('canvas');c.width=N;c.height=N;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,N,N);const d=x.getImageData(0,0,N,N).data;
-    const B=String(bg).trim(),h=B.match(/^#([0-9a-f]{6})$/i),m=h?[parseInt(h[1].slice(0,2),16),parseInt(h[1].slice(2,4),16),parseInt(h[1].slice(4,6),16)]:(B.match(/\d+(\.\d+)?/g)||[0,0,0]),br=+m[0],bgG=+m[1],bb=+m[2];let op=0,near=0,lum=0,wh=0;
-    for(let i=0;i<d.length;i+=4){if(d[i+3]<140)continue;op++;const r=d[i],g=d[i+1],b=d[i+2],dist=Math.sqrt(2*(r-br)**2+4*(g-bgG)**2+3*(b-bb)**2);if(dist<130)near++;lum+=(.2126*r+.7152*g+.0722*b)/255;if(Math.min(r,g,b)>205)wh++;}
-    if(op>40&&near/op>(lim||.28))v=wh/op>.3||lum/op>.62?'pl-d':'pl-w';}catch(e){v='';}
-  PLATE[k]={bg,v};return v;}
-function plateApply(img,bgOf,lim,dark){const run=()=>{const v=plateNeed(img,bgOf(img),lim);img.classList.remove('pl-w','pl-d');if(v)img.classList.add(v);if(v==='pl-d'&&dark&&img.src!==dark)img.src=dark;};if(img.complete&&img.naturalWidth)run();else img.addEventListener('load',run,{once:true});}
-function csPlates(){const big=document.querySelector('.cs-card img.cs-big');if(big)plateApply(big,()=>getComputedStyle(big.closest('.cs-card')).backgroundColor,-1,LOGOW({short:UI.csSel}));   // the club card always uses a plate (over half of all logos are drawn in the club colour)
-  
-  document.querySelectorAll('.cs-crests img.crest').forEach(im=>plateApply(im,()=>'rgb(32,35,42)',.45));}
+// a club logo that blends into the colour behind it (a red logo on a red card): share of the logo's pixels close to that colour
+const BLEND={};
+function rgbOf(c){const B=String(c).trim(),h=B.match(/^#([0-9a-f]{6})$/i);if(h)return [0,2,4].map(i=>parseInt(h[1].slice(i,i+2),16));const m=B.match(/\d+(\.\d+)?/g)||[0,0,0];return m.slice(0,3).map(Number);}
+function blendShare(img,bg){const k=(img.currentSrc||img.src).length+':'+(img.currentSrc||img.src).slice(-60)+'|'+bg;if(BLEND[k]!=null)return BLEND[k];let v=0;
+  try{const N=48,c=document.createElement('canvas');c.width=N;c.height=N;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,N,N);const d=x.getImageData(0,0,N,N).data,[br,bgG,bb]=rgbOf(bg);let op=0,near=0;
+    for(let i=0;i<d.length;i+=4){if(d[i+3]<140)continue;op++;if(Math.sqrt(2*(d[i]-br)**2+4*(d[i+1]-bgG)**2+3*(d[i+2]-bb)**2)<130)near++;}v=op>40?near/op:0;}catch(e){v=0;}return BLEND[k]=v;}
+const shade=(c,f)=>{const [r,g,b]=rgbOf(c);return `rgb(${Math.round(r*f)},${Math.round(g*f)},${Math.round(b*f)})`;};
+const txtOn=c=>{const [r,g,b]=rgbOf(c);return (.2126*r+.7152*g+.0722*b)/255>.6?'#111111':'#ffffff';};
+function whenLoaded(img,fn){if(img.complete&&img.naturalWidth)fn();else img.addEventListener('load',fn,{once:true});}
+// club card: keep the club colour unless the logo disappears in it; then the second colour, or a darker or lighter shade, whichever shows the logo best
+function csCardFix(){const big=document.querySelector('.cs-card img.cs-big'),card=big&&big.closest('.cs-card');if(!big||!card)return;const c1=card.dataset.c1,c2=card.dataset.c2;if(!c1)return;
+  whenLoaded(big,()=>{if(blendShare(big,c1)<=.28)return;const C=[shade(c1,.5),shade(c1,.32),c2,'#16191f','#e9ecef'].filter(Boolean);let best=null,bv=2;
+    for(const c of C){const v=blendShare(big,c);if(v<bv){bv=v;best=c;}if(v<.12)break;}if(best){card.style.background=best;card.style.color=txtOn(best);}});}
+// crest strip: a logo that vanishes on the dark tile gets a light tile
+function csStripFix(){document.querySelectorAll('.cs-crests button img.crest').forEach(im=>whenLoaded(im,()=>{if(blendShare(im,'rgb(32,35,42)')>.6)im.closest('button').classList.add('lt');}));}
 function csScroll(){const r=document.getElementById('csCrests');if(!r)return;const b=r.querySelector('.on');if(b)r.scrollLeft=b.offsetLeft-r.clientWidth/2+b.clientWidth/2;}
 
 /* ===================== Modal ===================== */
