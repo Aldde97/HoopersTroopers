@@ -891,7 +891,7 @@ function eeDeclare(){nbaClassEnsure();const D=G.draft;if(!D||D.y!==eeYear())retu
   if(all.length)news(`${D.y} NBA Draft: international entrants`,`${all.length} early entrants and automatically eligible players from college and abroad are in the ${D.y} NBA Draft pool. The best prospects: ${all.slice(0,6).map(p=>`${pname(p)} (${p.age}, ${G.teams[p.tid].short})`).join(', ')}.`);
   if(mine.length)msg('Sporting Director',`${mine.length===1?pname(mine[0])+' is':mine.length+' of our players are'} in the ${D.y} NBA Draft`,`${mine.map(p=>`${pname(p)} (${p.age}, OVR ${p.o}, POT ${p.pot}) ${p.eeAuto?'is automatically eligible this year':'has declared for the draft'}`).join('; ')}. He stays with us for now. Declared players can still withdraw until mid June; if an NBA team drafts him, it may bring him over this summer (we receive a buyout) or leave him with us and keep his rights.`,'staff');}
 function eeWithdraw(){const D=G.draft;if(!D||!D.ee||D.ee.wd||D.y!==eeYear())return;D.ee.wd=1;const U=G.user,rk=prospects().sort((a,b)=>prospectScore(b)-prospectScore(a)).map(p=>p.id),out=[];
-  for(const p of prospects()){if(!p.ee||p.eeAuto||(p.eeReal&&p.eeReal<=45))continue;const r=rk.indexOf(p.id)+1,q=r>45?.85:r>30?.5:r>20?.2:0;
+  for(const p of prospects()){if(!p.ee||p.eeAuto||p.dpDone||(p.eeReal&&p.eeReal<=45))continue;const r=rk.indexOf(p.id)+1,q=r>45?.85:r>30?.5:r>20?.2:0;
     if(Math.random()<q){delete p.prospect;delete p.ee;D.cls=D.cls.filter(i=>i!==p.id);D.board=(D.board||[]).filter(i=>i!==p.id);out.push(p);}}
   if(out.length)news(`${D.y} NBA Draft: withdrawals`,`${out.length} early entrants withdrew from the draft before the deadline and stay with their teams, among them ${out.slice(0,5).map(pname).join(', ')}.`);
   const m=out.filter(p=>p.tid===U);if(m.length)msg('Sporting Director','Withdrawn from the NBA Draft',`${m.map(pname).join(', ')} withdrew from the draft and stay${m.length>1?'':'s'} with us.`,'staff');}
@@ -3021,7 +3021,7 @@ function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=
   else if(L.phase==='done')d=263;
   if(d!=null)G.day=Math.max(d0+1,d);}
 
-function simStep(um){if(typeof pwOpen==='function'&&pwOpen()){while(pwOpen())pwDay();}if(G&&!G.sacked&&G.teams[G.user]&&!seasonOver()&&G.teams[G.user].order.length<5&&typeof fillRoster==='function')fillRoster();const d0=G?G.day:0;const r=simStep0(um);try{rcTick();}catch(e){console.error('recruiting',e);}try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){if(typeof pwOpen==='function'&&pwOpen()){while(pwOpen())pwDay();}if(G&&!G.sacked&&G.teams[G.user]&&!seasonOver()&&G.teams[G.user].order.length<5&&typeof fillRoster==='function')fillRoster();const d0=G?G.day:0;const r=simStep0(um);try{if(seasonOver())dpEnsure();}catch(e){console.error('draft return',e);}try{rcTick();}catch(e){console.error('recruiting',e);}try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -3331,6 +3331,7 @@ function newSeason(){
   boardSeason();
   fanSeason();
   tenSeasonEnd();
+  if(typeof dpEnsure==='function'){try{dpEnsure();while(dpOpen())dpWeek();}catch(e){console.error('draft return',e);}}
   if(G.nl&&G.nl.NBA){if(!(G.draft&&G.draft.ee&&G.draft.ee.y===G.season+1))eeDeclare();if(G.draft&&G.draft.ee&&!G.draft.ee.wd)eeWithdraw();}
   G.season++;
   nbaDraftRun();eeStashTick();
@@ -7548,3 +7549,40 @@ function pwOffer(pid,k){const p=G.players[+pid],U=G.user;if(!pwOpen())return 'Th
   if(wageBill(U)+pwOfferSum()-old+nil>G.fin.wageBudget)return `Not enough NIL room: if everyone you made an offer to accepted, you would be over your NIL budget (${eur(G.fin.wageBudget)}).`;
   p.pw.of[U]=nil;const n=Object.keys(p.pw.of).length-1;
   return `Offer to ${pname(p)}: ${eur(nil)} NIL. ${n?`${n} other program${n>1?'s are':' is'} in on him.`:'No other offers yet.'} He decides on day ${p.pw.d}.`;}
+
+/* ===================== NBA Draft: will he come back? ===================== */
+// When a college season ends, the user's underclassmen who declared for the draft go through three weeks: pre-draft workouts,
+// the NBA Draft Combine and the withdrawal deadline. The coach can get NBA feedback, promise a bigger role, offer more NIL money
+// or simply back the player (only players who project as draft picks; the rest test the waters and return as before). At the deadline he decides: withdraw and return, or stay in the draft and leave the program.
+const DP_WK=['Pre-draft workouts','NBA Draft Combine','Withdrawal deadline'];
+const dpOpen=()=>!!(G&&G.dp&&!G.dp.done&&G.dp.y===G.season+1&&G.teams[G.user]&&isCol(G.teams[G.user]));
+const dpProj=r=>r<=14?'Lottery pick':r<=30?'First round':r<=45?'Early second round':r<=58?'Late second round':'Likely undrafted';
+const dpRank=()=>prospects().sort((a,b)=>prospectScore(b)-prospectScore(a)).map(p=>p.id);
+function dpBase(p,r){if(p.eeReal&&p.eeReal<=30)return .02;return r<=14?.03:r<=20?.1:r<=30?.25:r<=45?.5:.85;}
+function dpChance(e){const k=e.real?.2:e.r<=14?.3:1,fb=e.fb?(e.r>30?.12:-.05):0;return clamp(e.b+k*(fb+(e.role?.1:0)+(e.nil?.15:0))+(e.cb>0?-.1:e.cb<0?.12:0),.01,.95);}
+const dpNil=p=>r5k(Math.max(150000,(p.sal||0)*.6));
+function dpEnsure(){if(!G||!G.teams||!G.teams[G.user]||!isCol(G.teams[G.user])||!G.nl||!G.nl.NBA||!seasonOver())return;const y=G.season+1;if(G.dp&&G.dp.y===y)return;
+  if(!(G.draft&&G.draft.ee&&G.draft.ee.y===y))eeDeclare();const D=G.draft;
+  if(!D||D.y!==y||!D.ee||D.ee.wd){G.dp={y,done:1};return;}
+  const rk=dpRank(),L=prospects().filter(p=>p.tid===G.user&&p.ee&&!p.eeAuto&&rk.indexOf(p.id)+1<=60);if(!L.length){G.dp={y,done:1};return;}
+  G.dp={y,wk:0,len:DP_WK.length,pl:{}};
+  for(const p of L){const r=rk.indexOf(p.id)+1;G.dp.pl[p.id]={r,b:dpBase(p,r),real:!!(p.eeReal&&p.eeReal<=30),fb:0,role:0,nil:0,sup:0,cb:0};}
+  msg('Assistant Coach',`Draft decision${L.length>1?'s':''}: ${L.map(pname).join(', ')}`,`${L.map(pname).join(' and ')} declared for the ${y} NBA Draft but ${L.length>1?'have':'has'} not hired an agent yet, so ${L.length>1?'they':'he'} can still withdraw and come back. We have three weeks until the withdrawal deadline. Get NBA feedback, talk about his role, put NIL money on the table or simply back him (Home).`,'staff');}
+function dpAct(pid,k){const F=G.dp,p=G.players[+pid],e=F&&F.pl[+pid];if(!dpOpen()||!p||!e)return 'The withdrawal deadline has passed.';if(e[k])return 'Already done.';
+  if(k==='fb'){e.fb=1;return `NBA feedback for ${pname(p)}: ${dpProj(e.r).toLowerCase()} (No. ${e.r} on the boards). ${e.r>45?'That makes a return much more likely.':e.r<=30?'He is hearing what he wanted to hear.':'Teams like him, but nobody promises anything.'}`;}
+  if(k==='role'){e.role=1;moodAdd(p,3);p.dpRole=G.season+1;return `You promised ${pname(p)} a bigger role next season: the offense runs through him. ${e.r<=14?'He listens politely; lottery money is hard to beat.':'He likes what he hears.'}`;}
+  if(k==='nil'){const c=dpNil(p);if(wageBill(G.user)+c>G.fin.wageBudget)return `Not enough NIL room for ${eur(c)} more.`;e.nil=1;p.sal+=c;return `${pname(p)} gets ${eur(c)} more NIL money if he returns (now ${eur(p.sal)} a season). ${e.r<=14?'Still far from a rookie contract, though.':'That is a serious offer.'}`;}
+  if(k==='sup'){e.sup=1;moodAdd(p,5);return `You told ${pname(p)} you will back him whatever he decides. He appreciates it, and so will future recruits.`;}
+  return '';}
+function dpWeek(){const F=G.dp;if(!F||F.done)return;F.wk++;const U=G.user;
+  if(F.wk===2){const L=[];for(const id of Object.keys(F.pl)){const e=F.pl[id],p=G.players[id];if(!p)continue;const x=rf(-1,1);e.cb=x>.45?1:x<-.45?-1:0;
+      L.push(`${pname(p)}: ${e.cb>0?'tested very well, his stock is rising':e.cb<0?'struggled in the scrimmages, his stock is falling':'solid, nothing changed'}`);}
+    msg('Assistant Coach','NBA Draft Combine',L.join('. ')+'.','staff');}
+  if(F.wk>=F.len)dpDecide();}
+function dpDecide(){const F=G.dp,D=G.draft,back=[],gone=[];F.done=1;
+  for(const id of Object.keys(F.pl)){const e=F.pl[id],p=G.players[id];if(!p||!p.prospect)continue;
+    if(Math.random()<dpChance(e)){delete p.prospect;delete p.ee;delete p.eeAuto;delete p.eeReal;D.cls=D.cls.filter(i=>i!==p.id);D.board=(D.board||[]).filter(i=>i!==p.id);back.push(p);if(e.sup)moodAdd(p,3);}
+    else{p.dpDone=1;if(e.nil){p.sal=Math.max(ncNil(p),p.sal-dpNil(p));}gone.push(p);}}
+  if(back.length)msg('Assistant Coach',`${back.map(pname).join(' and ')} ${back.length>1?'are':'is'} coming back!`,`${back.map(pname).join(' and ')} withdrew from the ${D.y} NBA Draft before the deadline and will play for us next season.`,'staff');
+  if(gone.length)msg('Assistant Coach',`${gone.map(pname).join(' and ')} stay${gone.length>1?'':'s'} in the draft`,`${gone.map(pname).join(' and ')} kept ${gone.length>1?'their':'his'} name in the ${D.y} NBA Draft and signed with an agent. ${gone.length>1?'Their':'His'} college career is over; good luck to ${gone.length>1?'them':'him'}.`,'staff');
+  if(D.ee&&!D.ee.wd)eeWithdraw();}
