@@ -927,7 +927,7 @@ window.NBA_DRAFTED=["adem bona", "adou thiero", "aj johnson", "ajay mitchell", "
 // deal. Pro clubs cannot sign them; they turn pro through the NBA draft or when their eligibility ends. College teams sign only
 // recruits (each summer) and players from the transfer portal (p.portal).
 const isCol=t=>!!t&&t.dom==='NCAA';
-const NCSTAGE={cq:'Conference tournament quarter-finals',cs:'Conference tournament semi-finals',cf:'Conference tournament finals',r32:'NCAA Tournament round of 32',s16:'Sweet 16',e8:'Elite Eight',f4:'Final Four',fin:'National Championship'};
+const NCSTAGE={ff:'First Four',cq:'Conference tournament quarter-finals',cs:'Conference tournament semi-finals',cf:'Conference tournament finals',r32:'NCAA Tournament round of 32',s16:'Sweet 16',e8:'Elite Eight',f4:'Final Four',fin:'National Championship'};
 const NCREG=['East','South','Midwest','West'];
 const NCCONF=()=>NLCFG.NCAA.groups;
 const ncNil=p=>r5k(clamp(20000*Math.exp((p.o-55)/5.5),15000,4000000));
@@ -947,24 +947,61 @@ function ncOrd(L,a,b){const S=L.seed||{};if(S[a]&&S[b]&&S[a].s!==S[b].s)return S
 function ncStart(L){const f=L.final,P=[];for(const c of NCCONF()){const s=f[c]||[];P.push([s[0],s[7]],[s[3],s[4]],[s[1],s[6]],[s[2],s[5]]);}
   L.po={stage:'cq',ser:domSeries(P,1)};const U=G.user;
   if(L.ids.includes(U)){const g=G.teams[U].grp,i=(f[g]||[]).indexOf(U);msg('Assistant Coach',`${g} tournament`,i>=0&&i<8?`The ${g} tournament starts now. We are the No. ${i+1} seed; every game is on a neutral court and one loss ends it. The champion gets an automatic bid to the NCAA Tournament.`:`We finished ${ordn(i+1)} in the ${g} and missed the conference tournament (top eight only). Our hope for the NCAA Tournament is an at-large bid.`,'staff');}}
-function ncSelect(L){const auto=L.auto,rest=L.ids.filter(i=>!auto.includes(i)).sort((a,b)=>ncPow(L,b)-ncPow(L,a)),field=auto.concat(rest.slice(0,32-auto.length)).sort((a,b)=>ncPow(L,b)-ncPow(L,a));
-  L.seed={};field.forEach((id,k)=>{const s=Math.floor(k/4)+1,j=k%4,r=s%2?j:3-j;L.seed[id]={s,r};});L.field=field;
-  const P=[];for(let r=0;r<4;r++){const T=field.filter(i=>L.seed[i].r===r).sort((a,b)=>L.seed[a].s-L.seed[b].s);P.push([T[0],T[7]],[T[3],T[4]],[T[2],T[5]],[T[1],T[6]]);}
-  L.po={stage:'r32',ser:domSeries(P,1)};const U=G.user,ones=field.slice(0,4);
-  news('Selection Sunday',`The NCAA Tournament field is set. No. 1 seeds: ${ones.map(i=>`${G.teams[i].name} (${NCREG[L.seed[i].r]})`).join(', ')}. Conference champions: ${auto.map(i=>G.teams[i].name).join(', ')}.`);
-  if(L.ids.includes(U)){const S=L.seed[U];msg('Assistant Coach',S?'We are in the NCAA Tournament!':'No NCAA Tournament bid',S?`Selection Sunday: we are the No. ${S.s} seed in the ${NCREG[S.r]} Region${auto.includes(U)?' with the automatic bid of the conference champion':' with an at-large bid'}.`:`The selection committee left us out of the field. Our season is over.`,'staff');}}
-function ncNext(L,P,W){const o=(a,b)=>ncOrd(L,a,b),U=G.user,n=NCCONF().length;
+// NET (the NCAA Evaluation Tool, simplified): adjusted scoring margin (opponent and venue, margins capped at 15) plus an RPI-style
+// strength of schedule (location-weighted winning %, opponents' and opponents' opponents'). Quadrants follow the real thresholds,
+// scaled to the 79 power-conference schools in the game.
+const NC_FF={2026:'Indianapolis · Lucas Oil Stadium',2027:'Detroit · Ford Field',2028:'San Antonio · Alamodome',2029:'Indianapolis · Lucas Oil Stadium',2030:'Las Vegas · Allegiant Stadium'};
+const ncFFSite=()=>NC_FF[G.season+1]||'';
+const NC_Q=[[21,35,53],[53,71,79]];   // [home, neutral, away] NET rank limits for Quad 1 and Quad 2; everything else is Quad 3
+function ncNet(L){const gl=L.gl||[],ids=L.ids;if(L.netC&&L.netC.n===gl.length&&L.netC.s===G.season)return L.netC;
+  const G0={};for(const i of ids)G0[i]=[];for(const [h,a,hp,ap] of gl){if(!G0[h]||!G0[a])continue;G0[h].push([a,hp-ap,1]);G0[a].push([h,ap-hp,-1]);}
+  let A={};for(const i of ids)A[i]=0;
+  for(let it=0;it<20;it++){const B={};for(const i of ids){const g=G0[i];if(!g.length){const r=nlRec(L,i),n=r[0]+r[1];B[i]=n?(r[2]-r[3])/n:(strength(i)-60)/3;continue;}
+      let s=0;for(const [o,m,loc] of g)s+=clamp(m,-15,15)-3*loc+A[o];B[i]=s/g.length;}A=B;}
+  const wp=i=>{let w=0,n=0;for(const [o,m,loc] of G0[i]){const won=m>0;n+=won?(loc>0?.6:1.4):(loc>0?1.4:.6);w+=won?(loc>0?.6:1.4):0;}return n?w/n:.5;},
+    RAW={},OWP={};for(const i of ids){const g=G0[i];RAW[i]=g.length?g.filter(x=>x[1]>0).length/g.length:.5;}
+  for(const i of ids){const g=G0[i];OWP[i]=g.length?g.reduce((s,x)=>s+RAW[x[0]],0)/g.length:.5;}
+  const owp=i=>OWP[i],oowp=i=>{const g=G0[i];return g.length?g.reduce((s,x)=>s+OWP[x[0]],0)/g.length:.5;};
+  const sc={},rpi={};for(const i of ids){rpi[i]=.25*wp(i)+.5*owp(i)+.25*oowp(i);sc[i]=A[i]+25*(rpi[i]-.5);}
+  const ord=ids.slice().sort((a,b)=>sc[b]-sc[a]),rank={};ord.forEach((i,k)=>rank[i]=k+1);
+  const q={};for(const i of ids){const Q=[0,0,0,0,0,0];for(const [o,m,loc] of G0[i]){const r=rank[o],li=loc>0?0:loc<0?2:1,k=r<=NC_Q[0][li]?0:r<=NC_Q[1][li]?1:2;Q[k*2+(m>0?0:1)]++;}q[i]=Q;}
+  return L.netC={n:gl.length,s:G.season,sc,rank,q,rpi};}
+// committee value: NET plus quality wins, minus bad losses
+function ncSelV(L,N,id){const Q=N.q[id]||[0,0,0,0,0,0];return N.sc[id]+1.1*Q[0]+.35*Q[2]-1.2*Q[5];}
+const ncQTxt=Q=>`Q1 ${Q[0]}–${Q[1]} · Q2 ${Q[2]}–${Q[3]} · Q3 ${Q[4]}–${Q[5]}`;
+// the field: 5 conference champions + 31 at-large teams on an S-curve; the last eight at-large teams play the First Four in Dayton
+function ncField(L,auto){const N=ncNet(L),v=id=>ncSelV(L,N,id),pool=L.ids.filter(i=>!auto.includes(i)).sort((a,b)=>v(b)-v(a)),at=pool.slice(0,31);
+  const field=auto.concat(at).sort((a,b)=>v(b)-v(a)),ffT=field.filter(i=>!auto.includes(i)).slice(-8),main=field.filter(i=>!ffT.includes(i)),seed={};
+  main.forEach((id,k)=>{const s=Math.floor(k/4)+1,j=k%4,r=s%2?j:3-j;seed[id]={s,r};});
+  const ffP=[];for(let i=0;i<4;i++){const a=ffT[i],b=ffT[7-i],r=3-i;seed[a]={s:8,r,ff:1};seed[b]={s:8,r,ff:1};ffP.push([a,b]);}
+  return {N,field,seed,ffP,in4:at.slice(-4),out4:pool.slice(31,35)};}
+function ncSelect(L){const S=ncField(L,L.auto),U=G.user,N=S.N;L.seed=S.seed;L.field=S.field;L.bub={in4:S.in4,out4:S.out4};L.po={stage:'ff',ser:domSeries(S.ffP,1)};
+  const nm=i=>G.teams[i].name,ones=S.field.slice(0,4);
+  news('Selection Sunday',`The NCAA Tournament field is set. No. 1 seeds: ${ones.map(i=>`${nm(i)} (${NCREG[L.seed[i].r]})`).join(', ')}. Last four in: ${S.in4.map(nm).join(', ')}. First four out: ${S.out4.map(nm).join(', ')}. The First Four is played in Dayton${ncFFSite()?`; the Final Four in ${ncFFSite().split(' · ')[0]}`:''}.`);
+  if(L.ids.includes(U)){const s=L.seed[U],r=N.rank[U],q=ncQTxt(N.q[U]||[0,0,0,0,0,0]);
+    if(!s)msg('Assistant Coach',S.out4.includes(U)?'First four out':'No NCAA Tournament bid',`${S.out4.includes(U)?'We were one of the first four teams left out. So close.':'The selection committee left us out of the field.'} NET No. ${r} (${q}). Our season is over.`,'staff');
+    else if(s.ff){const p=S.ffP.find(x=>x.includes(U)),o=p[0]===U?p[1]:p[0];msg('Assistant Coach','We are in: First Four in Dayton',`${S.in4.includes(U)?'We are one of the last four in. ':''}We play ${nm(o)} in the First Four in Dayton; the winner is the No. 8 seed in the ${NCREG[s.r]} Region. NET No. ${r} (${q}).`,'staff');}
+    else msg('Assistant Coach','We are in the NCAA Tournament!',`Selection Sunday: we are the No. ${s.s} seed in the ${NCREG[s.r]} Region${L.auto.includes(U)?' with the automatic bid of the conference champion':' with an at-large bid'}. NET No. ${r} (${q}).`,'staff');}}
+function ncAfterFF(L,W){for(const s of L.po.ser){const l=W.includes(s.hi)?s.lo:s.hi;if(L.seed[l])L.seed[l].out=1;}
+  const F=L.field.filter(i=>L.seed[i]&&!L.seed[i].out),P=[];
+  for(let r=0;r<4;r++){const T=F.filter(i=>L.seed[i].r===r).sort((a,b)=>L.seed[a].s-L.seed[b].s);P.push([T[0],T[7]],[T[3],T[4]],[T[2],T[5]],[T[1],T[6]]);}
+  L.po={stage:'r32',ser:domSeries(P,1)};news('First Four',`In Dayton: ${W.map(i=>G.teams[i].name).join(', ')} won and are No. 8 seeds in the round of 32.`);}
+// bracketology during the season: conference leaders take the automatic bids
+function ncProj(){const L=G.nl&&G.nl.NCAA,U=G.user;if(!L||!L.ids.includes(U)||L.phase!=='reg')return null;const gp=(L.gl||[]).filter(g=>g[0]===U||g[1]===U).length;if(gp<4)return null;
+  const auto=NCCONF().map(c=>(L.groups[c]||[]).slice().sort((a,b)=>{const x=ncSortKey(L,a),y=ncSortKey(L,b);return (y[0]-x[0])||(y[1]-x[1])||(y[2]-x[2]);})[0]).filter(i=>i!=null);
+  const S=ncField(L,auto),s=S.seed[U];return {S,s,auto:auto.includes(U),rank:S.N.rank[U],q:S.N.q[U]||[0,0,0,0,0,0],gp,in4:S.in4,out4:S.out4,st:s?(s.ff?'ff':'in'):S.out4.includes(U)?'out4':'out'};}
+function ncNext(L,P,W){const o=(a,b)=>ncOrd(L,a,b),U=G.user,n=NCCONF().length;if(P.stage==='ff'){ncAfterFF(L,W);return;}
   if(P.stage==='cq'){const S=[];for(let c=0;c<n;c++)S.push(o(W[4*c],W[4*c+1]),o(W[4*c+2],W[4*c+3]));L.po={stage:'cs',ser:domSeries(S,1)};return;}
   if(P.stage==='cs'){const S=[];for(let c=0;c<n;c++)S.push(o(W[2*c],W[2*c+1]));L.po={stage:'cf',ser:domSeries(S,1)};return;}
   if(P.stage==='cf'){L.auto=W.slice();try{nilConf(W)}catch(e){}W.forEach((id,c)=>{if(id===U){G.board=clamp(G.board+3,0,100);msg('Club President',`${NCCONF()[c]} tournament champions!`,`We won the ${NCCONF()[c]} tournament and take the automatic bid to the NCAA Tournament.`,'board');}});news('Conference champions',NCCONF().map((c,i)=>`${c}: ${G.teams[W[i]].name}`).join(' · '));ncSelect(L);return;}
   if(P.stage==='r32'||P.stage==='s16'||P.stage==='e8'||P.stage==='f4'){const nx={r32:'s16',s16:'e8',e8:'f4',f4:'fin'}[P.stage],S=[];for(let i=0;i<W.length;i+=2)S.push(o(W[i],W[i+1]));L.po={stage:nx,ser:domSeries(S,1)};
-    if(nx==='f4')news('Final Four',`${W.map(i=>`${G.teams[i].name} (${NCREG[L.seed[i].r]})`).join(', ')} reach the Final Four.`);return;}
+    if(nx==='f4')news('Final Four',`${W.map(i=>`${G.teams[i].name} (${NCREG[L.seed[i].r]})`).join(', ')} reach the Final Four${ncFFSite()?` in ${ncFFSite().replace(' · ',', ')}`:''}.`);return;}
   L.champ=W[0];L.phase='done';L.down=[];try{nilSeasonEnd(L)}catch(e){}
   if(L.champ===U){G.board=clamp(G.board+8,0,100);msg('Club President','National champions!',`We won the ${G.season+1} NCAA Tournament. One shining moment for the whole school.`,'board');}
   news(`${G.teams[L.champ].name}: national champions`,`${G.teams[L.champ].name} won the ${seasonStr()} NCAA Tournament.`);}
 function ncRegText(L,U){const g=G.teams[U].grp,i=(L.final[g]||[]).indexOf(U),c=ncRec(L,U);return `${c[0]}–${c[1]} in conference play. ${i<8?`We play the ${g} tournament as the No. ${i+1} seed.`:'We missed the conference tournament.'}`;}
 function ncFinish(L,U){if(L.champ===U)return 'Champions';
-  for(const [st,l] of [['fin','Runner-up'],['f4','Final Four'],['e8','Elite Eight'],['s16','Sweet 16'],['r32','Round of 32']]){const S=L.hist[st]||(L.po&&L.po.stage===st?L.po.ser:null);if(S&&S.some(s=>s.hi===U||s.lo===U))return l;}
+  for(const [st,l] of [['fin','Runner-up'],['f4','Final Four'],['e8','Elite Eight'],['s16','Sweet 16'],['r32','Round of 32'],['ff','First Four']]){const S=L.hist[st]||(L.po&&L.po.stage===st?L.po.ser:null);if(S&&S.some(s=>s.hi===U||s.lo===U))return l;}
   const g=G.teams[U].grp,i=L.final&&L.final[g]?L.final[g].indexOf(U):nlRank(L,U)-1;return `${ordn(i+1)} in the ${g}`;}
 function ncObjective(L){const r=L.ids.map(i=>({id:i,s:strength(i)})).sort((a,b)=>b.s-a.s).findIndex(x=>x.id===G.user)+1;return r<=2?'title':r<=6?'fin':r<=16?'sf':r<=30?'po':'safe';}
 function ncObjText(L){return ({title:'Win the national championship',fin:'Reach the Final Four',sf:'Reach the Sweet 16',po:'Make the NCAA Tournament',safe:`Finish in the top half of the ${G.teams[G.user].grp}`})[L.obj||'safe'];}
@@ -2959,6 +2996,7 @@ function applyResult(m,f){
   if(f.kind==='bcl'){const r16=f.st==='r16',rh=bclRec(h.tid,r16),ra=bclRec(a.tid,r16);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
   if(f.kind==='ec'){const rh=ecRec(h.tid),ra=ecRec(a.tid);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;}
   if(f.kind==='nl'&&f.cup!=='cupf'){const L=G.nl[f.lg],rh=nlRec(L,h.tid),ra=nlRec(L,a.tid);rh[0]+=hw?1:0;rh[1]+=hw?0:1;ra[0]+=hw?0:1;ra[1]+=hw?1:0;rh[2]+=h.pts;rh[3]+=a.pts;ra[2]+=a.pts;ra[3]+=h.pts;
+    if(L.code==='NCAA'&&L.phase==='reg'){if(L.glS!==G.season){L.gl=[];L.glS=G.season;}L.gl.push([h.tid,a.tid,h.pts,a.pts]);}
     if(L.code==='NCAA'&&th.grp===ta.grp){const ch=ncRec(L,h.tid),ca=ncRec(L,a.tid);ch[0]+=hw?1:0;ch[1]+=hw?0:1;ca[0]+=hw?0:1;ca[1]+=hw?1:0;ch[2]+=h.pts;ch[3]+=a.pts;ca[2]+=a.pts;ca[3]+=h.pts;}}
   if(f.kind==='bih'){th.bw=(th.bw||0)+(hw?1:0);th.bl=(th.bl||0)+(hw?0:1);ta.bw=(ta.bw||0)+(hw?0:1);ta.bl=(ta.bl||0)+(hw?1:0);th.bpf=(th.bpf||0)+h.pts;th.bpa=(th.bpa||0)+a.pts;ta.bpf=(ta.bpf||0)+a.pts;ta.bpa=(ta.bpa||0)+h.pts;}
   if(f.kind==='kls'){th.kw+=hw?1:0;th.kl+=hw?0:1;ta.kw+=hw?0:1;ta.kl+=hw?1:0;th.kpf+=h.pts;th.kpa+=a.pts;ta.kpf+=a.pts;ta.kpa+=h.pts;}
