@@ -4650,7 +4650,7 @@ function ntFill(){if(!G||G.ntFillV===1)return;G.ntFillV=1;const all=Object.value
     if(t){p.yrs=rnd(1,2);p.sal=salaryFor(p,t);join(p,t);t.order=autoOrder(t.order);}else{p.ntOnly=1;p.ntClub=club;if(col)p.ntCol=1;p.yrs=0;p.sal=0;}}}
 // at most one naturalised player among the twelve
 function ntCap(list){const out=[];let nz=0;for(const p of list){if(out.length>=12)break;if(ntIsNat(p)){if(nz)continue;nz++;}out.push(p);}return out;}
-function ntPool(c,win){return ntCap(Object.values(G.players).filter(p=>ntNatOf(p)===c&&(p.tid!=null||p.ntOnly)&&p.age>=18&&!p.prospect&&(!win||(p.inj||0)<=2)&&(p.ntOnly?!(win&&p.ntCol):(()=>{const t=G.teams[p.tid];if(!t||t.dom==='GONE')return false;if(!win)return true;return !!t.dom&&!isNBA(t)&&t.dom!=='NCAA';})())).sort((a,b)=>b.o-a.o));}
+function ntPool(c,win){return ntCap(Object.values(G.players).filter(p=>ntNatOf(p)===c&&(p.real||p.ntOnly)&&(p.tid!=null||p.ntOnly)&&p.age>=18&&!p.prospect&&(!win||(p.inj||0)<=2)&&(p.ntOnly?!(win&&p.ntCol):(()=>{const t=G.teams[p.tid];if(!t||t.dom==='GONE')return false;if(!win)return true;return !!t.dom&&!isNBA(t)&&t.dom!=='NCAA';})())).sort((a,b)=>b.o-a.o));}
 function ntStr(c,sq){const w=[1.25,1.2,1.12,1.05,1,.92,.85,.78],o=sq.map(p=>p.o).slice(0,8),b=NT_BASE[c]||62;while(o.length<8)o.push(b-2);let s=0,t=0;o.sort((x,y)=>y-x).forEach((v,i)=>{s+=Math.max(v,i<3?0:b-6)*w[i];t+=w[i];});return s/t;}
 function ntGame(h,a,S,neutral){const m=(S[h]-S[a])*1.7+(neutral?0:3)+ntGs()*10,T=158+ntGs()*9;let hs=Math.round((T+m)/2),as=Math.round((T-m)/2);if(hs===as)hs+=m>=0?rnd(2,6):-rnd(2,6);return [h,a,hs,as];}
 const ntRec=(tab,c)=>tab[c]||(tab[c]={w:0,l:0,pf:0,pa:0});
@@ -4711,7 +4711,7 @@ function ntNextEvent(){const C=G.nt&&G.nt.cyc;if(!C)return null;const pt=G.nt.to
   if(w)return {key:C.id+':'+C.wins.indexOf(w),win:w.day>=0,lbl:w.day<0?`${w.lbl} (played in the summer, everyone available)`:w.lbl,w};
   if(C.stage==='done'&&!(J0&&ntInPQ(C,J0.c)&&!(C.qual||[]).includes(J0.c))){if(C.kind==='EB'&&J0&&!NT_EUR.includes(J0.c)){const r=ntRgOf(J0.c),A=ntRgs(C)[r];if(A&&!A.acDone)return {key:C.id+':'+NT_RG[r].kind,win:false,lbl:`${NT_RG[r].cup} ${C.year} (summer ${C.year})`};}return {key:C.id+':T',win:false,lbl:`${C.name} (summer ${C.year})`};}return null;}
 const ntAvail=(p,win)=>{if(win&&(p.inj||0)>2)return false;if(win&&p.ntCol)return false;if(!win||p.tid==null)return true;const t=G.teams[p.tid];return !!t&&!!t.dom&&!isNBA(t)&&t.dom!=='NCAA';};
-const ntCands=c=>Object.values(G.players).filter(p=>ntNatOf(p)===c&&p.age>=18&&!p.prospect&&(p.tid==null||(G.teams[p.tid]&&G.teams[p.tid].dom!=='GONE'))).sort((a,b)=>b.o-a.o);
+const ntCands=c=>Object.values(G.players).filter(p=>ntNatOf(p)===c&&(p.real||p.ntOnly)&&p.age>=18&&!p.prospect&&(p.tid==null||(G.teams[p.tid]&&G.teams[p.tid].dom!=='GONE'))).sort((a,b)=>b.o-a.o);
 // FIBA deadlines for the qualifier windows during the season (FIBA: preliminary rosters are submitted ten days before the window,
 // the final twelve are confirmed at the technical meeting the day before the first game). The coach builds a preliminary roster of
 // up to 24 players; ten days before the window it goes to FIBA (the federation submits its own if he has none). After that the final
@@ -4720,7 +4720,7 @@ function ntDl(E){if(!E||!E.win||!E.w||E.w.day<0||ntEvCamp(E))return null;const d
 function ntStage(E){const D=ntDl(E);if(!D)return 'std';const N=G.nt;if((N.fin||{})[E.key]||G.day>=D.fin)return 'lock';if((N.pre||{})[E.key]||G.day>=D.pre)return 'fin';return 'pre';}
 const ntPreOf=E=>E&&G.nt.pre?G.nt.pre[E.key]||null:null;
 const ntDayDate=d=>dateStr(new Date(G.season,9,1+d));
-function ntPreAuto(c,win){const out=[];let nz=0;for(const p of Object.values(G.players).filter(p=>ntNatOf(p)===c&&p.age>=18&&!p.prospect&&(p.tid!=null||p.ntOnly)&&ntAvail(p,win)).sort((a,b)=>b.o-a.o)){if(out.length>=16)break;if(ntIsNat(p)){if(nz>=2)continue;nz++;}out.push(p);}return out;}
+function ntPreAuto(c,win){const out=[];let nz=0;for(const p of Object.values(G.players).filter(p=>ntNatOf(p)===c&&(p.real||p.ntOnly)&&p.age>=18&&!p.prospect&&(p.tid!=null||p.ntOnly)&&ntAvail(p,win)).sort((a,b)=>b.o-a.o)){if(out.length>=16)break;if(ntIsNat(p)){if(nz>=2)continue;nz++;}out.push(p);}return out;}
 function ntDefSel(c,E){if(ntEvCamp(E))return ntCampAuto(c,[]);const st=ntStage(E);if(st==='pre')return ntPreAuto(c,E.win);
   if(st!=='std')return ntCap((ntPreOf(E)||[]).map(i=>G.players[i]).filter(p=>p&&ntAvail(p,E.win)).sort((a,b)=>b.o-a.o));return ntUserSquad(c,E.win,'');}
 function ntDlTxt(E){const D=ntDl(E);if(!D)return '';const st=ntStage(E),n=(ntPreOf(E)||[]).length;
@@ -4734,8 +4734,8 @@ function ntDlTick(){const N=G.nt,J=N&&N.job;if(!J)return;const E=ntNextEvent(),D
   if(G.day>=D.fin&&N.pre[E.key]&&!N.fin[E.key]){N.fin[E.key]=1;const sq=ntUserSquad(J.c,true,E.key);N.sel={key:E.key,ids:sq.map(p=>p.id)};
     msg(fed,`Technical meeting: ${ntName(J.c)} twelve confirmed`,`At the technical meeting the final twelve for the ${E.lbl} were confirmed: ${sq.map(pname).join(', ')}. No more changes are possible.`,'nt');}}
 
-function ntUserSquad(c,win,key,show){const PRE=key&&G.nt&&G.nt.pre?G.nt.pre[key]:null,auto=ntCap(Object.values(G.players).filter(p=>ntNatOf(p)===c&&p.age>=18&&!p.prospect&&(p.tid!=null||p.ntOnly)&&ntAvail(p,win)&&(!PRE||PRE.includes(p.id))).sort((a,b)=>b.o-a.o)),s=G.nt.sel;
-  if(!s||s.key!==key)return auto;const ok=ntCap(s.ids.map(i=>G.players[i]).filter(p=>p&&ntNatOf(p)===c&&p.age>=18&&ntAvail(p,win)));
+function ntUserSquad(c,win,key,show){const PRE=key&&G.nt&&G.nt.pre?G.nt.pre[key]:null,auto=ntCap(Object.values(G.players).filter(p=>ntNatOf(p)===c&&(p.real||p.ntOnly)&&p.age>=18&&!p.prospect&&(p.tid!=null||p.ntOnly)&&ntAvail(p,win)&&(!PRE||PRE.includes(p.id))).sort((a,b)=>b.o-a.o)),s=G.nt.sel;
+  if(!s||s.key!==key)return auto;const ok=ntCap(s.ids.map(i=>G.players[i]).filter(p=>p&&ntNatOf(p)===c&&(p.real||p.ntOnly)&&p.age>=18&&ntAvail(p,win)));
   return ok.length>=8||show?ok:ntCap(ok.concat(auto.filter(p=>!ok.includes(p))));}
 function ntPick(pid){const J=G.nt&&G.nt.job,E=ntNextEvent();if(!J||!E)return;const st=ntStage(E);if(st==='lock')return 'The final twelve were confirmed at the technical meeting. No more changes.';if(typeof ntPend==='function'&&ntPend())return 'Call-ups are closed: the twelve for this window are already with the team.';const p=G.players[pid];if(!p||ntNatOf(p)!==J.c)return;
   if(!G.nt.sel||G.nt.sel.key!==E.key)G.nt.sel={key:E.key,ids:ntDefSel(J.c,E).map(x=>x.id)};
@@ -4803,7 +4803,7 @@ function ntWindow(w,silent,upto){const C=G.nt.cyc;if(!C||w.done)return;const inS
   try{ntPQThird(C);}catch(e){}
   try{ntJobAfterWindow(w);}catch(e){}}
 // in-season windows are played when the calendar reaches them
-function ntTick(){if(!G||preOn())return;try{ntBanMigrate();}catch(e){}try{ntFill();ntFill2();ntFill3();}catch(e){}try{ntFill4();}catch(e){}try{if(typeof ntFill5==='function')ntFill5();}catch(e){}if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();try{ntCycFix();}catch(e){}try{ntPQFix();}catch(e){}try{ntASFix();}catch(e){}try{ntASOffers();}catch(e){}if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}try{ntDlTick();}catch(e){console.error(e);}const C=G.nt.cyc;if(!C)return;try{ntOfferRemind(C);}catch(e){}for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
+function ntTick(){if(!G||preOn())return;try{ntBanMigrate();}catch(e){}try{ntFill();ntFill2();ntFill3();}catch(e){}try{ntFill4();}catch(e){}try{if(typeof ntFill5==='function')ntFill5();}catch(e){}try{if(typeof ntFill6==='function')ntFill6();}catch(e){}if(!(typeof UI!=='undefined'&&UI.match&&UI.match.m&&UI.match.m.ntInfo))ntTempClear();ntInit();try{ntCycFix();}catch(e){}try{ntPQFix();}catch(e){}try{ntASFix();}catch(e){}try{ntASOffers();}catch(e){}if(!G.nt.offers&&!G.nt.job&&!G.nt.offSent){G.nt.offSent=1;ntOffers();const L=G.nt.offers.list;if(L.length)msg('Agent','National team offers',`${L.map(ntName).join(', ')} would like you as head coach of their national team, alongside your club job. See Competitions \u203a National teams.`,'nt');}try{ntJobTick();}catch(e){}try{ntDlTick();}catch(e){console.error(e);}const C=G.nt.cyc;if(!C)return;try{ntOfferRemind(C);}catch(e){}for(const w of C.wins)if(!w.done&&w.s===G.season&&w.day>=0&&G.day>=w.day){const J=G.nt.job,i=C.wins.indexOf(w);
     if(J&&ntWPlays(w,J.c)){if(G.nt.pend!==i){G.nt.pend=i;if(typeof UI!=='undefined')UI.ntv=undefined;{const k=C.id+':'+i,sq=ntUserSquad(J.c,true,k);G.nt.sel={key:k,ids:sq.map(p=>p.id)};msg(`${ntName(J.c)} Basketball Federation`,`Squad announced: ${ntName(J.c)}`,`The twelve for the ${w.lbl}: ${sq.map(p=>pname(p)).join(', ')}. Call-ups are now closed; set the starting five and rotation on the Squad tab.`,'nt');}msg(`${ntName(J.c)} Basketball Federation`,`International window: ${ntName(J.c)} play now`,`The ${w.lbl} has started and the leagues pause. Your games are on the home page: play them one by one or both at once.`,'nt');}}
     else ntWindow(w,false);}}
 // the coach's window that is waiting to be played
