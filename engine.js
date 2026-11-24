@@ -616,9 +616,14 @@ const ncStars=p=>{const v=(p.pot||p.o);return v>=86?5:v>=78?4:v>=70?3:2;};
 const nilBase=t=>clamp(700000+((t.rep||60)-56)*160000,500000,7500000);
 const nilOn=()=>!!(typeof G!=='undefined'&&G&&G.teams&&nilEnsure());
 function nilEnsure(){const t=G&&G.teams&&G.teams[G.user];if(!t||!isCol(t))return null;if(!G.nil||G.nil.tid!==t.id){G.nil={tid:t.id,boost:50,pl:0,pln:0,gift:0,gifts:[],s:G.season};nilSet(true);}return G.nil;}
-function nilParts(bo){const t=G.teams[G.user],N=G.nil,B=nilBase(t);bo=bo==null?N.boost:bo;return {rs:r10k(B*.45),coll:r10k(B*.55*(.7+.6*bo/100)),pl:N.pl||0,gift:N.gift||0};}
+// revenue sharing = basketball's share of the school's cap (about 8% at football-first schools, up to 18% at basketball schools); the collective covers the rest of the program's market value
+const nilShare=t=>clamp(.06+((t.rep||60)-50)*.0025,.08,.18);
+function nilParts(bo){const t=G.teams[G.user],N=G.nil,B=nilBase(t);bo=bo==null?N.boost:bo;const rs=r10k(nilCap()*nilShare(t));return {rs,coll:r10k(Math.max(B*.25,B-rs)*(.7+.6*bo/100)),pl:N.pl||0,gift:N.gift||0};}
 const nilSum=P=>P.rs+P.coll+P.pl+P.gift;
 function nilSet(first){let b=nilSum(nilParts());if(first){const bill=wageBill(G.user);if(b<bill*1.04){G.nil.pl+=r10k(bill*1.04-b);b=nilSum(nilParts());}}G.fin.wageBudget=b;}
+// House settlement: each school may share up to $20.5M with its athletes in 2025/26 (all sports together), rising 4% a year
+const nilCap=()=>r10k(20.5e6*Math.pow(1.04,Math.max(0,G.season-2025)));
+const tbName=()=>G&&G.teams&&isCol(G.teams[G.user])?'program funds':'transfer budget';
 const nilBoostLbl=b=>b>=75?'Fired up':b>=58?'Generous':b>=42?'Steady':b>=25?'Restless':'Closing their wallets';
 // spring: talks are about next season, so room is next season's projected budget minus the deals of the players who return
 const nilSpring=()=>nilOn()&&G.nil.talk===G.season;
@@ -5563,7 +5568,7 @@ function negPropose(amt,yrs,tb,wr){const N=G.neg;if(!N||!N.bud||N.over||N.final)
   N.round++;
   if(amt>M*1.35||tb>Math.max(N.tbMax*1.6,N.tbMax+2*N.tbStep)||wr>N.wrMax+.06||N.round>=3){N.over=true;N.walked=true;N.log.push(`${ask} ${t.name} break off the talks and withdraw their offer.`);return;}
   const target=Math.min(amt,M),counter=Math.round((N.offer+(target-N.offer)*.55)/1e4)*1e4;N.offer=Math.max(N.offer,Math.min(counter,M));N.yrs=yrs;N.tb=Math.min(tb,N.tbMax);N.wr=Math.min(wr,N.wrMax);
-  const notes=[];if(tb>N.tbMax)notes.push(N.tbMax?`the most they can add to the transfer budget is ${eur(N.tbMax)}`:'there is no extra transfer money');if(wr>N.wrMax+1e-9)notes.push(N.wrMax?`the wage budget can grow by ${Math.round(N.wrMax*100)}% at most`:'the wage budget stays as planned');
+  const notes=[];if(tb>N.tbMax)notes.push(N.tbMax?`the most they can add to the ${tbName()} is ${eur(N.tbMax)}`:'there is no extra transfer money');if(wr>N.wrMax+1e-9)notes.push(N.wrMax?`the wage budget can grow by ${Math.round(N.wrMax*100)}% at most`:'the wage budget stays as planned');
   const y=negExtra(N.tb,N.wr);N.log.push(`${ask} ${t.name} counter with ${eur(N.offer)} per season${y?` plus ${y}`:''}${notes.length?`; ${notes.join(', and ')}`:''}.${N.round===2?' One more round, then they decide.':''}`);}
 function negPropose0(amt,yrs){const N=G.neg;if(!N||N.over||N.final)return;amt=Math.max(10000,Math.round(amt/1e4)*1e4);yrs=clamp(yrs|0,1,3);const t=G.teams[N.tid],M=negMax(N,yrs);
   if(amt<=M){N.offer=amt;N.yrs=yrs;N.log.push(`You ask for ${eur(amt)} over ${yrsTxt(yrs)}. ${t.name} agree.`);N.over=true;N.agreed=true;return;}
@@ -5642,7 +5647,7 @@ function boardObj(dir){const B=brd(),O=objOpts();if(!objChangeOK())return {ok:fa
   const C=objCtl();
   if(dir==='down'){if(G.board<30)return {ok:false,t:'The board have no patience for lower targets from you right now.'};C.o.obj=O.down.k;B.obj='down';G.board=clamp(G.board-6,0,100);msg('Club President','Target lowered',`We agreed a lower target: ${O.down.t.toLowerCase()}. The board are not delighted, and they will not pay extra for transfers now.`,'board');save();return {ok:true,t:`New target: ${O.down.t}. Board confidence falls by 6.`};}
   C.o.obj=O.up.k;B.obj='up';const bonus=r10k(budgetGrant().w*.06);G.board=clamp(G.board+4,0,100);G.fin.bal+=bonus;G.fin.season.grant=(G.fin.season.grant||0)+bonus;B.grant=(B.grant||0)+bonus;
-  msg('Club President','Target raised',`You promised more: ${O.up.t.toLowerCase()}. The board like the ambition and add ${eur(bonus)} to the transfer budget.`,'board');save();return {ok:true,t:`New target: ${O.up.t}. Board confidence +4, ${eur(bonus)} for transfers.`};}
+  msg('Club President','Target raised',`You promised more: ${O.up.t.toLowerCase()}. The board like the ambition and add ${eur(bonus)} to the ${tbName()}.`,'board');save();return {ok:true,t:`New target: ${O.up.t}. Board confidence +4, ${eur(bonus)} for transfers.`};}
 const earlyExtOK=()=>!!G.coach&&!brd().ext&&!G.ulti&&G.board>=50&&!seasonOver()&&G.coach.until<=G.season+2;
 function ultiResult(won){const B=brd();B.g++;if(won)B.w++;const U=G.ulti;
   if(U){U.left--;if(won)U.w++;
@@ -6579,7 +6584,7 @@ function canSign(p,fee,sal){
   if(n>=20)return 'Your roster is full (20 players). Release or sell a player first.';
   if(userNBA()){if(fee>G.fin.bal)return `Not enough money for the buy-out. You have ${eur(G.fin.bal)}.`;const r=nbaRoute(sal,G.user,p);if(!r.ok)return r.why;if(G.phase!=='reg'&&!(G.nl.NBA&&G.nl.NBA.phase==='reg'))return 'The market is closed.';return null;}
   {const FR=ruleOfTeam(G.teams[G.user]);if(FR&&FR.reg&&isForeign(p,FR)&&forCount(G.user,FR)>=FR.reg)return `League rule: at most ${FR.reg} foreign players can be registered.`;}
-  if(G.fin.bal<0)return `Transfer embargo: the club is in debt (${eur(G.fin.bal)}). Reduce the debt before signing anyone.`;
+  if(G.fin.bal<0&&!isCol(G.teams[G.user]))return `Transfer embargo: the club is in debt (${eur(G.fin.bal)}). Reduce the debt before signing anyone.`;
   if(fee>G.fin.bal)return `Not enough transfer budget. You have ${eur(G.fin.bal)}.`;
   if(wageBill(G.user)+sal>G.fin.wageBudget)return `His wage of ${eur(sal)} would exceed your wage budget (room ${eur(G.fin.wageBudget-wageBill(G.user))}).`;
   if(G.phase!=='reg')return 'The transfer market is closed until next season.';
@@ -6688,7 +6693,7 @@ function waivTick(){if(!G||!G.nl||!G.nl.NBA)return;G.wsteps=(G.wsteps||0)+1;cons
     d.so=true;const cut=Math.min(d.m[G.season]||0,r10k(Math.max(0,p.sal-C.min)/2));if(cut>0){d.m[G.season]-=cut;if(d.tid===G.user)msg('General Manager',`Set-off: ${d.name}`,`${d.name} signed with ${G.teams[p.tid].name}. Under the set-off rule our dead money for him this season falls by ${eur(cut)}.`,'fin');}}
   G.dead=(G.dead||[]).filter(d=>Object.keys(d.m).some(y=>+y>=G.season&&d.m[y]>0));}
 
-function releaseCost(p){return r5k(p.sal*.5*p.yrs);}
+function releaseCost(p){if(p&&p.tid!=null&&isCol(G.teams[p.tid]))return 0;return r5k(p.sal*.5*p.yrs);}
 function releasePlayer(pid){if(userNBA())return userWaive(pid,false);const p=G.players[pid],c=releaseCost(p);if(p.loan)return 'He is only here on loan. Send him back instead.';if(G.teams[G.user].order.length<=10)return 'You need at least 10 players.';G.fin.bal-=c;G.fin.season.rel+=c;noteExit(p,'Released');toFA(p);p.sal=salaryFor(p);try{agReleased(p);}catch(err){}msg('Sporting Director',`${pname(p)} released`,`${pname(p)} was released. The buyout cost ${eur(c)}.${agentOf(p)?` His agent ${agentOf(p)[0]} will remember this.`:''}`,'fin');save();return null;}
 function extendPlayer(pid,y){if(userNBA()&&typeof nbaExtTerms==='function'&&nbaExtTerms(G.players[pid]))return nbaExtend(pid,y);const p=G.players[pid],d=demand(p);if(p.retAt===G.season)return `${pname(p)} has decided to retire at the end of the season.`;p.extS=G.season;if(moodOf(p)<(agTrait(p)==='loyal'?15:agTrait(p)==='greedy'?32:25)&&persOf(p)!=='pro')return `${pname(p)} is too unhappy to talk about a new deal${agTrait(p)==='greedy'?`, and his agent ${agentOf(p)[0]} wants to test the market`:''}. Speak to him first.`;if(!userNBA()&&wageBill(G.user)-p.sal+d>G.fin.wageBudget)return `His new wage of ${eur(d)} would exceed your wage budget.`;p.sal=d;p.yrs+=2;msg('Sporting Director',`${pname(p)} extended`,`${pname(p)} signed a two-year extension at ${eur(d)} per season.`,'fin');save();return null;}
 
