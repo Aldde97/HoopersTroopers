@@ -1487,6 +1487,24 @@ body.mfocus .main .inner{max-width:1500px}
 .dp-m{display:flex;align-items:center;gap:8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}.dp-m b{font-size:15px;color:var(--ink,#111);min-width:40px;text-align:right}
 .dp-bar{flex:1;height:10px;border-radius:5px;background:rgba(214,52,44,.18);overflow:hidden}.dp-bar i{display:block;height:100%;background:var(--g)}
 .dp-b .btns{flex-wrap:wrap}
+
+/* job offer contract sheet */
+.jo{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.jo-h{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:5px solid}
+.jo-h .jo-cr{width:54px;height:54px;flex:none;border-radius:50%;background:#fff;padding:6px;box-sizing:border-box;object-fit:contain}
+.jo-h small{display:block;font:600 11.5px var(--fd);letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+.jo-h b{display:block;font:800 26px/1.05 var(--fd);text-transform:uppercase;letter-spacing:.02em}.jo-h span{font-size:13.5px;opacity:.85}
+.jo-terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line)}
+.jo-t{background:#fff;padding:12px 20px}.jo-t small{display:block;font:600 11px var(--fd);letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.jo-t b{font:800 22px var(--fd)}.jo-t em{display:block;font-style:normal;font-size:12px;font-weight:500}.jo-t em.up{color:var(--g)}.jo-t em.dn{color:var(--r)}
+.jo-bar{display:grid;grid-template-columns:1fr 1fr 1.5fr;border-top:1px solid var(--line)}
+.jo-bar button{height:56px;border:0;border-right:1px solid var(--line);background:#fff;color:#4a525c;font:800 16px var(--fd);letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer}
+.jo-bar button:hover{background:var(--soft);color:#14171c}.jo-bar button span{font-size:15px}
+.jo-bar button.go{background:var(--or);color:#fff;border-right:0;font-size:18px}.jo-bar button.go:hover{background:#e65f00;color:#fff}
+.jo-note{margin:0;padding:10px 20px 14px;font-size:12.5px;color:var(--mut)}
+.jo-done{display:flex;gap:10px;align-items:center;padding:14px 20px;border-top:1px solid var(--line)}
+@media (max-width:760px){.ib-g{grid-template-columns:minmax(0,1fr)!important}.ib-g>:last-child{order:-1}}
+@media (max-width:520px){.jo-bar{grid-template-columns:1fr 1fr}.jo-bar button.go{grid-column:1/-1;order:-1;border-bottom:1px solid var(--line)}.jo-bar button:nth-child(2){border-right:0}.jo-h{padding:14px}.jo-h b{font-size:21px}.jo-t{padding:10px 14px}.jo-bar button{height:52px;font-size:14px;gap:6px}.jo-bar button.go{font-size:16px}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1581,5 +1599,5 @@ body.mfocus .main .inner{max-width:1500px}
 <script>__ld(0.9243,0.9688,"Raising the national flags")</script>
 <script src="flags.js?v=6" charset="utf-8"></script>
 <script>__ld(0.9688,1.0000,"Setting up the bench")</script>
-<script src="ui.js?v=455" charset="utf-8"></script>
+<script src="ui.js?v=456" charset="utf-8"></script>
 <script>__ld(1.0000,1.0000,"Opening the doors")</script>
