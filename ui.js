@@ -1597,10 +1597,10 @@ const txtOn=c=>{const [r,g,b]=rgbOf(c);return (.2126*r+.7152*g+.0722*b)/255>.6?'
 function whenLoaded(img,fn){if(img.complete&&img.naturalWidth)fn();else img.addEventListener('load',fn,{once:true});}
 // club card: keep the club colour unless the logo disappears in it; then the second colour, or a darker or lighter shade, whichever shows the logo best
 function csCardFix(){const big=document.querySelector('.cs-card img.cs-big'),card=big&&big.closest('.cs-card');if(!big||!card)return;const c1=card.dataset.c1,c2=card.dataset.c2;if(!c1)return;
-  whenLoaded(big,()=>{if(blendShare(big,c1)<=.28)return;const C=[shade(c1,.5),shade(c1,.32),c2,'#16191f','#e9ecef'].filter(Boolean);let best=null,bv=2;
-    for(const c of C){const v=blendShare(big,c);if(v<bv){bv=v;best=c;}if(v<.12)break;}if(best){card.style.background=best;card.style.color=txtOn(best);}});}
-// crest strip: a logo that vanishes on the dark tile gets a light tile
-function csStripFix(){document.querySelectorAll('.cs-crests button img.crest').forEach(im=>whenLoaded(im,()=>{if(blendShare(im,'rgb(32,35,42)')>.6)im.closest('button').classList.add('lt');}));}
+  whenLoaded(big,()=>{if(blendShare(big,c1)<=.28)return;const C=[shade(c1,.5),shade(c1,.32),c2,'#16191f'].filter(c=>c&&txtOn(c)==='#ffffff');let best=c1,bv=blendShare(big,c1);   // only the club colour, darker shades of it or dark: never a light card
+    for(const c of C){const v=blendShare(big,c);if(v<bv-.05){bv=v;best=c;}if(v<.12)break;}if(best!==c1){card.style.background=best;card.style.color=txtOn(best);}});}
+// crest strip: a dark logo that disappears on the dark tile gets a soft light glow around its own shape (no tile, no ring)
+function csStripFix(){document.querySelectorAll('.cs-crests button img.crest').forEach(im=>whenLoaded(im,()=>{if(blendShare(im,'rgb(32,35,42)')>.6)im.classList.add('glow');}));}
 function csScroll(){const r=document.getElementById('csCrests');if(!r)return;const b=r.querySelector('.on');if(b)r.scrollLeft=b.offsetLeft-r.clientWidth/2+b.clientWidth/2;}
 
 /* ===================== Modal ===================== */
