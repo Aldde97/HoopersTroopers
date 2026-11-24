@@ -11,6 +11,13 @@ LG=[('Europe',['EuroLeague','EuroCup','Liga Endesa','Türkiye BSL','Greek GBL','
     ('North America',['NBA','NBA G League','NCAA Division I','BSN Puerto Rico']),
     ('The rest of the world',['B.League','CBA','NBL Australia','PBA','Liga Nacional','NBB','+ more'])]
 lg=''.join(f'<div class="lg"><h3>{t}</h3><ul>{"".join(f"<li>{x}</li>" for x in L)}</ul></div>' for t,L in LG)
+import json as _j
+_NT=_j.load(open('/Users/aldin/bm-work/web2/nts.json'))['list'];_FL=_j.load(open('/Users/aldin/bm-work/web2/ntflags.json'))
+_RG=[('Europe','Europe'),('Americas','Americas'),('Asian','Asia & Oceania'),('African','Africa')]
+def _ntg(k,t):
+    L=sorted([x for x in _NT if x[2]==k],key=lambda x:x[1])
+    return f'<div class="ntg"><h3>{t} <span>{len(L)}</span></h3><ul>'+''.join(f'<li><img src="/assets/w/nt/{_FL[c]}" alt="" width="24" height="16" loading="lazy" decoding="async">{n}</li>' for c,n,r,f in L if c in _FL)+'</ul></div>'
+ntsec=''.join(_ntg(k,t) for k,t in _RG)
 html=f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Basketball Manager · Coach any club in the world</title>
@@ -83,6 +90,10 @@ h1{{font-size:clamp(46px,6.4vw,86px);margin:16px 0 20px;text-wrap:balance}}h1 em
 .lgs{{padding-block:40px 100px}}.lgs .grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:40px}}
 .lg{{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}}.lg h3{{margin:0 0 14px;font:800 22px/1 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em;color:var(--or2)}}
 .lg ul{{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}}.lg li{{padding:6px 12px;border-radius:999px;background:#1d2230;font-size:15px}}
+.nts{{padding-block:20px 100px}}.nts .wrap>.ntgs{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:40px}}
+.ntg{{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}}.ntg h3{{margin:0 0 14px;font:800 22px/1 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em;color:var(--or2);display:flex;justify-content:space-between}}.ntg h3 span{{color:var(--mut)}}
+.ntg ul{{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}}.ntg li{{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border-radius:999px;background:#1d2230;font-size:15px}}.ntg li img{{width:24px;height:16px;object-fit:cover;border-radius:3px;box-shadow:0 0 0 1px #ffffff22}}
+.ntx{{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:22px}}.ntx span{{padding:8px 16px;border-radius:10px;border:1px solid var(--line);font:700 17px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase}}
 /* price */
 .price{{padding-block:90px;background:#0e1117;border-block:1px solid var(--line)}}
 .plans{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:820px;margin:44px auto 0}}
@@ -95,6 +106,7 @@ details{{border-bottom:1px solid var(--line);padding:18px 0}}summary{{cursor:poi
 .end{{text-align:center;padding-block:80px 90px}}.end h2{{font-size:clamp(40px,5.4vw,70px);margin:0 0 26px}}
 footer{{border-top:1px solid var(--line);padding-block:26px calc(26px + env(safe-area-inset-bottom,0px));color:var(--mut);font-size:14px}}footer .wrap{{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}}footer nav{{display:flex;gap:18px}}
 @media (max-width:900px){{
+ .nts .wrap>.ntgs{{grid-template-columns:minmax(0,1fr)}}
  .hero{{padding-block:40px 70px}}.hero .wrap,.step,.step:nth-of-type(even){{grid-template-columns:minmax(0,1fr);gap:40px}}.step:nth-of-type(even) .tx{{order:0}}
  .shot{{justify-self:center;max-width:440px}}.sb{{left:-10px}}.ac{{right:-10px}}
  .lgs .grid,.plans{{grid-template-columns:minmax(0,1fr)}}.step{{margin-bottom:90px}}.v3 .o{{right:-8px}}
@@ -128,6 +140,9 @@ footer{{border-top:1px solid var(--line);padding-block:26px calc(26px + env(safe
   <div class="vis v3"><div class="f">{pic('court','Live court: every made and missed shot of both teams',1100,723)}</div><div class="o">{pic('coach','The assistant coach suggests moves during the game',708,449)}</div></div></div>
 </div></section>
 <section class="lgs gut"><div class="wrap"><h2 class="d sec-h">60 leagues. One game.</h2><p class="sub" style="margin-bottom:0">Plus 94 national teams, the EuroLeague and EuroCup, March Madness and the NBA Draft.</p><div class="grid">{lg}</div></div></section>
+<section class="nts gut" id="national-teams"><div class="wrap"><h2 class="d sec-h">Coach a national team too</h2><p class="sub" style="margin-bottom:0">Lead your country alongside your club. Pick twelve players for every window and play the qualifiers, EuroBasket, the World Cup and the Olympics. 94 national teams to choose from.</p>
+ <div class="ntx"><span>Qualifiers</span><span>EuroBasket</span><span>World Cup</span><span>Olympics</span></div>
+ <div class="ntgs">{ntsec}</div></div></section>
 <section class="price gut"><div class="wrap"><h2 class="d sec-h">Start free</h2><p class="sub" style="margin-bottom:0">Play a full season with any club. Keep going for one payment. No subscription, no ads.</p>
  <div class="plans"><div class="plan"><small>Free</small><b>$0</b><ul><li>One full season, any club</li><li>Every league and every feature</li><li>Live games</li></ul></div>
  <div class="plan hi"><small>Full game</small><b>$9 <span>once</span></b><ul><li>Every season after the first</li><li>More save slots</li><li>All future updates</li></ul></div></div>
