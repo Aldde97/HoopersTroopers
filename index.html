@@ -1463,6 +1463,18 @@ body.mfocus .main .inner{max-width:1500px}
 /* NIL pool: basketball's share of the school's revenue-sharing cap */
 .nil-cap{display:grid;gap:5px;padding:6px 0 10px;border-bottom:1px solid var(--line);margin-bottom:4px}.nil-cap-h{display:flex;justify-content:space-between}
 .nil-cap-b{height:8px;border-radius:4px;background:var(--soft);overflow:hidden}.nil-cap-b i{display:block;height:100%;background:var(--g)}.nil-cap small{font-size:12px;color:var(--mut)}
+
+/* transfer portal window */
+.pw-head{display:grid;grid-template-columns:minmax(220px,1.4fr) repeat(3,minmax(140px,1fr));gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);align-items:center}
+.pw-days{display:flex;gap:6px}.pw-days i{flex:1;height:34px;border-radius:8px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;font-style:normal}
+.pw-days i b{font-size:13px;color:var(--mut)}.pw-days i.f{background:#1d2530;border-color:#1d2530}.pw-days i.f b{color:#fff}.pw-days i.now{border:2px solid var(--or);background:rgba(255,107,0,.1)}.pw-days i.now b{color:var(--or)}
+.pw-row{grid-template-columns:40px minmax(220px,1.8fr) 70px minmax(130px,1fr) 80px 300px}
+.pw-dd{font-weight:800;font-size:12px;color:var(--mut);text-align:center;border:1px solid var(--line);border-radius:6px;padding:3px 0}.pw-dd.soon{color:var(--or);border-color:var(--or)}
+.pw-av{width:34px;height:34px;flex:none}.pw-of{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.pw-of small{font-size:11.5px;color:var(--mut);margin-left:2px}
+.pw-ask small{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}.pw-ask b{font-size:13.5px}
+.rc-m .crest.mini{width:16px;height:16px}
+@media (max-width:760px){.pw-head{grid-template-columns:1fr 1fr;padding-inline:14px}.pw-days{grid-column:1/-1}
+  .pw-row{grid-template-columns:34px minmax(0,1fr) auto}.pw-of{grid-column:2/3}.pw-ask{grid-column:3/4;text-align:right}.pw-row .rc-x{grid-column:2/4;justify-content:flex-start}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1517,7 +1529,7 @@ body.mfocus .main .inner{max-width:1500px}
 <div id="app"></div>
 <div id="toast" role="status" hidden></div>
 <script>__ld(0,0.0609,"Starting the match engine")</script>
-<script src="engine.js?v=450" charset="utf-8"></script>
+<script src="engine.js?v=451" charset="utf-8"></script>
 <script>__ld(0.0609,0.0610,"Hanging the club crests")</script>
 <script src="logos.js?v=323" charset="utf-8"></script>
 <script>__ld(0.0610,0.0618,"Taking the team photos")</script>
@@ -1557,5 +1569,5 @@ body.mfocus .main .inner{max-width:1500px}
 <script>__ld(0.9243,0.9688,"Raising the national flags")</script>
 <script src="flags.js?v=6" charset="utf-8"></script>
 <script>__ld(0.9688,1.0000,"Setting up the bench")</script>
-<script src="ui.js?v=453" charset="utf-8"></script>
+<script src="ui.js?v=454" charset="utf-8"></script>
 <script>__ld(1.0000,1.0000,"Opening the doors")</script>

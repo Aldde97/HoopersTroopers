@@ -974,6 +974,7 @@ function ncObjMet(L){const f=ncFinish(L,G.user),lv=['Champions','Runner-up','Fin
 function colLock(p){if(!p||!G||!G.teams)return null;const me=G.teams[G.user],at=p.tid!=null?G.teams[p.tid]:null;if(!me)return null;
   if(at&&isCol(at)&&p.tid!==G.user)return isCol(me)?`${pname(p)} plays for ${at.name}. College players change schools only through the transfer portal in the summer.`:`${pname(p)} plays college basketball at ${at.name}. College players cannot be signed by pro clubs; they turn pro through the NBA draft or when their eligibility ends.`;
   if(at&&!isCol(at)&&p.tid!==G.user&&isCol(me))return `${pname(p)} is a professional at ${at.name}. College programs cannot buy players from pro clubs or the NBA, and there are no transfer fees in college basketball. New players come as recruits each summer or from the transfer portal.`;
+  if(p.tid==null&&p.portal&&isCol(me))return pwOpen()?`Make your NIL offer for ${pname(p)} in the transfer portal window (Transfers, Transfer portal). He decides on his decision day.`:`The transfer portal window is closed. It opens for a few days after the season.`;
   if(p.tid==null&&p.portal&&!isCol(me))return `${pname(p)} is in the transfer portal and only talks to college programs.`;
   if(p.tid==null&&!p.portal&&isCol(me)&&!p.prospect)return `College programs cannot sign professional players. New players come as recruits each summer or from the transfer portal.`;
   return null;}
@@ -987,7 +988,7 @@ function ncaaOffseason(){const L=G.nl&&G.nl.NCAA;if(!L)return;const U=G.user,T=G
   for(const id of G.fa.slice()){const p=G.players[id];if(!p||!p.portal||p.portal>=G.season)continue;delete p.portal;if(p.o<52){G.fa=G.fa.filter(i=>i!==id);delete G.players[id];}else p.sal=salaryFor(p);}
   for(const t of T){const ps=roster(t.id).slice().sort((a,b)=>b.o-a.o);ps.forEach((p,k)=>{if(p.loan||p.yrs<1)return;const q=t.id===U?nilQ(p,k):k>=9?.45:k>=5?.2:.06;if(Math.random()>q)return;if(t.id===U)mine.out.push(pname(p));toFA(p);p.portal=G.season;p.elig=p.yrs;p.sal=ncNil(p);});}
   const pool=()=>G.fa.map(i=>G.players[i]).filter(p=>p&&p.portal===G.season).sort((a,b)=>b.o-a.o);
-  for(const t of T.filter(t=>t.id!==U).sort((a,b)=>b.rep-a.rep)){const lv=teamLevel(t);let k=0;while(t.order.length<11&&k++<1){const P=pool().filter(p=>p.o<=lv+3);if(!P.length)break;const p=P[Math.min(P.length-1,rnd(0,2))];G.fa=G.fa.filter(i=>i!==p.id);delete p.portal;p.sal=ncNil(p);join(p,t);markNew(p,t);if(p.o>=72)news(`${pname(p)} transfers to ${t.name}`,`${pname(p)} (OVR ${p.o}) leaves ${p.last||'his school'} through the transfer portal and joins ${t.name}.`);}}
+  if(!isCol(G.teams[U]))for(const t of T.filter(t=>t.id!==U).sort((a,b)=>b.rep-a.rep)){const lv=teamLevel(t);let k=0;while(t.order.length<11&&k++<1){const P=pool().filter(p=>p.o<=lv+3);if(!P.length)break;const p=P[Math.min(P.length-1,rnd(0,2))];G.fa=G.fa.filter(i=>i!==p.id);delete p.portal;p.sal=ncNil(p);join(p,t);markNew(p,t);if(p.o>=72)news(`${pname(p)} transfers to ${t.name}`,`${pname(p)} (OVR ${p.o}) leaves ${p.last||'his school'} through the transfer portal and joins ${t.name}.`);}}
   const stars=T.slice().sort((a,b)=>b.rep**4*Math.random()-a.rep**4*Math.random()).slice(0,25);
   const RCJ=rcSpring(mine);   // the recruiting board's class signs first; without a board the old automatic classes are used
   for(const t of T){if(t.id===U&&RCJ.user){while(t.order.length<10){const w=ncRecruit(t,rnd(44,50),rnd(54,64));w.walk=1;mine.rec.push(w);}t.order=autoOrder(t.order);continue;}
@@ -997,7 +998,7 @@ function ncaaOffseason(){const L=G.nl&&G.nl.NCAA;if(!L)return;const U=G.user,T=G
     t.order=autoOrder(t.order);}
   const ld=pool().slice(0,5);if(ld.length)news('Transfer portal',`Still in the portal: ${ld.map(p=>`${pname(p)} (OVR ${p.o}, from ${p.last||'?'})`).join(', ')}.`);
   if(isCol(G.teams[U])){if(mine.out.length)msg('Assistant Coach','Players entered the transfer portal',`${mine.out.join(', ')} entered the transfer portal and left the program.`,'staff');
-    msg('Assistant Coach','Recruiting class signed',`${mine.rec.length} freshmen join us: ${mine.rec.map(p=>`${pname(p)} (${p.pos}, OVR ${p.o}, POT ${p.pot})`).join(', ')}. Players in the transfer portal can still be signed in the Transfers tab (filter: transfer portal).`,'staff');}try{nilSummer1(mine)}catch(e){}}
+    msg('Assistant Coach','Recruiting class signed',`${mine.rec.length} freshmen join us: ${mine.rec.map(p=>`${pname(p)} (${p.pos}, OVR ${p.o}, POT ${p.pot})`).join(', ')}. The transfer portal window opens now: make your offers in Transfers, Transfer portal.`,'staff');}try{nilSummer1(mine)}catch(e){}try{pwStart()}catch(e){console.error('portal',e)}}
 // the draft: college players are the main pool; projected entrants are on the board from the start of the season
 function ncWatch(D){if(!G.nl||!G.nl.NCAA)return;const RL=typeof eeReal==='function'?eeReal(D):{};
   for(const p of Object.values(G.players)){if(p.tid==null||!isCol(G.teams[p.tid])||p.prospect||p.nbaR||(window.NBA_DRAFTED||[]).includes(eeNorm(pname(p))))continue;const s=prospectScore(p);
@@ -3020,7 +3021,7 @@ function nbaCal(d0){if(!G||!userNBA()||!G.nl||!G.nl.NBA||preOn())return;const L=
   else if(L.phase==='done')d=263;
   if(d!=null)G.day=Math.max(d0+1,d);}
 
-function simStep(um){if(G&&!G.sacked&&G.teams[G.user]&&!seasonOver()&&G.teams[G.user].order.length<5&&typeof fillRoster==='function')fillRoster();const d0=G?G.day:0;const r=simStep0(um);try{rcTick();}catch(e){console.error('recruiting',e);}try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
+function simStep(um){if(typeof pwOpen==='function'&&pwOpen()){while(pwOpen())pwDay();}if(G&&!G.sacked&&G.teams[G.user]&&!seasonOver()&&G.teams[G.user].order.length<5&&typeof fillRoster==='function')fillRoster();const d0=G?G.day:0;const r=simStep0(um);try{rcTick();}catch(e){console.error('recruiting',e);}try{nbaCal(d0);}catch(e){}try{nlCoachTick();boardMidTick();awExp();scoutWork();if(G.day>=92&&!preOn())retPlan();}catch(e){}if(G&&G.teams[G.user])recoverTo(G.teams[G.user],G.day);shortTick();faTick();faBidTick();clauseTick();ddTick();watchTick();moodTick();roleDev();derbyTick();hypeTick();tenTick();pdTick();eeTick();fanTick();scoutTick();contractTick();midJobTick();try{staffPoachTick();}catch(err){console.error(err);}try{treqTick();}catch(err){console.error(err);}try{rumourTick();}catch(err){console.error(err);}try{feedTick();}catch(err){console.error(err);}pokTick();try{ntTick();}catch(e){}try{nbaAllStarTick();}catch(e){}try{waivTick();}catch(e){}try{nbaHomeTick();nbaAIExtTick();}catch(e){}return r;}
 function simStep0(um){
   if(preOn())return preStep(um);
   if(pokUserDue())return pokStep(um);
@@ -7502,3 +7503,48 @@ function rcSpring(mine){const R=G.rc,U=G.user,res={user:false,board:false,n:{}};
     const t=to!=null?G.teams[to]:null;if(!t||!isCol(t)||t.order.length>=NC_ROST)continue;
     const p=rcMake(r,t);res.n[to]=(res.n[to]||0)+1;if(to===U&&res.user)mine.rec.push(p);}
   return res;}
+
+/* ===================== Transfer portal window ===================== */
+// Players enter the portal after the season; the window is open for a few days (in the summer step, like NBA free agency).
+// Programs make NIL offers, each player picks the best one on his decision day, and when the window closes the
+// players who found no school leave college basketball. Outside the window nobody can be signed from the portal.
+const PW_LEN=5;
+const pwOpen=()=>!!(G&&G.pw&&!G.pw.done&&G.pw.s===G.season&&G.teams[G.user]&&isCol(G.teams[G.user]));
+const pwPool=()=>G.fa.map(i=>G.players[i]).filter(p=>p&&p.portal&&p.pw);
+const pwAsk=p=>ncNil(p);
+const pwMine=()=>pwPool().filter(p=>p.pw.of[G.user]!=null);
+const pwOfferSum=()=>pwMine().reduce((s,p)=>s+p.pw.of[G.user],0);
+const pwSpots=()=>NC_ROST-G.teams[G.user].order.length;
+function pwStart(){if(!isCol(G.teams[G.user]))return;const P=G.fa.map(i=>G.players[i]).filter(p=>p&&p.portal===G.season);if(!P.length)return;
+  G.pw={s:G.season,day:0,len:PW_LEN};for(const p of P)p.pw={d:p.o>=68?rnd(3,PW_LEN):rnd(1,PW_LEN-1),of:{}};pwAI();
+  const top=P.slice().sort((a,b)=>b.o-a.o).slice(0,4).map(p=>`${pname(p)} (OVR ${p.o}, ${p.last||'?'})`).join(', ');
+  msg('Assistant Coach','The transfer portal window is open',`${P.length} players are in the portal for the next ${PW_LEN} days. Top names: ${top}. Other programs are already making offers. Each player picks the best NIL offer on his decision day; when the window closes, nobody else can be signed from the portal.`,'staff');}
+// AI programs: up to three open offers (fewer when the roster is nearly full), for players around their level, avoiding players everyone is chasing
+function pwAI(){const P=pwPool(),U=G.user;
+  for(const t of G.teams.filter(t=>isCol(t)&&t.id!==U).sort((a,b)=>b.rep-a.rep)){const open=P.filter(p=>p.pw.of[t.id]!=null).length,cap=Math.min(3,Math.max(1,NC_ROST-1-t.order.length));
+    if(open>=cap||t.order.length+open>=NC_ROST)continue;const lv=teamLevel(t);
+    const C=P.filter(p=>p.pw.of[t.id]==null&&p.o<=lv+3&&p.o>=lv-14).sort((a,b)=>b.o-a.o);if(!C.length)continue;
+    const free=C.filter(p=>Object.keys(p.pw.of).length<3),Q=free.length?free:C,p=Q[Math.min(Q.length-1,rnd(0,5))];p.pw.of[t.id]=r5k(pwAsk(p)*rf(.9,1.3)*(t.rep>=80?1.1:1));}}
+function pwScore(p,tid,nil){const t=G.teams[tid],ask=pwAsk(p),dep=roster(tid).filter(q=>q.pos===p.pos&&q.o>=p.o).length;
+  return nil/ask*(1+((t.rep||60)-60)/60)+(dep===0?.25:dep===1?.1:-.1)+rf(0,.25);}
+function pwDay(){const F=G.pw,U=G.user;if(!F||F.done)return;F.day++;const won=[],lost=[];
+  for(const p of pwPool()){if(p.pw.d>F.day)continue;
+    const C=Object.keys(p.pw.of).map(id=>({tid:+id,nil:p.pw.of[id]})).filter(o=>{const t=G.teams[o.tid];if(!t||t.order.length>=NC_ROST)return false;if(o.tid===U)return wageBill(U)+o.nil<=G.fin.wageBudget;return true;});
+    if(!C.length){if(F.day<F.len)p.pw.d=F.day+1;continue;}
+    const best=C.map(o=>({...o,s:pwScore(p,o.tid,o.nil)})).sort((a,b)=>b.s-a.s)[0],t=G.teams[best.tid],mine=p.pw.of[U]!=null;
+    G.fa=G.fa.filter(i=>i!==p.id);delete p.pw;join(p,t);p.sal=best.nil;markNew(p,t);t.order=autoOrder(t.order);
+    if(best.tid===U)won.push(`${pname(p)} (${p.pos}, OVR ${p.o}, ${eur(best.nil)})`);else if(mine)lost.push(`${pname(p)} chose ${t.name}`);
+    if(p.o>=72&&best.tid!==U)news(`${pname(p)} transfers to ${t.name}`,`${pname(p)} (OVR ${p.o}) leaves ${p.last||'his school'} through the transfer portal and joins ${t.name}.`);}
+  if(won.length||lost.length)msg('Assistant Coach',`Portal window · day ${F.day}`,`${won.length?`Signed with us: ${won.join(', ')}.`:''}${lost.length?` ${lost.join('; ')}.`:''}`.trim(),'staff');
+  if(F.day>=F.len)pwEnd();else pwAI();}
+function pwEnd(){const F=G.pw;F.done=1;let n=0;
+  for(const p of pwPool()){delete p.pw;delete p.portal;n++;if(p.o<52){G.fa=G.fa.filter(i=>i!==p.id);delete G.players[p.id];}else p.sal=salaryFor(p);}
+  msg('Assistant Coach','The transfer portal window has closed',`${n?`${n} player${n>1?'s':''} found no school and left college basketball (some sign as pros abroad). `:''}Our roster for the season: ${G.teams[G.user].order.length} of ${NC_ROST}. The next window opens after next season's tournament.`,'staff');}
+// the user's offer: his asking NIL deal, or 25% more to beat other programs ('x' withdraws)
+function pwOffer(pid,k){const p=G.players[+pid],U=G.user;if(!pwOpen())return 'The transfer portal window is closed.';if(!p||!p.pw)return 'He has already made his decision.';
+  if(k==='x'){delete p.pw.of[U];return `Offer to ${pname(p)} withdrawn.`;}
+  const nil=r5k(pwAsk(p)*(k==='up'?1.25:1)),old=p.pw.of[U]||0;
+  if(!old&&pwMine().length>=pwSpots())return `You have ${pwSpots()} open roster spot${pwSpots()===1?'':'s'} and already ${pwMine().length} offer${pwMine().length===1?'':'s'} out. Withdraw one first.`;
+  if(wageBill(U)+pwOfferSum()-old+nil>G.fin.wageBudget)return `Not enough NIL room: if everyone you made an offer to accepted, you would be over your NIL budget (${eur(G.fin.wageBudget)}).`;
+  p.pw.of[U]=nil;const n=Object.keys(p.pw.of).length-1;
+  return `Offer to ${pname(p)}: ${eur(nil)} NIL. ${n?`${n} other program${n>1?'s are':' is'} in on him.`:'No other offers yet.'} He decides on day ${p.pw.d}.`;}
