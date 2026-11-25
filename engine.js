@@ -3648,7 +3648,7 @@ let restoring=false;function restoreLost(){if(!G||G.lostFix||restoring)return;re
     const p=JSON.parse(JSON.stringify(q));p.id=G.nid++;p.tid=null;p.age=age;p.yrs=0;p.loan=null;p.last=p.last||(G.teams[q.tid]?G.teams[q.tid].name:'');p.sal=salaryFor(p);G.players[p.id]=p;G.fa.push(p.id);have.add(pname(p));n++;}
   G.lostFix=true;G.lostN=n;}
 function ensureDomestic(){
-  restoreLost();backfillExp();addExtraFA();addAbaFA();ensureKls();ensureBih();ensureNL();autSync();bihSync();try{if(typeof gelSync==='function')gelSync();}catch(e_){}glRosterSync();glStaffSync();forSync();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();if(G.spons)nbaFinanceSync();ensureEC();ensureBCL();ensureFEC();acbSync();relevelSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();ageFix();fixNumbers();fixColors();nameFix();
+  restoreLost();backfillExp();addExtraFA();addAbaFA();ensureKls();ensureBih();ensureNL();autSync();bihSync();try{if(typeof bihPh==='function')bihPh();}catch(e_){}try{if(typeof gelSync==='function')gelSync();}catch(e_){}glRosterSync();glStaffSync();forSync();nbaPicksEnsure();nbaClassEnsure();pdEnsure();nbaStaffEnsure();if(G.spons)nbaFinanceSync();ensureEC();ensureBCL();ensureFEC();acbSync();relevelSync();faMoves();fixBSL();fixABA2();cleanSignedFA();fixRatings();ageFix();fixNumbers();fixColors();nameFix();
   for(const p of Object.values(G.players)){const n=(window.NAT_FIX||{})[pname(p)];if(n)p.nat=n;}
   try{dedupePlayers();}catch(e){console.error('dedupe',e);}
   if(G.dom!==undefined&&(!G.dom||G.dom.v===2)){domStaff();ensureDom2();return;}
