@@ -2593,6 +2593,95 @@ function mk3Sync(){if(!G)return;const GLC=["MXC", "CCG", "CPS", "DBC", "IAW", "M
         while(t.order.length<12)join(genPlayer(cv[t.order.length]+rnd(-1,1),POS[t.order.length%5],'GER',rnd(19,32)),t);t.order=autoOrder(t.order);}}
     try{glAssign();}catch(e){}}
   for(const t of G.teams){if(t.dom!=='GL'&&t.dom!=='RL')continue;for(const p of roster(t.id)){const k=(window.PH_ALT||{})[t.short+'|'+p.f+' '+p.l];if(k)p.phk=k;}}}
+
+/* ===================== First-career tutorial (v451) =====================
+   B: the assistant coach walks a new coach through four short steps (Home and the board's goal, Squad, matchday, Continue).
+   C: a "Your first week" checklist on Home ticks itself off as the coach does the real things (plays a live game, opens Transfers...).
+   G.tut = {s: coach step (-1 = tour over), l: ticked items, off: checklist hidden}. Only careers started after this version get it,
+   and only the first career in a browser starts with the tour (later careers get the checklist only); Settings can replay it. */
+const TUT_KEY='bm-tut-seen';
+const TUT_ICON='<svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="#ff8a1f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><circle cx="9.5" cy="12" r="1.3"/><path d="M13.5 10.5l2.5 3M16 10.5l-2.5 3M9 17.5c2-2.5 4.5-3 7-1.5"/></svg>';
+const TUT_ITEMS=[['goal','Read the board\'s goal','home'],['five','Check your starting five','squad'],['live','Play a game live',null],['tr','Look at the transfer market','transfers'],['train','Set this week\'s training','training']];
+function tutSeen(){try{return localStorage.getItem(TUT_KEY)==='1';}catch(e){return false;}}
+function tutMarkSeen(){try{localStorage.setItem(TUT_KEY,'1');}catch(e){}}
+function tutNew(tour){return {s:tour?0:-1,l:{},off:false};}
+function tutOn(){return !!(G&&!G.demo&&G.tut&&!G.sacked&&!(typeof ntMode==='function'&&ntMode()));}
+function tutCoach(){const t=G.teams[G.user]||{},s=(t.staff||[]),x=s.find(y=>y.role==='AC')||s.find(y=>y.role==='HC'&&!y.you);return x||null;}
+function tutAvatar(x){let ph=null;try{const v=x&&(window.STAFF_PHOTOS||{})[x.f+' '+x.l];if(v)ph={sheet:window.SPRITES.s[v[0]],t:v[1]};}catch(e){}
+  const ini=x?((x.f||'')[0]||'')+((x.l||'')[0]||''):'AC';return `<span class="tut-av">${ph?spr(ph,x.f+' '+x.l):TUT_ICON}</span>`;}
+function tutBest(){const r=roster(G.user).slice().sort((a,b)=>b.o-a.o);return r[0]||null;}
+function tutSteps(){const t=G.teams[G.user],col=typeof isCol==='function'&&isCol(t),nba=typeof userNBA==='function'&&userNBA(),b=tutBest();
+  let goal='';try{goal=objText();}catch(e){}
+  return [
+    {tab:'home',hl:'tab:home',h:`Welcome to ${esc(t.name)}, coach.`,
+     p:`I'm your assistant. The ${col?'athletic director':'board'} expects: <b>${goal||'a good season'}</b>. Your goal, budget and next game are always here on Home.`},
+    {tab:'squad',hl:'tab:squad',h:'This is your squad.',
+     p:b?`${esc(pname(b))} is our best player (${b.o}). Your starting five are on the court here; swap players in and out and set their minutes before the first game.`:'Your starting five are on the court here; swap players in and out and set their minutes before the first game.'},
+    {tab:'home',hl:'continue',h:'Matchday.',
+     p:`When a game is due, the big button says <b>Play match</b>. Play it live to call plays and timeouts yourself, or simulate it if you're short on time.`},
+    {tab:'home',hl:'continue',h:'Moving on.',
+     p:`<b>Continue</b> moves the calendar on day by day. ${col?'Recruiting is your transfer market: it\'s under Transfers.':nba?'Trades and free agents are under Transfers.':'New signings are under Transfers.'} I've put a short list for your first week on Home.`}];}
+// the step's tab is shown while the tour runs
+function tutGo(){if(!tutOn()||G.tut.s<0)return;const st=tutSteps()[G.tut.s];if(!st)return;UI.view='main';UI.modal=null;UI.tab=st.tab;if(G.tut.s===0)G.tut.l.goal=1;}
+function tutEnd(){if(!G.tut)return;G.tut.s=-1;tutMarkSeen();try{save();}catch(e){}}
+// visits that count for the checklist (not while the tour shows the screen)
+function tutTick(){if(!tutOn()||G.tut.s>=0||UI.view!=='main')return;const l=G.tut.l;
+  if(UI.tab==='squad')l.five=1;if(UI.tab==='transfers')l.tr=1;if(UI.tab==='training')l.train=1;if(UI.tab==='home')l.goal=1;}
+function tutCard(){if(!tutOn()||G.tut.off)return '';const l=G.tut.l,n=TUT_ITEMS.filter(i=>l[i[0]]).length,all=n===TUT_ITEMS.length;
+  const rows=TUT_ITEMS.map(([k,lab,tab])=>{const ok=!!l[k];return `<li class="${ok?'ok':''}"><span class="tut-ck">${ok?'✓':''}</span><span>${lab}</span>${ok?'':tab?`<button class="tut-go" data-act="tab:${tab}">Go</button>`:'<small>on matchday</small>'}</li>`;}).join('');
+  return `<section class="tut-card"><div class="tut-hd">${tutAvatar(tutCoach())}<div><small>${all?'All done':'Your first week'}</small><b>${all?'You know your way around. Good luck, coach.':'Get to know your club'}</b></div><span class="tut-n">${n} / ${TUT_ITEMS.length}</span><button class="tut-x" data-act="tuthide" aria-label="Hide the checklist">✕</button></div>
+    <div class="tut-bar"><i style="width:${Math.round(n/TUT_ITEMS.length*100)}%"></i></div>${all?'':`<ul>${rows}</ul>`}</section>`;}
+function tutBox(){let el=document.getElementById('tutbox');if(!el){el=document.createElement('div');el.id='tutbox';document.body.appendChild(el);}return el;}
+function tutPaint(){const el=tutBox();document.querySelectorAll('.tut-hl').forEach(e=>e.classList.remove('tut-hl'));
+  if(!tutOn()||G.tut.s<0||UI.view!=='main'||UI.modal){el.innerHTML='';el.hidden=true;return;}
+  const S=tutSteps(),st=S[G.tut.s];if(!st){tutEnd();el.hidden=true;return;}
+  document.querySelectorAll(`[data-act="${st.hl}"]`).forEach(e=>e.classList.add('tut-hl'));
+  const last=G.tut.s===S.length-1,dots=S.map((_,i)=>`<i class="${i<=G.tut.s?'on':''}"></i>`).join('');
+  el.hidden=false;el.innerHTML=`<div class="tut-pop" role="dialog" aria-label="Tutorial">${tutAvatar(tutCoach())}<div class="tut-say"><small>Assistant coach${(()=>{const x=tutCoach();return x?' · '+esc(x.f+' '+x.l):'';})()}</small><b>${st.h}</b><p>${st.p}</p>
+    <div class="tut-ft"><span class="tut-dots">${dots}</span><button class="tut-skip" data-act="tutskip">Skip tour</button><button class="btn p" data-act="tutnext">${last?'Got it':'Next'}</button></div></div></div>`;}
+Object.assign(ACT,{
+  tutnext(){if(!G||!G.tut)return;G.tut.s++;if(G.tut.s>=tutSteps().length){tutEnd();UI.tab='home';render();return;}tutGo();render();window.scrollTo(0,0);},
+  tutskip(){tutEnd();UI.tab='home';render();},
+  tuthide(){if(G&&G.tut){G.tut.off=true;try{save();}catch(e){}render();}},
+  tutreplay(){if(!G||G.demo)return;G.tut=tutNew(true);UI.modal=null;tutGo();render();window.scrollTo(0,0);}});
+// new careers get the tutorial (the tour only the first time in this browser)
+{const _ng=newGame;newGame=function(...a){const r=_ng.apply(this,a);try{if(G&&!G.demo)G.tut=tutNew(!tutSeen());}catch(e){}return r;};}
+// playing a game live ticks that item
+{const _bm=beginMatch;beginMatch=function(live){if(live&&G&&G.tut)G.tut.l.live=1;return _bm.apply(this,arguments);};}
+// the checklist sits at the top of Home
+{const _hh=homeHTML;homeHTML=function(){return tutCard()+_hh();};}
+// Settings: replay the tutorial
+{const _sm=settingsModal;settingsModal=function(){const h=_sm();if(!(G&&!G.demo))return h;
+  const row=`<div class="set-r"><div><b>Tutorial</b><small>The assistant coach shows you around again, and the first-week list comes back on Home.</small></div><div class="btns"><button class="btn" data-act="tutreplay">Replay tutorial</button></div></div>`;
+  const i=h.indexOf('<div class="set-r">');return i<0?h:h.slice(0,i)+row+h.slice(i);};}
+// after every screen: tick visits, show the coach and highlight what he talks about
+{const _r=render;render=function(){if(G&&G.tut&&G.tut.s>=0&&UI.view==='main'){const st=tutSteps()[G.tut.s];if(st&&UI.tab!==st.tab&&!UI.modal)UI.tab=st.tab;}
+  const r=_r.apply(this,arguments);try{tutTick();tutPaint();}catch(e){console.error(e);}return r;};}
+// the first screen of a new career shows the tour's first step
+{const _sc=typeof startCareerAt==='function'?startCareerAt:null;if(_sc)startCareerAt=function(...a){const r=_sc.apply(this,a);try{if(G&&G.tut&&G.tut.s===0){tutGo();render();}}catch(e){}return r;};}
+(()=>{const st=document.createElement('style');st.textContent=`
+#tutbox{position:fixed;left:0;right:0;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:60;display:flex;justify-content:center;padding:0 max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));pointer-events:none}
+#tutbox[hidden]{display:none}
+.tut-pop{pointer-events:auto;display:flex;gap:12px;align-items:flex-end;max-width:520px;width:100%}
+.tut-av{flex:none;width:56px;height:56px;border-radius:50%;overflow:hidden;background:var(--ink3);display:flex;align-items:center;justify-content:center;border:2px solid var(--or)}
+.tut-av>span,.tut-av>div{width:100%;height:100%}
+.tut-say{flex:1;min-width:0;background:var(--ink2);color:var(--inkT);border:1px solid var(--ink3);border-radius:14px 14px 14px 4px;padding:12px 14px;box-shadow:0 10px 30px #0006}
+.tut-say small{display:block;color:var(--or2);font:600 12px var(--fb);letter-spacing:.04em;text-transform:uppercase}
+.tut-say b{display:block;font:700 20px/1.15 var(--fd);margin:3px 0 4px}.tut-say p{margin:0;font:400 14.5px/1.45 var(--fb);color:#cfd4da}.tut-say p b{display:inline;font:600 14.5px var(--fb);color:#fff;margin:0}
+.tut-ft{display:flex;align-items:center;gap:10px;margin-top:10px}.tut-dots{display:flex;gap:5px;margin-right:auto}.tut-dots i{width:7px;height:7px;border-radius:50%;background:var(--ink3)}.tut-dots i.on{background:var(--or)}
+.tut-skip{background:none;border:0;color:var(--inkM);font:500 13px var(--fb);cursor:pointer;padding:6px}
+.tut-hl{outline:3px solid var(--or)!important;outline-offset:2px;border-radius:8px;animation:tutP 1.6s ease-in-out infinite}
+@keyframes tutP{50%{outline-color:#ffb27a}}@media (prefers-reduced-motion:reduce){.tut-hl{animation:none}}
+.tut-card{background:#181c22;color:#fff;border-radius:12px;border-left:5px solid var(--or);padding:12px 16px;margin-bottom:12px}
+.tut-hd{display:flex;align-items:center;gap:12px}.tut-hd .tut-av{width:40px;height:40px;border-width:1px}.tut-hd>div{flex:1;min-width:0}
+.tut-hd small{display:block;color:var(--or2);font:600 11.5px var(--fb);letter-spacing:.05em;text-transform:uppercase}.tut-hd b{font:700 18px var(--fd)}
+.tut-n{color:#aeb5bd;font:600 13px var(--fb)}.tut-x{background:none;border:0;color:#8d949d;cursor:pointer;font-size:15px;padding:6px}
+.tut-bar{height:5px;background:#2b3038;border-radius:3px;margin:10px 0 6px;overflow:hidden}.tut-bar i{display:block;height:100%;background:var(--or);border-radius:3px}
+.tut-card ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:2px 16px}
+.tut-card li{display:flex;align-items:center;gap:8px;padding:5px 0;font:500 14px var(--fb);min-width:0}.tut-card li.ok span:nth-child(2){color:#8d949d;text-decoration:line-through}
+.tut-ck{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid #4a515c;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}.tut-card li.ok .tut-ck{background:var(--g);border-color:var(--g);color:#fff}
+.tut-go{margin-left:auto;background:var(--or);color:#fff;border:0;border-radius:6px;padding:3px 10px;font:600 12.5px var(--fb);cursor:pointer}.tut-card li small{margin-left:auto;color:#8d949d;font-size:12px}
+@media (max-width:760px){#tutbox{bottom:calc(84px + env(safe-area-inset-bottom,0px))}.tut-av{width:44px;height:44px}.tut-say b{font-size:18px}.tut-say p{font-size:14px}}`;document.head.appendChild(st);})();
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
