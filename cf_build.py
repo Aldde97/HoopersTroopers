@@ -41,13 +41,16 @@ if url and anon and os.path.exists(ROOT + 'cloud/cloud.js'):
     shutil.copy(ROOT + 'cloud/cloud.js', P + 'cloud.js')
     v = hashlib.sha1(js.encode()).hexdigest()[:8]
     ph = open(P + 'index.html', encoding='utf-8').read()
-    inj = ('<script>window.BM_CLOUD=' + json.dumps({'url': url, 'anon': anon}) + ';</script>\n'
+    cfg = {'url': url, 'anon': anon}
+    if os.environ.get('BM_TURNSTILE_SITE'):   # public Turnstile site key: turns on the bot check in the sign-in screens
+        cfg['turnstile'] = os.environ['BM_TURNSTILE_SITE']
+    inj = ('<script>window.BM_CLOUD=' + json.dumps(cfg) + ';</script>\n'
            '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>\n'
            f'<script src="cloud.js?v={v}"></script>\n')
     i = ph.rfind('</body>')
     ph = ph[:i] + inj + ph[i:] if i >= 0 else ph + inj
     open(P + 'index.html', 'w', encoding='utf-8').write(ph)
-    print('cloud: on')
+    print('cloud: on' + (' · bot check on' if cfg.get('turnstile') else ''))
 else:
     print('cloud: off')
 
