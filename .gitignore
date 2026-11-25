@@ -4,3 +4,4 @@
 *.t.jpg
 .env
 .env.*
+dist/
