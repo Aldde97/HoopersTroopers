@@ -63,7 +63,13 @@ open(OUT + '_headers', 'w').write("""/play/*.js
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 """)
+# frame headers stop other sites from embedding the game (clickjacking); HSTS keeps browsers on HTTPS;
+# the permissions list switches off device features the game never uses (share and clipboard stay allowed)
 
 if os.path.exists(ROOT + 'tools/career/runtime.js'):
     shutil.copy(ROOT + 'tools/career/runtime.js', P + 'career-runtime.js')
