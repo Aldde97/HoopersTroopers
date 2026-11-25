@@ -100,7 +100,22 @@
     const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:back()}});if(error){S.busy=false;S.err='Google sign-in is not available right now.';S.view==='up'?viewSignUp():viewSignIn();}}
   async function agree(){S.busy=true;syncBtns();const {data,error}=await sb.auth.updateUser({data:{consent_at:new Date().toISOString(),age16:true}});S.busy=false;
     if(error){S.err='That did not work. Try again.';viewConsent();return;}S.user=data.user;enter();}
-  async function signOut(){closeMenu();try{await upload(true);}catch(e){}await sb.auth.signOut();S.user=null;S.resend=null;viewSignIn();}
+  // Careers live in this browser (IndexedDB) and are copied to the cloud. Each browser keeps only the careers of the account
+  // signed in on it: signing out uploads, then clears them; signing in as someone else clears what the last account left.
+  const OWNER='bm-owner-v1';
+  async function wipeLocal(){try{if(typeof SAVE_READY!=='undefined')await SAVE_READY;}catch(e){}
+    try{if(typeof IDB_OK!=='undefined'&&IDB_OK)await idbTx(['meta','data'],'readwrite',(m,d)=>{m.clear();d.clear();});}catch(e){}
+    try{SVL=[];SLOT_ID=null;SAVE_TXT=null;G=null;}catch(e){}
+    for(const k of ['bm-slot-active-v1','bm-euroleague-save-v1','bm-euroleague-save-z1'])try{localStorage.removeItem(k);}catch(e){}
+    S.dirty={};S.up={};S.lastOk=null;}
+  async function flush(){if(G&&!G.demo&&typeof save==='function'){try{save();}catch(e){}await new Promise(r=>setTimeout(r,500));}
+    try{if(typeof SLOT_ID!=='undefined'&&SLOT_ID&&!S.dirty[SLOT_ID]&&S.user)S.dirty[SLOT_ID]=(SVL||[]).find(x=>x.id===SLOT_ID)||null;}catch(e){}
+    for(let i=0;i<40&&S.upBusy;i++)await new Promise(r=>setTimeout(r,250));
+    try{await upload(true);}catch(e){}return !Object.keys(S.dirty).length;}
+  async function signOut(){closeMenu();
+    if(S.user&&!(await flush())){if(typeof toast==='function')toast('Your latest progress is not in the cloud yet. Check your connection and try again.');return;}
+    try{await sb.auth.signOut();}catch(e){}await wipeLocal();try{localStorage.removeItem(OWNER);}catch(e){}
+    S.user=null;S.resend=null;location.reload();}
   const hasConsent=u=>!!(u&&u.user_metadata&&u.user_metadata.consent_at);
   async function onUser(u){S.user=u;if(!u){if(S.view!=='mail')viewSignIn();return;}
     if(S.recovery){viewNewPw();return;}
@@ -108,7 +123,11 @@
       if(pend){try{localStorage.removeItem('bm-consent-pending');}catch(e){}const {data}=await sb.auth.updateUser({data:{consent_at:new Date().toISOString(),age16:true}});if(data&&data.user){S.user=data.user;return enter();}}
       viewConsent();return;}
     enter();}
-  async function enter(){viewLoading('Loading your careers…');try{await pull();}catch(e){console.error('cloud pull',e);}hide();try{if(typeof render==='function')render();}catch(e){}}
+  async function enter(){viewLoading('Loading your careers…');
+    let ow=null;try{ow=localStorage.getItem(OWNER);}catch(e){}
+    if(ow&&ow!==S.user.id){await wipeLocal();try{if(typeof UI!=='undefined')UI.view='start';}catch(e){}}
+    try{localStorage.setItem(OWNER,S.user.id);}catch(e){}
+    try{await pull();}catch(e){console.error('cloud pull',e);}hide();try{if(typeof render==='function')render();}catch(e){}}
   // ---------- cloud saves ----------
   const path=id=>`${S.user.id}/${id}.gz`;
   async function pull(){if(typeof SAVE_READY!=='undefined')await SAVE_READY;if(typeof IDB_OK==='undefined'||!IDB_OK)return;
@@ -175,7 +194,7 @@
 .bmacc [data-act="cloudout"]{border-color:#d32f2f;color:#d32f2f}`;document.head.appendChild(st2);
   async function deleteAccount(){try{const ids=(await sb.from('saves').select('slot_id')).data||[];if(ids.length)await sb.storage.from('saves').remove(ids.map(r=>path(r.slot_id)));
       const {error}=await sb.rpc('delete_my_account');if(error)throw error;}catch(e){if(typeof toast==='function')toast('The account could not be deleted. Try again later.');return;}
-    S.dirty={};await sb.auth.signOut();S.user=null;UI.accDel=0;UI.modal=null;if(typeof toast==='function')toast('Your account and cloud saves are deleted.');viewSignIn();}
+    S.dirty={};await sb.auth.signOut();await wipeLocal();try{localStorage.removeItem(OWNER);}catch(e){}S.user=null;UI.accDel=0;UI.modal=null;if(typeof toast==='function')toast('Your account and cloud saves are deleted.');setTimeout(()=>location.reload(),1500);}
   if(typeof ACT==='object')Object.assign(ACT,{
     async cloudnow(){if(typeof save==='function'&&G&&!G.demo){save();await new Promise(r=>setTimeout(r,400));}if(typeof SLOT_ID!=='undefined'&&SLOT_ID&&!S.dirty[SLOT_ID])S.dirty[SLOT_ID]=SVL.find(s=>s.id===SLOT_ID)||null;await upload(true);if(typeof toast==='function')toast(S.err?S.err:'Saved to the cloud.');render();},
     async cloudout(){UI.modal=null;await signOut();},
