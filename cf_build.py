@@ -65,6 +65,12 @@ open(OUT + '_headers', 'w').write("""/play/*.js
   Referrer-Policy: strict-origin-when-cross-origin
 """)
 
+if os.path.exists(ROOT + 'tools/career/runtime.js'):
+    shutil.copy(ROOT + 'tools/career/runtime.js', P + 'career-runtime.js')
+if os.environ.get('BM_ARCHIVE_ONLY') != '1':
+    from tools.career.releases import package
+    package(ROOT, P)
+
 size = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(OUT) for f in fs)
 n = sum(len(fs) for _, _, fs in os.walk(OUT))
 big = [os.path.join(d, f) for d, _, fs in os.walk(OUT) for f in fs if os.path.getsize(os.path.join(d, f)) > 25 * 1024 * 1024]
