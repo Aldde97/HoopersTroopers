@@ -100,7 +100,7 @@
     const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:back()}});if(error){S.busy=false;S.err='Google sign-in is not available right now.';S.view==='up'?viewSignUp():viewSignIn();}}
   async function agree(){S.busy=true;syncBtns();const {data,error}=await sb.auth.updateUser({data:{consent_at:new Date().toISOString(),age16:true}});S.busy=false;
     if(error){S.err='That did not work. Try again.';viewConsent();return;}S.user=data.user;enter();}
-  async function signOut(){try{await upload(true);}catch(e){}await sb.auth.signOut();S.user=null;S.resend=null;viewSignIn();}
+  async function signOut(){closeMenu();try{await upload(true);}catch(e){}await sb.auth.signOut();S.user=null;S.resend=null;viewSignIn();}
   const hasConsent=u=>!!(u&&u.user_metadata&&u.user_metadata.consent_at);
   async function onUser(u){S.user=u;if(!u){if(S.view!=='mail')viewSignIn();return;}
     if(S.recovery){viewNewPw();return;}
@@ -142,13 +142,44 @@
     return `<div class="bmacc"><b>Account</b><small>Signed in as ${esc(S.user.email||'Google account')}</small><small>Last cloud save: ${ago(S.lastOk)}${n?' · changes waiting to upload':''}${S.err?` · ${esc(S.err)}`:''}</small>
       <div class="btns"><button class="btn sm" data-act="cloudnow">Save to cloud now</button><button class="btn sm" data-act="cloudpw">Change password</button><button class="btn sm" data-act="cloudout">Sign out</button>${UI.accDel?`<button class="btn sm" data-act="clouddel:0">Keep my account</button><button class="btn sm set-x" data-act="clouddel:2">Delete account and all cloud saves</button>`:`<button class="btn sm" data-act="clouddel:1">Delete account…</button>`}</div>
       ${UI.accDel?'<small>This deletes your account and every career stored in the cloud. Careers saved in this browser stay here. This cannot be undone.</small>':''}</div>`;}
-  if(typeof settingsModal==='function'){const m0=settingsModal;settingsModal=function(){const h=m0.apply(this,arguments);return h.replace('<p class="set-n">',accountHTML()+'<p class="set-n">');};}
+  if(typeof settingsModal==='function'){const m0=settingsModal;settingsModal=function(){const h=m0.apply(this,arguments);const a=accountHTML();if(!a)return h;const k=h.indexOf('</div>',h.indexOf('<h3>Settings</h3>'));return k<0?h.replace('<p class="set-n">',a+'<p class="set-n">'):h.slice(0,k+6)+a+h.slice(k+6);};}
+  // ---------- account button in the top bar, Sign out in the phone menu ----------
+  const OUT_IC='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h11"/></svg>';
+  const initial=()=>{const e=(S.user&&S.user.email)||'';return esc((e[0]||'?').toUpperCase());};
+  if(typeof topbTools==='function'){const t0=topbTools;topbTools=function(){const h=t0.apply(this,arguments);if(!S.user)return h;
+    return h.replace('<div class="topb-tl">',`<div class="topb-tl"><button class="topb-b bmav" data-act="cloudmenu" title="Account · ${esc(S.user.email||'')}" aria-label="Account and sign out"><i>${initial()}</i></button>`);};}
+  if(typeof bnavHTML==='function'){const b0=bnavHTML;bnavHTML=function(){const h=b0.apply(this,arguments);if(!S.user)return h;
+    return h.replace('<span>Settings</span></button>',`<span>Settings</span></button><button class="more-b bmout" data-act="cloudout">${OUT_IC}<span>Sign out</span></button>`);};}
+  function closeMenu(){const m=document.getElementById('bmMenu');if(m)m.remove();document.removeEventListener('pointerdown',outside,true);}
+  function outside(e){const m=document.getElementById('bmMenu');if(m&&!m.contains(e.target)&&!e.target.closest('.bmav'))closeMenu();}
+  function openMenu(){if(document.getElementById('bmMenu')){closeMenu();return;}const b=document.querySelector('.bmav');if(!b)return;const r=b.getBoundingClientRect();
+    const m=document.createElement('div');m.id='bmMenu';m.setAttribute('role','menu');
+    m.innerHTML=`<div class="bmm-h"><i>${initial()}</i><div><b>Signed in</b><small>${esc(S.user.email||'Google account')}</small><small>Last cloud save: ${ago(S.lastOk)}</small></div></div>
+      <button data-m="save">Save to cloud now</button><button data-m="set">Account settings</button><button data-m="out" class="bmm-out">${OUT_IC}<span>Sign out</span></button>`;
+    document.body.appendChild(m);const w=m.offsetWidth;m.style.top=Math.round(r.bottom+8)+'px';m.style.left=Math.max(8,Math.min(window.innerWidth-w-8,Math.round(r.right-w)))+'px';
+    m.addEventListener('click',e=>{const x=e.target.closest('[data-m]');if(!x)return;const k=x.dataset.m;closeMenu();
+      if(k==='out')ACT.cloudout();else if(k==='save')ACT.cloudnow();else{UI.modal={kind:'settings'};render();}});
+    setTimeout(()=>document.addEventListener('pointerdown',outside,true),0);}
+  window.addEventListener('resize',closeMenu);
+  const st2=document.createElement('style');st2.textContent=`
+.bmav i{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#ff6b00;color:#fff;font:800 15px 'Barlow Condensed',system-ui,sans-serif;font-style:normal}
+#bmMenu{position:fixed;z-index:9999;width:260px;max-width:calc(100vw - 16px);background:var(--card,#fff);color:var(--fg,#121417);border:1px solid var(--line,#e1e4e8);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.28);padding:8px;display:grid;gap:2px}
+#bmMenu .bmm-h{display:flex;gap:10px;align-items:center;padding:8px 8px 12px;border-bottom:1px solid var(--line,#e1e4e8);margin-bottom:4px}
+#bmMenu .bmm-h i{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#ff6b00;color:#fff;font:800 18px 'Barlow Condensed',system-ui,sans-serif;font-style:normal}
+#bmMenu .bmm-h div{min-width:0;display:grid}#bmMenu .bmm-h small{font-size:12.5px;color:var(--mut,#6b7380);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bmMenu button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:11px 10px;color:inherit;font:600 14.5px system-ui,sans-serif;text-transform:none;letter-spacing:0;cursor:pointer}
+#bmMenu button:hover{background:rgba(127,127,127,.12)}
+#bmMenu .bmm-out{color:#d32f2f}
+.more-b.bmout{color:#e04848}
+.bmacc{border-top:0;border-bottom:1px solid var(--line,#e1e4e8);background:rgba(255,107,0,.06)}
+.bmacc [data-act="cloudout"]{border-color:#d32f2f;color:#d32f2f}`;document.head.appendChild(st2);
   async function deleteAccount(){try{const ids=(await sb.from('saves').select('slot_id')).data||[];if(ids.length)await sb.storage.from('saves').remove(ids.map(r=>path(r.slot_id)));
       const {error}=await sb.rpc('delete_my_account');if(error)throw error;}catch(e){if(typeof toast==='function')toast('The account could not be deleted. Try again later.');return;}
     S.dirty={};await sb.auth.signOut();S.user=null;UI.accDel=0;UI.modal=null;if(typeof toast==='function')toast('Your account and cloud saves are deleted.');viewSignIn();}
   if(typeof ACT==='object')Object.assign(ACT,{
     async cloudnow(){if(typeof save==='function'&&G&&!G.demo){save();await new Promise(r=>setTimeout(r,400));}if(typeof SLOT_ID!=='undefined'&&SLOT_ID&&!S.dirty[SLOT_ID])S.dirty[SLOT_ID]=SVL.find(s=>s.id===SLOT_ID)||null;await upload(true);if(typeof toast==='function')toast(S.err?S.err:'Saved to the cloud.');render();},
     async cloudout(){UI.modal=null;await signOut();},
+    cloudmenu(){openMenu();},
     cloudpw(){UI.modal=null;render();S.pwFromGame=true;S.err='';viewNewPw();},
     clouddel(k){k=+k;if(k===2){deleteAccount();return;}UI.accDel=k;render();}});
   // ---------- start ----------
