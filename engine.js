@@ -709,7 +709,7 @@ function nbaTradeOpen(){const L=G.nl&&G.nl.NBA;if(!L||!userNBA())return {ok:fals
   if(L.phase==='reg'&&L.round>=Math.round(L.sched.length*.6))return {ok:false,why:'The trade deadline has passed. Trades open again after the season.'};
   if(L.phase==='po'||L.phase==='wait')return {ok:false,why:'No trades during the playoffs.'};return {ok:true};}
 function tradeVal(p,forTid){const age=p.age,o=p.o;let v=Math.max(0,o-68)**2.3;
-  v*=age<=21?1.35:age<=24?1.2:age<=27?1.08:age<=29?1:age<=31?.8:age<=33?.55:.35;v*=1+Math.max(0,p.pot-o)*.03;
+  v*=age<=21?1.35:age<=24?1.2:age<=27?1.08:age<=29?1:o>=90?(age<=31?.95:age<=33?.8:.55):o>=85?(age<=31?.88:age<=33?.65:.4):(age<=31?.8:age<=33?.55:.35);if(o>=90)v*=1+(o-89)*.06;   /* stars age slower in value and carry a star premium */v*=1+Math.max(0,p.pot-o)*.03;
   const fair=nbaSal(p);v*=clamp(1+(fair-p.sal)/(fair+8e6)*.6,.55,1.35);v*=1+.1*Math.max(0,(p.yrs||1)-1)*(age<=28?1:-1);
   if(p.inj>3)v*=.85;return v*planF(p,forTid);}
 const salSum=ps=>ps.reduce((a,p)=>a+p.sal,0);
@@ -737,9 +737,24 @@ function tradeEval(tid,give,get,gpk,tpk){gpk=gpk||[];tpk=tpk||[];const me=G.user
     if(!ok||(G.swaps||[]).some(x=>x.y===sw.y&&(x.a===a||x.b===a||x.a===b||x.b===b))){out.why=`A ${sw.y} pick swap needs both teams to hold their own ${sw.y} first-round pick, with no other swap on it.`;return out;}if(hm)out.vGet+=swapVal(sw.y,a,b);else out.vGive+=swapVal(sw.y,a,b);}
   const st=stepienCheck(me,gpk,tpk)||stepienCheck(tid,tpk,gpk);if(st){out.why=st;return out;}
   out.dumpB=dumpBonus(tid,out.salIn,out.salOut);out.vGive+=out.dumpB;
-  const best=roster(tid).slice().sort((a,b)=>b.o-a.o)[0],star=G2.includes(best),need=star?1.3:1.08;
-  if(out.vGive<out.vGet*need){out.why=star?`${pname(best)} is their franchise player. They want a lot more for him.`:`${t.name} want more value in return.`;out.short=out.vGet*need-out.vGive;return out;}
+  // quality over quantity: the 2nd player they receive counts 80%, the 3rd 60%, the rest 50%
+  {const vs=G1.map(p=>tradeVal(p,tid)).sort((a,b)=>b-a),W=[1,.8,.6];const cut=vs.reduce((a,v,i)=>a+v*(1-(W[i]??.5)),0);out.vGive-=cut;}
+  // the core: top three by rating need a premium; a contender's star is close to untouchable and is only moved for a better player
+  const RK=roster(tid).slice().sort((a,b)=>b.o-a.o),PL=nbaPlanOf(tid);let need=1.12,core=null;
+  for(const p of G2){const r=RK.indexOf(p)+1;let n=r===1?1.45:r===2?1.3:r===3?1.2:1.12;if(PL&&PL.k==='contend'&&r===1&&p.o>=92)n=1.7;if(n>need){need=n;core=p;}}
+  if(core&&PL&&PL.k==='contend'&&RK.indexOf(core)<3){const bestIn=G1.reduce((m,p)=>Math.max(m,p.o),0);
+    if(bestIn<core.o-1){out.why=`${t.name} are contending: they only move ${pname(core)} for a player at least as good.`;out.short=1;out.core=core.id;return out;}}
+  if(out.vGive<out.vGet*need){out.why=core&&RK.indexOf(core)===0?`${pname(core)} is their franchise player. They want a lot more for him.`:core?`${pname(core)} is part of their core. They want a lot more for him.`:`${t.name} want more value in return.`;out.short=out.vGet*need-out.vGive;return out;}
   out.ok=true;return out;}
+// their counteroffer: the cheapest one or two additions from the user's side (players or draft picks) that make the deal work
+function tradeAsk(tid,give,get,gpk,tpk){gpk=gpk||[];tpk=tpk||[];const ev=tradeEval(tid,give,get,gpk,tpk);if(ev.ok||!(get.length||tpk.length))return null;
+  if(!/value|more for him|Salaries do not match: you|core|franchise|contending/.test(ev.why))return null;
+  const P=roster(G.user).filter(p=>!give.includes(p.id)&&aiTradable(p)).sort((a,b)=>tradeVal(a,tid)-tradeVal(b,tid)).map(p=>({k:'p',id:p.id,v:tradeVal(p,tid)}));
+  const K=(G.picks||[]).filter(k=>k.own===G.user&&!gpk.includes(k.id)).map(k=>({k:'k',id:k.id,v:pickVal(k)*pickF(tid)})).sort((a,b)=>a.v-b.v);
+  const C=P.concat(K).sort((a,b)=>a.v-b.v),ok=xs=>{const g=give.concat(xs.filter(x=>x.k==='p').map(x=>x.id)),k=gpk.concat(xs.filter(x=>x.k==='k').map(x=>x.id));return tradeEval(tid,g,get,k,tpk).ok;};
+  for(const c of C)if(ok([c]))return {players:c.k==='p'?[c.id]:[],picks:c.k==='k'?[c.id]:[]};
+  const S=C.slice(0,10);let best=null;for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){const xs=[S[i],S[j]],v=S[i].v+S[j].v;if((!best||v<best.v)&&ok(xs))best={xs,v};}
+  return best?{players:best.xs.filter(x=>x.k==='p').map(x=>x.id),picks:best.xs.filter(x=>x.k==='k').map(x=>x.id)}:{none:true};}
 // the cheapest player of the user that would make the deal work for the AI
 function tradeHint(tid,give,get,gpk,tpk){const ev=tradeEval(tid,give,get,gpk,tpk);if(ev.ok||!(get.length||(tpk||[]).length)||!/value|more for him|Salaries do not match: you/.test(ev.why))return null;
   for(const p of roster(G.user).filter(p=>!give.includes(p.id)&&!p.loan).sort((a,b)=>tradeVal(a)-tradeVal(b))){if(tradeEval(tid,give.concat([p.id]),get,gpk,tpk).ok)return p.id;}return null;}
@@ -828,7 +843,7 @@ function nbaPlanTick(){if(!G.nl||!G.nl.NBA||!userNBA())return;const L=G.nl.NBA,T
 
 function proposeTrade(tid,give,get,gpk,tpk){const ev=tradeEval(tid,give,get,gpk,tpk);if(!ev.ok)return ev;doTrade(tid,give,get,gpk,tpk);ev.done=true;return ev;}
 // AI teams call the user with trade ideas during the season
-function aiTradeIdea(){if(!userNBA()||!nbaTradeOpen().ok||Math.random()>.08)return;
+function aiTradeIdea(){if(!userNBA()||!nbaTradeOpen().ok||Math.random()>.2)return;
   const mine=roster(G.user).filter(p=>!p.loan&&!justJoined(p)&&!(p.newAt===G.season&&p.newTid===p.tid));const want=pick(mine.filter(p=>G.listed.includes(p.id)).concat(mine.sort((a,b)=>b.o-a.o).slice(1,8)));if(!want)return;
   const teams=shuffle(G.teams.filter(t=>isNBA(t)&&t.id!==G.user));
   for(const t of teams.slice(0,12)){const pool=roster(t.id).filter(p=>!(p.newAt===G.season&&p.newTid===p.tid)).sort((a,b)=>b.o-a.o).slice(1);
@@ -7850,7 +7865,7 @@ const MON={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DE
 function offerOld(m){const A=m.act||{};if(A.ss!=null)return A.ss!==G.season||(G.round-(A.rd||0))>6;
   const x=/(\d{1,2})\s+([A-Z]{3})\w*\s+(\d{4})/i.exec(m.date||'');if(!x)return false;const mo=MON[x[2].toUpperCase()];if(mo==null)return false;
   return new Date(+x[3],mo,+x[1])<new Date(G.season,6,1);}   // from before July of this season = last season
-function offersExpire(){if(!G||!G.inbox)return;for(const m of G.inbox)if(m.type==='offer'&&!m.done&&m.act&&offerOld(m))m.done='Expired: the club moved on';}
-{const _msg=msg;msg=function(from,subj,body,type,act){if(type==='offer'&&act&&typeof act==='object'){act.ss=G.season;act.rd=G.round||0;}return _msg.apply(this,arguments);};}
+function offersExpire(){if(!G||!G.inbox)return;for(const m of G.inbox)if((m.type==='offer'||m.type==='trade')&&!m.done&&m.act&&offerOld(m))m.done='Expired: the club moved on';}
+{const _msg=msg;msg=function(from,subj,body,type,act){if((type==='offer'||type==='trade')&&act&&typeof act==='object'){act.ss=G.season;act.rd=G.round||0;}return _msg.apply(this,arguments);};}
 {const _br=betweenRounds;betweenRounds=function(){const r=_br.apply(this,arguments);try{offersExpire();}catch(e){}return r;};}
 {const _ed2=ensureDomestic;ensureDomestic=function(){const r=_ed2.apply(this,arguments);try{offersExpire();}catch(e){}return r;};}

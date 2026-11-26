@@ -1094,7 +1094,7 @@ function inboxHTML(){const IB0=myInbox(),cat=ntMode()?'all':(UI.ibCat||'all'),IB
   const cats=ntMode()?'':`<div class="sec ib-cats"><div class="seg">${IB_CATS.map(([k,l])=>{const L=IB0.filter(m=>ibIn(m,k)),n=k==='todo'?L.length:L.filter(m=>!m.read).length;return `<button class="${cat===k?'on':''}" data-act="ibcat:${k}">${l}${n?` <em class="${k==='todo'?'t':''}">${n}</em>`:''}</button>`;}).join('')}</div></div>`;if((UI.msg==null||!IB.some(x=>x.id===UI.msg))&&IB[0])UI.msg=IB[0].id;const m=IB.find(x=>x.id===UI.msg);if(m)m.read=true;
   let act='';if(m&&m.type==='job'&&m.act){const c=G.teams[m.act.tid];act=m.done?`<span class="pill k">${m.done}</span>`:!seasonOver()?'<span class="pill k">Expired</span>':`<div class="btns"><button class="btn p" data-act="jobneg:${m.act.tid}:${m.id}">Negotiate \u00b7 move next season</button><button class="btn" data-act="decline:${m.id}">Decline</button>${c?`<button class="btn" data-act="club:${c.id}">View club</button>`:''}</div>`;}
   else if(m&&m.type==='sheet'&&m.act){act=m.done?`<span class="pill k">${m.done}</span>`:`<div class="btns"><button class="btn p" data-act="sheet:${m.id}:1">Match \u00b7 keep him</button><button class="btn" data-act="sheet:${m.id}:0">Let him go</button><button class="btn" data-act="prof:${m.act.pid}">View player</button></div>`;}
-  else if(m&&m.type==='trade'&&m.act){act=m.done?`<span class="pill k">${m.done}</span>`:`<div class="btns"><button class="btn p" data-act="tracc:${m.id}">Accept trade</button><button class="btn" data-act="decline:${m.id}">Decline</button><button class="btn" data-act="club:${m.act.tid}">View team</button></div>`;}
+  else if(m&&m.type==='trade'&&m.act){act=m.done?`<span class="pill k">${m.done}</span>`:`<div class="btns"><button class="btn p" data-act="tracc:${m.id}">Accept trade</button><button class="btn" data-act="trmsgopen:${m.id}">Open in trade screen</button><button class="btn" data-act="decline:${m.id}">Decline</button><button class="btn" data-act="club:${m.act.tid}">View team</button></div>`;}
   else if(m&&m.type==='room'&&m.act){act=roomSync().row?`<div class="btns"><button class="btn p" data-act="room">Open dressing room</button></div>`:'<span class="pill k">Dealt with</span>';}
   else if(m&&m.type==='scoutrep'&&m.act){act=G.players[m.act.pid]?`<div class="btns"><button class="btn p" data-act="prof:${m.act.pid}">View player</button></div>`:'';}
   else if(m&&m.type==='contracts'&&m.act){act=expiring().length?`<div class="btns"><button class="btn p" data-act="ctopen">Make offers</button></div>`:'<span class="pill k">All settled</span>';}
@@ -2943,7 +2943,7 @@ Object.assign(ACT,{
    meters, one status line, a fixed footer; rules, picks and swaps fold out. Same actions as before. ===== */
 function tradeModalHTML(){const M=UI.modal,t=G.teams[M.tid],me=G.teams[G.user];if(!t){UI.modal=null;return '';}
   M.gpk=M.gpk||[];M.tpk=M.tpk||[];M.x=M.x||{prot:{},sw:[]};TRX=M.x;
-  const ev=tradeEval(M.tid,M.give,M.get,M.gpk,M.tpk),hint=M.done?null:tradeHint(M.tid,M.give,M.get,M.gpk,M.tpk),lim=salLim(ev.salOut);TRX=null;
+  const ev=tradeEval(M.tid,M.give,M.get,M.gpk,M.tpk),ask=M.done||typeof tradeAsk!=='function'?null:tradeAsk(M.tid,M.give,M.get,M.gpk,M.tpk),lim=salLim(ev.salOut);TRX=null;
   const any=(M.get.length||M.tpk.length)&&(M.give.length||M.gpk.length),fair=ev.vGet?Math.round(Math.min(150,ev.vGive/ev.vGet*100)):0;
   const P=nbaPlanOf(M.tid),PT=P&&PLAN_TXT[P.k];
   const card=(p,act)=>`<div class="tdx-c"><span class="avatar ph tdx-av">${avatarIn(p,p.no)}</span><div class="tdx-ct"><b>${esc(pname(p))}</b><small>${p.pos} · ${p.age} · ${eur(p.sal)} · ${p.yrs} yr${p.yrs!==1?'s':''}</small></div>${ovb(ovrEst(p))}${M.done?'':`<button class="tdx-rm" data-act="${act}:${p.id}" aria-label="Remove ${esc(pname(p))}">✕</button>`}</div>`;
@@ -2962,7 +2962,8 @@ function tradeModalHTML(){const M=UI.modal,t=G.teams[M.tid],me=G.teams[G.user];i
   const meters=`<div class="tdx-ms"><div class="tdx-m"><div class="tdx-mh"><small>Salary you take on</small><b class="${salOk?'':'neg'}">${eur(ev.salIn)} <em>of ${eur(lim)} allowed</em></b></div><div class="tdx-bar"><i class="${salOk?'ok':'bad'}" style="width:${Math.max(2,salPct)}%"></i></div></div>
     <div class="tdx-m"><div class="tdx-mh"><small>Value for ${esc(t.short)}</small><b class="${any&&fair<100?'neg':''}">${any?fair+'%':'–'}</b></div><div class="tdx-bar tdx-fair"><i class="${fair>=100?'ok':'bad'}" style="width:${any?Math.max(2,fair/150*100):0}%"></i><u style="left:${100/150*100}%"></u></div></div></div>`;
   const status=M.done?`<div class="tdx-st ok">✓ ${esc(M.done)}</div>`:ev.ok?`<div class="tdx-st ok">✓ ${esc(t.name)} would accept this trade</div>`:any||M.get.length||M.give.length?`<div class="tdx-st no">${esc(ev.why)}</div>`:`<div class="tdx-st">Add players on both sides to build a trade.</div>`;
-  const hintB=hint!=null?`<button class="tdx-hint" data-act="trgive:${hint}">+ Add ${esc(pname(G.players[hint]))} to make it work</button>`:'';
+  const askN=ask&&!ask.none?[...ask.players.map(i=>esc(pname(G.players[i]))),...ask.picks.map(i=>{const k=(G.picks||[]).find(x=>x.id===i);return k?'your '+esc(pickName(k)):'';})].filter(Boolean):[];
+  const hintB=askN.length?`<div class="tdx-ask"><small>${esc(t.short)} counteroffer</small><b>Add ${askN.join(' + ')}</b><button class="tdx-hint" data-act="trask">Use their counteroffer</button></div>`:ask&&ask.none&&(M.get.length||M.tpk.length)?`<div class="tdx-ask"><small>${esc(t.short)}</small><b>Nothing you have makes this work for them. Try another player.</b></div>`:'';
   const swY=[1,2,3].map(d=>G.season+d),swb=(y,hh)=>{const on=M.x.sw.some(x=>x.y===y&&x.h===hh);return `<button class="tdx-chip${on?' on':''}" data-act="trsw:${y}:${hh}">${on?'✓ ':''}${hh==='me'?`You may swap ${y} 1sts`:`They may swap ${y} 1sts`}</button>`;};
   const prot=[...M.tpk,...M.gpk].map(id=>(G.picks||[]).find(k=>k.id===id)).filter(k=>k&&k.r===1&&!k.prot);
   const extras=`<details class="tdx-more"><summary>Pick protections and pick swaps</summary>${prot.length?prot.map(k=>`<div class="tdx-prot"><small>${esc(pickName(k))}</small><div class="tdx-pks">${[0,5,10,14].map(N=>`<button class="tdx-chip${(M.x.prot[k.id]||0)===N?' on':''}" data-act="trprot:${k.id}:${N}">${N?(N===14?'Lottery protected':'Top-'+N+' protected'):'Unprotected'}</button>`).join('')}</div></div>`).join(''):'<p class="mut">Add a first-round pick to set its protection.</p>'}
@@ -2974,7 +2975,10 @@ function tradeModalHTML(){const M=UI.modal,t=G.teams[M.tid],me=G.teams[G.user];i
     <div class="tdx-body"><div class="tdx-sides">${side(me,M.give,M.gpk,'trgive','give','You send')}<div class="tdx-arrow" aria-hidden="true">⇄</div>${side(t,M.get,M.tpk,'trget','get','You receive')}</div>
       ${meters}${extras}</div>
     <div class="tdx-foot">${status}${hintB}<div class="tdx-btns">${M.done?'<button class="btn p" data-act="close">Done</button>':`<button class="btn" data-act="close">Cancel</button><button class="btn p" data-act="trgo" ${ev.ok?'':'disabled'}>Propose trade</button>`}</div></div></div></div>`;}
-Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;render();}});
+Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;render();},
+  trask(){const M=UI.modal;if(!M||M.done||typeof tradeAsk!=='function')return;TRX=M.x;const a=tradeAsk(M.tid,M.give,M.get,M.gpk,M.tpk);TRX=null;if(!a||a.none)return;
+    M.give=M.give.concat(a.players.filter(i=>!M.give.includes(i)));M.gpk=(M.gpk||[]).concat(a.picks.filter(i=>!(M.gpk||[]).includes(i)));render();},
+  trmsgopen(id){const m=G.inbox.find(x=>x.id===+id);if(!m||!m.act||m.done)return;const A=m.act;UI.view='main';UI.modal={kind:'trade',tid:A.tid,give:A.give.slice(),get:A.get.slice(),gpk:(A.gpk||[]).slice(),tpk:(A.tpk||[]).slice()};render();}});
 (function(){const st=document.createElement('style');st.textContent=`
 .tdx-ovl{z-index:1000}
 .tdx{max-width:1020px;width:min(1020px,calc(100vw - 32px));padding:0;display:flex;flex-direction:column;max-height:calc(100vh - 32px);overflow:hidden}
@@ -3016,6 +3020,7 @@ Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;rend
 .tdx-prot small{display:block;margin-top:6px;font:600 12.5px var(--fb)}
 .tdx-foot{border-top:1px solid var(--line,#e3e6ea);padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;background:var(--card,#fff)}
 .tdx-st{font:600 14px var(--fb);padding:8px 12px;border-radius:8px;background:#f2f4f6;color:#2b3038}.tdx-st.ok{background:#e8f6ee;color:#1a7f43}.tdx-st.no{background:#fdecec;color:#b42318}
+.tdx-ask{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:10px 12px;border-radius:8px;background:#fff4e8}.tdx-ask small{flex:1 0 100%;font:600 11.5px var(--fb);letter-spacing:.06em;text-transform:uppercase;color:#c2410c}.tdx-ask b{flex:1;min-width:0;font:700 14.5px var(--fb)}
 .tdx-hint{align-self:flex-start;background:none;border:1px dashed var(--or);color:#c2410c;border-radius:8px;padding:8px 12px;font:600 13.5px var(--fb);cursor:pointer}
 .tdx-btns{display:flex;gap:10px;justify-content:flex-end}.tdx-btns .btn{min-width:140px}
 @media (max-width:760px){
