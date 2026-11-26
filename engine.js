@@ -3386,7 +3386,7 @@ function newSeason(){
   for(const id of Object.keys(G.players)){const p=G.players[id];
     if(p.tid!=null&&isNBA(G.teams[p.tid])&&!p.tw)p.exp=(p.exp||0)+1;
     if(p.kst&&p.kst.gp)p.kprev={gp:(p.kreg||p.kst).gp,pir:+per(p.kreg||p.kst,'pir').toFixed(2)};else delete p.kprev;delete p.kreg;
-    p.age++;delete p.ld;p.st=blank();delete p.dst;delete p.est;delete p.kst;delete p.pst;p.energy=100;p.inj=0;delete p.fragile;delete p.rm;p.offR=-1;
+    lsnKeep(p);p.age++;delete p.ld;p.st=blank();delete p.dst;delete p.est;delete p.kst;delete p.pst;p.energy=100;p.inj=0;delete p.fragile;delete p.rm;p.offR=-1;
     const g=(p.age<=22?rnd(1,5):p.age<=25?rnd(0,3):p.age<=29?rnd(-1,1):p.age<=32?rnd(-3,0):rnd(-5,-1))+(p.age>=30&&p.age<=34&&p.o>=80&&Math.random()<.3?1:0)+(p.age>=30&&p.age<=34&&p.o>=85&&Math.random()<.15?1:0)+lgDrift(p)+devSummer(p)-(gDrift>.15&&p.age>=23?(Math.random()<clamp(gDrift*1.5,0,.95)*clamp((84-p.o)/14,0,1)?1:0)+(gDrift>1&&p.o<80&&Math.random()<.5?1:0):0)+(gDrift<-.2&&p.age<=24&&Math.random()<clamp(-gDrift*1.2,0,.9)?1:0);
     for(let i=0;i<Math.abs(g)*2;i++){const k=pick(ATTR);if(g>0&&p.o<p.pot)p.a[k]=Math.min(99,p.a[k]+1);else if(g<0)p.a[k]=Math.max(25,p.a[k]-1);upd(p);}
     if(G.retV===G.season-1?(p.retAt===G.season-1||p.age>=47):Math.random()<retireP(p)){afterCareer(p);if(p.tid===G.user){retired.push(pname(p));noteExit(p,'Retired',`${G.season-1}/${String(G.season).slice(2)}`);}leave(p);G.fa=G.fa.filter(i=>i!==p.id);delete G.players[id];continue;}
@@ -7827,3 +7827,11 @@ function nbaObjective(L){return nbaGoalKey(L.ids.map(i=>({id:i,str:strength(i),r
 function nbaObjFix(){try{const L=G&&G.nl&&G.nl.NBA;if(!L||!L.ids.includes(G.user)||G.nbaObjV===1)return;G.nbaObjV=1;
   const r=nlRec(L,G.user);if((L.obj==='safe'||!L.obj)&&r[0]+r[1]===0)L.obj=nbaObjective(L);}catch(e){console.error('nba goal',e);}}
 {const _ed=ensureDomestic;ensureDomestic=function(){const r=_ed.apply(this,arguments);nbaObjFix();return r;};}
+
+/* ===== Last season's stats (v469): kept at the season change so profiles in the summer and free agency still show them ===== */
+// the season number has already moved on when this runs, so the finished season is G.season-1
+function lsnKeep(p){try{const c=[p.st,p.kreg||p.kst,p.dst,p.est].filter(x=>x&&x.gp).sort((a,b)=>b.gp-a.gp)[0];
+  if(!c){delete p.lsn;return;}const t=p.tid!=null&&G.teams[p.tid];
+  p.lsn={y:`${G.season-1}/${String(G.season).slice(2)}`,t:t?t.short:(p.last||''),s:Object.assign(blank(),c)};}catch(e){}}
+// stats to show: this season's, or last season's while he has not played yet
+function statsShown(p){const c=mst(p);if(c&&c.gp)return {s:c,last:null};if(p.lsn&&p.lsn.s&&p.lsn.s.gp)return {s:p.lsn.s,last:p.lsn};return {s:c||blank(),last:null};}
