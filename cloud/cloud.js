@@ -164,7 +164,7 @@
     try{await syncPaid();}catch(e){console.error('purchase check',e);}
     try{await pull();}catch(e){console.error('cloud pull',e);}
     if(switching || S.user?.id!==id)return;
-    hide();try{if(typeof render==='function')render();}catch(e){}payReturn();}
+    hide();try{if(typeof render==='function')render();}catch(e){}payReturn();newCareerResume();}
   // ---------- cloud saves ----------
   const path=id=>`${boundUser}/${id}.gz`;
   async function pull(){if(typeof SAVE_READY!=='undefined')await SAVE_READY;if(typeof IDB_OK==='undefined'||!IDB_OK)return;
@@ -254,6 +254,17 @@
       if(error||!data){if(typeof toast==='function')toast('The payment page could not be opened. Try again in a moment.');return false;}
       if(data.paid)return true;if(data.url){location.href=data.url;return new Promise(()=>{});}return false;},
     async restore(){try{return await ownsGame();}catch(e){return false;}}};
+  // ---------- Start career across a version switch ----------
+  // An older release sends "Start career" to the newest release (/play/?new=1) and the chosen club was lost.
+  // The choice is kept in sessionStorage for a minute; the newest release starts that career right after sign-in.
+  const NC='bm-newcareer';
+  if(typeof ACT==='object'&&typeof ACT.startgame==='function'){const st0=ACT.startgame;
+    ACT.startgame=async function(...a){try{const inp=document.getElementById('mgrName');sessionStorage.setItem(NC,JSON.stringify({club:UI.csSel,mgr:inp?inp.value.trim():'',t:Date.now()}));}catch(e){}
+      const r=await st0.apply(this,a);if(typeof G!=='undefined'&&G&&!G.demo){try{sessionStorage.removeItem(NC);}catch(e){}}return r;};}
+  function newCareerResume(){let p=null;try{p=JSON.parse(sessionStorage.getItem(NC)||'null');sessionStorage.removeItem(NC);}catch(e){}
+    if(!p||!p.club||Date.now()-p.t>60000)return;if(typeof G!=='undefined'&&G&&!G.demo&&UI.view!=='start')return;   // only from the start screen
+    try{if(typeof csData==='function')csData();if(!(UI.cc||[]).some(c=>c.short===p.club))return;const inp=document.getElementById('mgrName');if(inp&&p.mgr)inp.value=p.mgr;if(p.mgr)UI.mgr=p.mgr;
+      UI.csSel=p.club;ACT.startgame();   /* no render in between: redrawing the start screen resets the selection */}catch(e){console.error('new career resume',e);}}
   // ---------- paywall safety net for older game versions ----------
   // Careers stay on the game release they started with. Releases from before the paywall (ui.js v458) have no paywallHTML,
   // so this installs the same paywall (copied from ui.js) into them; newer releases keep their own.
