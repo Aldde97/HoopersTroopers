@@ -60,6 +60,10 @@
   const errBox=()=>S.err?`<div class="be" role="alert">${esc(S.err)}</div>`:'';
   const okBox=()=>S.ok?`<div class="bk">${esc(S.ok)}</div>`:'';
   const brand='<div class="bt">Basketball Manager</div>';
+  const SEEN='bm-has-account';
+  const seen=()=>{try{return localStorage.getItem(SEEN)==='1';}catch(e){return false;}};
+  const markSeen=()=>{try{localStorage.setItem(SEEN,'1');}catch(e){}};
+  function viewEntry(){if(seen())viewSignIn();else viewSignUp();}   // first screen when nobody is signed in
   function viewSignIn(){S.view='in';show(`<form class="ba" novalidate data-f="in">${brand}<h1>Sign in</h1><p>Your account keeps your careers safe in the cloud, so you can continue on any device.</p>
     ${okBox()}${emField()}${pwField('bmPw','Password','current-password')}<button type="button" class="bl br" data-a="forgot">Forgot password?</button>${capBox()}${errBox()}
     <button type="submit" class="bp" id="bmGo" disabled>${S.busy?'Signing in…':'Sign in'}</button>
@@ -106,7 +110,7 @@
     if(f==='up'){const {data,error}=await sb.auth.signUp({email:em,password:pw,options:Object.assign({emailRedirectTo:back(),data:{consent_at:new Date().toISOString(),age16:true}},capOpt())});S.busy=false;
       if(error){const c=error.code||'',m=(error.message||'').toLowerCase();S.err=capErr(error)?'The bot check failed. Wait a moment and try again.':c==='weak_password'||m.includes('weak')?'This password is too easy to guess. Choose a longer or less common one.':c==='user_already_exists'||m.includes('already registered')?'An account with this email already exists. Sign in instead.':error.status===429?'Too many attempts. Wait a minute and try again.':'The account could not be created. Try again.';viewSignUp();return;}
       if(data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){S.err='An account with this email already exists. Sign in instead.';viewSignIn();return;}
-      if(data&&data.session)return;   // email confirmation is off: signed in right away (onAuthStateChange takes over)
+      markSeen();if(data&&data.session)return;   // email confirmation is off: signed in right away (onAuthStateChange takes over)
       S.resend={type:'signup',email:em};viewMail('Confirm your email',`We sent a link to <b>${esc(em)}</b>. Open it to activate your account; then you are signed in.`);return;}
     if(f==='fg'){const {error}=await sb.auth.resetPasswordForEmail(em,Object.assign({redirectTo:back()+'?reset=1'},capOpt()));S.busy=false;
       if(error&&error.status===429){S.err='Too many requests. Wait a minute and try again.';viewForgot();return;}
@@ -148,7 +152,7 @@
     if(error){viewLoading('Sign-out failed. Reload to try again.');return;}
     location.reload();}
   const hasConsent=u=>!!(u&&u.user_metadata&&u.user_metadata.consent_at);
-  async function onUser(u){if(switching||identityChanged(u))return;S.user=u;if(!u){if(S.view!=='mail')viewSignIn();return;}
+  async function onUser(u){if(switching||identityChanged(u))return;S.user=u;if(!u){if(S.view!=='mail')viewEntry();return;}
     if(S.recovery){viewNewPw();return;}
     if(!hasConsent(u)){let pend=false;try{pend=localStorage.getItem('bm-consent-pending')==='1';}catch(e){}
       if(pend){try{localStorage.removeItem('bm-consent-pending');}catch(e){}const {data}=await sb.auth.updateUser({data:{consent_at:new Date().toISOString(),age16:true}});if(data&&data.user){S.user=data.user;return enter();}}
@@ -160,7 +164,7 @@
     if(typeof openAccountStorage!=='function' || !openAccountStorage(id)){
       viewLoading('Please reopen the game from /play/ to load secure account storage.');return;
     }
-    boundUser=id;
+    boundUser=id;markSeen();
     try{await syncPaid();}catch(e){console.error('purchase check',e);}
     try{await pull();}catch(e){console.error('cloud pull',e);}
     if(switching || S.user?.id!==id)return;
@@ -401,5 +405,5 @@ Object.assign(ACT,{
   try{const q=new URLSearchParams(location.search);if(q.get('reset')==='1'){S.recovery=true;q.delete('reset');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);}}catch(e){}
   viewLoading('Loading…');
   sb.auth.onAuthStateChange((ev,session)=>{if(switching||identityChanged(session?.user))return;if(ev==='PASSWORD_RECOVERY'){S.recovery=true;S.user=session&&session.user;viewNewPw();return;}if(ev==='INITIAL_SESSION')return;if(ev==='SIGNED_IN'&&S.user&&session&&session.user&&session.user.id===S.user.id)return;if(ev==='TOKEN_REFRESHED'||ev==='USER_UPDATED')return;onUser(session?session.user:null);});
-  sb.auth.getSession().then(({data})=>onUser(data&&data.session?data.session.user:null)).catch(()=>viewSignIn());
+  sb.auth.getSession().then(({data})=>onUser(data&&data.session?data.session.user:null)).catch(()=>viewEntry());
 })();
