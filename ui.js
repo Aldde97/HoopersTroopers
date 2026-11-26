@@ -2910,6 +2910,35 @@ Object.assign(ACT,{
  .pwb-t{flex:1 1 0}.pwb-t b{font-size:20px}.pwb-c{font-size:12px;height:26px}.pwb-a{order:3;flex:1 0 100%;align-items:stretch}.pwb-a>span{text-align:center}.pwb-go{justify-content:center;height:48px;font-size:17px}}
 `;document.head.appendChild(st);})();
 
+/* ===== Phone lineup swap (v462): drag and drop does not work on touch screens. On phones a tap on a player opens a bar
+   above the bottom menu: Swap (then tap the other player) or Details (scrolls to the player panel). ===== */
+const sqNarrow=()=>{try{return window.matchMedia('(max-width:760px)').matches;}catch(e){return false;}};
+function sqBarHTML(){if(!sqNarrow()||!G)return '';
+  if(UI.sqSwap!=null){const a=G.players[UI.sqSwap];if(!a)return '';
+    return `<div class="sqb sqb-on" role="status"><span class="sqb-ic">⇄</span><div class="sqb-t"><b>Tap the player who swaps with ${esc(sname(a))}</b><small>On court or on the bench</small></div><button class="sqb-b" data-act="sqswap:">Cancel</button></div>`;}
+  if(!UI.sqBar||UI.sel==null)return '';const p=G.players[UI.sel];if(!p||p.tid!==G.user)return '';
+  return `<div class="sqb" role="toolbar" aria-label="${esc(pname(p))}"><span class="avatar ph sqb-av">${avatarIn(p,p.no)}</span><div class="sqb-t"><b>${esc(sname(p))}</b><small>${p.pos} · ${ovrEst(p)} OVR</small></div>
+    <button class="sqb-b sqb-p" data-act="sqswap:${p.id}">⇄ Swap</button><button class="sqb-b" data-act="sqdet">Details</button><button class="sqb-x" data-act="sqbarx" aria-label="Close">✕</button></div>`;}
+{const _sq=squadHTML;squadHTML=function(){let h=_sq.apply(this,arguments);
+  h=h.replace('<p>Drag a player onto another to swap them. Changes save by themselves.</p>','<p><span class="sq-hd">Drag a player onto another to swap them.</span><span class="sq-hm">Tap a player, then <b>Swap</b>, then tap who takes his place.</span> Changes save by themselves.</p>');
+  return h+sqBarHTML();};}
+{const _sel=ACT.sel;ACT.sel=function(id){const swapping=UI.sqSwap!=null;const r=_sel.apply(this,arguments);if(!swapping){UI.sqBar=1;render();}else{UI.sqBar=0;toast('Swapped');render();}return r;};}
+Object.assign(ACT,{
+  sqbarx(){UI.sqBar=0;render();},
+  sqdet(){UI.sqBar=0;render();const d=document.querySelector('.sq-d');if(d)d.scrollIntoView({behavior:'smooth',block:'start'});}});
+(function(){const st=document.createElement('style');st.textContent=`
+.sq-hm{display:none}
+@media (max-width:760px){.sq-hd{display:none}.sq-hm{display:inline}.sq-swap{display:none}}
+.sq-swap button{color:#121417}
+.sqb{position:fixed;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:61;
+  display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;border-radius:12px;background:#181c22;color:#fff;border-left:5px solid var(--or);box-shadow:0 10px 30px #0007}
+.sqb-av{width:38px;height:38px;flex:none}.sqb-ic{flex:none;width:38px;height:38px;border-radius:10px;background:#22262c;color:var(--or2);display:grid;place-items:center;font:800 20px var(--fd)}
+.sqb-t{flex:1;min-width:0;display:flex;flex-direction:column}.sqb-t b{font:800 17px/1.1 var(--fd);text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sqb-on .sqb-t b{white-space:normal}.sqb-t small{color:#9aa3ad;font:500 12.5px var(--fb)}
+.sqb-b{flex:none;height:40px;padding:0 12px;border-radius:8px;border:1px solid #3a414c;background:none;color:#e9ecef;font:800 15px var(--fd);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.sqb-p{background:var(--or);border-color:var(--or);color:#fff}.sqb-x{flex:none;background:none;border:0;color:#8d949d;font-size:15px;padding:4px;cursor:pointer}
+`;document.head.appendChild(st);})();
+
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
