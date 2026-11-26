@@ -254,6 +254,138 @@
       if(error||!data){if(typeof toast==='function')toast('The payment page could not be opened. Try again in a moment.');return false;}
       if(data.paid)return true;if(data.url){location.href=data.url;return new Promise(()=>{});}return false;},
     async restore(){try{return await ownsGame();}catch(e){return false;}}};
+  // ---------- paywall safety net for older game versions ----------
+  // Careers stay on the game release they started with. Releases from before the paywall (ui.js v458) have no paywallHTML,
+  // so this installs the same paywall (copied from ui.js) into them; newer releases keep their own.
+  function installPaywallFallback(){if(typeof window.paywallHTML==='function'||typeof seasonHTML!=='function'||typeof modalHTML!=='function'||typeof ACT!=='object'||typeof gamePaid!=='function')return;
+/* ===== Paywall after the free season (v458) · design: "Basketball Manager Paywall" artifact (Locked, Main, PhoneReview, PhonePaywall) =====
+   The free version plays one season. "Start next season" opens the unlock screen until gamePaid() is true.
+   Real payment plugs in through window.BM_PAY = {buy():Promise<boolean>, restore():Promise<boolean>, label:'…'}; without it the
+   button is a test unlock (no money involved), so the flow can be tried before a payment provider exists. */
+const PW_PRICE='$9';
+const PW_IC={
+  trophy:'<path d="M7 4h10v5a5 5 0 01-10 0z"/><path d="M7 6H4c0 3 1.5 4.5 3.5 4.5M17 6h3c0 3-1.5 4.5-3.5 4.5M12 14v3M8 21h8M9.5 17h5v4h-5z"/>',
+  cup:'<path d="M7 4h10v5a5 5 0 01-10 0z"/><path d="M12 14v3M8 21h8M9.5 17h5v4h-5z"/>',
+  loop:'<path d="M4 12a8 8 0 108-8 8 8 0 00-6 2.7M4 4v3.5h3.5"/>',
+  shield:'<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/>',
+  flag:'<path d="M5 21V4M5 5h13l-2.5 4L18 13H5"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6c3.5 3 3.5 9.8 0 12.8M18.4 5.6c-3.5 3-3.5 9.8 0 12.8M3 12h18"/>',
+  save:'<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>',
+  lockdot:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/><circle cx="12" cy="16" r="1.4"/>',
+  ok:'<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  chev:'<path d="M8 4l8 8-8 8"/>',x:'<path d="M6 6l12 12M18 6L6 18"/>'
+};
+const pwI=(k,s,c,w)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c||'currentColor'}" stroke-width="${w||1.9}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PW_IC[k]}</svg>`;
+const pwNext=()=>`${G.season+1}/${String(G.season+2).slice(2)}`;
+function pwSeasonFacts(){const h=(G.history||[])[0]||{},T=G.teams[G.user];
+  const champ=h.dom?h.dom.champ===G.user:h.champ===G.user;const fin=(h.dom&&h.dom.finish)||h.finish||'';
+  return {h,T,champ,fin,season:h.season||seasonStr()};}
+function pwStats(){let clubs=0;for(const t of G.teams)if(t&&!t.nt)clubs++;const leagues=Object.keys(typeof NLCFG==='object'?NLCFG:{}).length+1;   // national leagues + the EuroLeague (matches the landing page)
+  return {clubs:clubs>=100?Math.floor(clubs/50)*50+'+':String(clubs),leagues};}
+/* season review: the locked next-season card (design 1 and 3) */
+function pwLockCard(){const F=pwSeasonFacts(),nx=pwNext();
+  const head=F.champ?`Defend the title in ${nx} with Pro`:`Take ${esc(F.T.name)} into ${nx} with Pro`;
+  return `<section class="pw-lock" aria-label="Next season"><div class="pw-li">${pwI('lockdot',38,'#ffcf5a')}</div>
+    <div class="pw-lt"><span class="pw-k">Your free season is complete</span><h2>${head}</h2><span class="pw-ls">Your career, squad and save stay exactly as they are.</span></div>
+    <div class="pw-la"><button class="pw-cta" data-act="newseason">${pwI('lock',18,'currentColor',2.6)}Start ${nx} season</button><span class="pw-ls2">Unlock the full game · ${PW_PRICE} once</span></div></section>`;}
+const _seasonHTMLv458=seasonHTML;
+seasonHTML=function(){const h=_seasonHTMLv458.apply(this,arguments);if(gamePaid())return h;
+  const b=h.indexOf('<button class="btn p" data-act="newseason">');if(b<0)return h;const e=h.indexOf('</button>',b)+9;
+  const wrap=h.lastIndexOf('<div class="btns"',b);
+  return h.slice(0,wrap)+pwLockCard()+h.slice(wrap,b)+h.slice(e);};
+/* the unlock screen (design 2 and 4) */
+function paywallHTML(){const F=pwSeasonFacts(),S=pwStats(),pay=window.BM_PAY;
+  const tile=(ic,b,s)=>`<div class="pw-f">${pwI(ic,26,'#ff8a1f')}<div><b>${b}</b><span>${s}</span></div></div>`;
+  const what=F.champ?'won the title':F.fin?`finished ${esc(String(F.fin).replace(/<[^>]+>/g,''))}`:'finished the season';
+  return `<div class="ovl pw-ovl" data-act="ovl"><section class="pw" role="dialog" aria-modal="true" aria-label="Unlock the full game">
+    <button class="pw-x" data-act="pwclose" aria-label="Close">${pwI('x',18,'currentColor',2.4)}</button>
+    <div class="pw-l">
+      <span class="pw-k">Season ${esc(F.season)} complete</span>
+      <div class="pw-hd"><div class="pw-tr">${pwI('trophy',46,'#ffcf5a',1.8)}</div><h1>Your career is just getting started</h1></div>
+      <p class="pw-p">${esc(F.T.name)} ${what}. Keep the squad, the staff and your save, and play on with everything below.</p>
+      <div class="pw-fs">${tile('loop','Unlimited','seasons')}${tile('cup',S.leagues,'leagues')}${tile('shield',S.clubs,'playable clubs')}${tile('flag','National teams','EuroBasket and World Cup')}${tile('globe','NBA and NCAA','draft, cap, NIL')}${tile('save','3 save slots','plus export')}</div>
+      <div class="pw-safe">${pwI('ok',26,'#5fe08f',2)}<span>Your free career stays saved. Come back any time.</span></div>
+    </div>
+    <div class="pw-r">
+      <h2>Unlock the full game</h2>
+      <div class="pw-price"><div class="pw-pr"><b>${PW_PRICE}</b><span><em>One-time</em><small>No subscription. Yours for good.</small></span></div>
+        <div class="pw-pt"><div><b>Every season</b><span>no limit</span></div><div><b>Every league</b><span>incl. new ones</span></div><div><b>Every update</b><span>free</span></div></div></div>
+      <div class="pw-buy"><button class="pw-cta pw-big" data-act="pwbuy"${UI.pwBusy?' disabled':''}>${UI.pwBusy?'Opening payment…':`Unlock full game · ${PW_PRICE}`}${pwI('chev',20,'currentColor',3)}</button>
+        <p class="pw-pay">${pwI('lock',14,'currentColor',2.4)}${pay?esc(pay.label||'Secure payment'):'Test mode: payment is not connected yet, the button unlocks for free'}</p>
+        <div class="pw-ft">${pay&&pay.restore?'<button class="pw-lnk" data-act="pwrestore">Restore purchase</button>':'<span></span>'}<button class="pw-lnk pw-mut" data-act="pwclose">Not now, back to the season review</button></div></div>
+    </div></section></div>`;}
+const _modalHTMLv458=modalHTML;
+modalHTML=function(){if(UI.modal&&UI.modal.kind==='paywall')return paywallHTML();return _modalHTMLv458.apply(this,arguments);};
+const _newseasonv458=ACT.newseason;
+Object.assign(ACT,{
+  newseason(){if(!gamePaid()&&G&&!G.demo){UI.modal={kind:'paywall'};render();return;}return _newseasonv458.apply(this,arguments);},
+  pwclose(){UI.modal=null;UI.pwBusy=0;render();},
+  async pwbuy(){if(UI.pwBusy)return;const pay=window.BM_PAY;let ok=false;
+    if(pay&&pay.buy){UI.pwBusy=1;render();try{ok=await pay.buy();}catch(e){console.error('pay',e);}UI.pwBusy=0;}
+    else ok=true;
+    if(!ok){render();toast('The payment did not go through. Nothing was charged.');return;}
+    gamePaid(true);UI.modal=null;render();toast(pay?'Full game unlocked. Thank you!':'Unlocked (test mode, no payment)');},
+  async pwrestore(){const pay=window.BM_PAY;if(!pay||!pay.restore)return;let ok=false;try{ok=await pay.restore();}catch(e){}
+    if(ok){gamePaid(true);UI.modal=null;render();toast('Purchase restored');}else toast('No purchase found for this account.');}
+});
+(function(){const st=document.createElement('style');st.textContent=`
+.pw-k{font:800 13px 'Barlow Condensed',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#ff8a1f}
+.pw-lock{display:flex;align-items:center;gap:28px;padding:26px 30px;border-radius:10px;background:#121417;color:#e9ecef;box-shadow:0 16px 40px rgba(0,0,0,.18);max-width:960px;margin:0 auto 14px;width:100%;box-sizing:border-box}
+.pw-li{width:72px;height:72px;border-radius:16px;background:#22262c;display:flex;align-items:center;justify-content:center;flex:none}
+.pw-lt{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.pw-lock h2{margin:0;font:italic 900 34px/1 'Barlow Condensed',sans-serif;text-transform:uppercase;color:#fff;text-wrap:balance}
+.pw-ls{font-size:15px;color:#b9c0c8}.pw-ls2{font-size:13px;color:#9aa3ad}
+.pw-la{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex:none}
+.pw-cta{height:58px;display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:0 28px;border:0;border-radius:8px;background:#ff6b00;color:#fff;font:800 23px 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.pw-cta:hover{filter:brightness(1.08)}.pw-cta[disabled]{opacity:.6;cursor:default}
+@media (max-width:760px){.pw-lock{flex-direction:column;align-items:stretch;gap:12px;padding:18px 16px}.pw-lock .pw-li{display:none}.pw-lock h2{font-size:24px}.pw-ls{font-size:14px}.pw-la{align-items:stretch}.pw-cta{height:52px;font-size:18px;letter-spacing:.06em;padding:0 14px;gap:8px;white-space:nowrap}.pw-ls2{text-align:center;font-size:12px}}
+.pw-ovl{align-items:center;z-index:10000}
+.pw{position:relative;width:min(1200px,calc(100vw - 48px));max-height:calc(100vh - 48px);overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);background:#15181d;border-radius:14px;box-shadow:0 40px 120px rgba(0,0,0,.6);color:#e9ecef;font-family:Barlow,'Helvetica Neue',Arial,sans-serif;text-align:left}
+.pw-l{padding:48px 48px 40px;display:flex;flex-direction:column;gap:24px;background:#101317}
+.pw-r{padding:48px 48px 40px;display:flex;flex-direction:column;gap:16px}
+.pw-x{position:absolute;top:18px;right:18px;width:44px;height:44px;border-radius:50%;border:0;background:#22262c;color:#b9c0c8;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;padding:0}
+.pw-hd{display:flex;align-items:center;gap:20px}
+.pw-tr{width:84px;height:84px;border-radius:50%;background:#1e2228;display:flex;align-items:center;justify-content:center;flex:none}
+.pw h1{margin:0;font:italic 900 46px/.95 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.01em;color:#fff;text-wrap:balance}
+.pw-p{margin:0;font-size:16px;line-height:1.5;color:#b9c0c8;max-width:440px}
+.pw-fs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.pw-f{display:flex;align-items:center;gap:12px;padding:14px;border-radius:10px;background:#1a1e24}.pw-f svg{flex:none}
+.pw-f b{display:block;font:800 22px/1 'Barlow Condensed',sans-serif;color:#fff}.pw-f span{font-size:13px;color:#9aa3ad}
+.pw-safe{margin-top:auto;display:flex;align-items:center;gap:14px;padding-top:18px;border-top:1px solid #262b32;font-size:14px;color:#9aa3ad}.pw-safe svg{flex:none}
+.pw-r h2{margin:0;font:800 26px 'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#fff}
+.pw-price{padding:26px 24px;border-radius:12px;background:#22180f;border:2px solid #ff6b00;display:flex;flex-direction:column;gap:14px}
+.pw-pr{display:flex;align-items:baseline;gap:14px}.pw-pr>b{font:italic 900 88px/.9 'Barlow Condensed',sans-serif;color:#fff}
+.pw-pr>span{display:flex;flex-direction:column;gap:2px}.pw-pr em{font:800 20px 'Barlow Condensed',sans-serif;font-style:normal;letter-spacing:.08em;text-transform:uppercase;color:#ff8a1f}.pw-pr small{font-size:14px;color:#b9c0c8}
+.pw-pt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.pw-pt>div{padding:10px;border-radius:8px;background:#2a1f14;text-align:center}
+.pw-pt b{display:block;font:800 18px/1 'Barlow Condensed',sans-serif;color:#fff}.pw-pt span{font-size:12px;color:#b9c0c8}
+.pw-buy{display:flex;flex-direction:column;gap:12px;flex:1}
+.pw-big{width:100%;height:60px;margin-top:8px;font-size:24px}
+.pw-pay{margin:0;display:flex;justify-content:center;align-items:center;gap:8px;font-size:13px;color:#9aa3ad;text-align:center}.pw-pay svg{flex:none}
+.pw-ft{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:18px;border-top:1px solid #262b32}
+.pw-lnk{background:none;border:0;padding:0;min-height:44px;font:500 14px Barlow,system-ui,sans-serif;color:#ff8a1f;cursor:pointer;text-transform:none;letter-spacing:0}.pw-lnk:hover{color:#ffb066}.pw-mut{color:#b9c0c8}
+@media (max-width:760px){
+ .pw-ovl{padding:0!important;align-items:stretch}
+ .pw{width:100vw;max-height:none;height:100dvh;border-radius:0;grid-template-columns:minmax(0,1fr);overflow:auto;display:flex;flex-direction:column}
+ .pw-l{order:1;padding:calc(18px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) 0 max(18px,env(safe-area-inset-left,0px));gap:14px;background:#101317}
+ .pw-r{order:2;padding:14px max(18px,env(safe-area-inset-right,0px)) 0 max(18px,env(safe-area-inset-left,0px));gap:14px;background:#101317;flex:1}
+ .pw-r h2{display:none}
+ .pw-x{top:calc(10px + env(safe-area-inset-top,0px));right:10px}
+ .pw-l>.pw-k{padding-right:52px}
+ .pw-tr{width:60px;height:60px}.pw-tr svg{width:34px;height:34px}
+ .pw h1{font-size:32px}.pw-p{font-size:14px}
+ .pw-fs{gap:8px}.pw-f{padding:10px;gap:10px}.pw-f svg{width:22px;height:22px}.pw-f b{font-size:17px}.pw-f span{font-size:11px}
+ .pw-fs .pw-f:nth-child(n+5){display:none}
+ .pw-safe{order:3;margin-top:0;padding-top:0;border-top:0;font-size:12.5px}.pw-safe svg{width:18px;height:18px}
+ .pw-l{display:flex}.pw-l .pw-fs{order:2}.pw-l .pw-safe{order:4}
+ .pw-price{padding:16px;gap:12px}.pw-pr>b{font-size:64px}.pw-pr em{font-size:17px}.pw-pr small{font-size:13px}
+ .pw-pt{gap:6px}.pw-pt>div{padding:8px 4px}.pw-pt b{font-size:15px}.pw-pt span{font-size:11px}
+ .pw-buy{position:sticky;bottom:0;margin:0 calc(-1 * max(18px,env(safe-area-inset-left,0px)));padding:14px max(18px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));background:#15181d;border-top:1px solid #262b32;box-shadow:0 -12px 30px rgba(0,0,0,.35);gap:10px;flex:none;margin-top:auto}
+ .pw-big{height:56px;font-size:21px;margin-top:0}.pw-pay{font-size:11.5px}
+ .pw-ft{padding-top:0;border-top:0;margin-top:0}
+}`;document.head.appendChild(st);})();
+  window.paywallHTML=paywallHTML;}
+  try{installPaywallFallback();}catch(e){console.error('paywall fallback',e);}
   // ---------- start ----------
   try{const q=new URLSearchParams(location.search);if(q.get('reset')==='1'){S.recovery=true;q.delete('reset');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);}}catch(e){}
   viewLoading('Loading…');
