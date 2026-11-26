@@ -3118,9 +3118,9 @@ function betweenRounds(){
   G.fin.hist.push({l:stepLabel(),bal:G.fin.bal});if(G.fin.hist.length>80)G.fin.hist.shift();
   for(const t of G.teams)if(t.id!==G.user&&!(userNBA()&&isNBA(t))){t.order=autoOrder(t.order);aiFix(t);}if(!userNBA()){try{nbaPlanTick();}catch(e){}aiTradeIdea();}
   if(reg){
-    if(!userNBA()&&!isCol(G.teams[G.user]))for(const pid of G.listed)if(Math.random()<.3){const p=G.players[pid];const b=pick(ELT().filter(t=>t.id!==G.user&&teamFinState(t.id)==='ok'));if(!b)continue;const fee=r10k(value(p)*rf(.75,1.15));
+    if(!userNBA()&&!isCol(G.teams[G.user]))for(const pid of G.listed)if(Math.random()<.3){const p=G.players[pid];const b=bidClubFor(p);if(!b)continue;const fee=r10k(value(p)*rf(.75,1.15));
       msg(b.name,`Offer for ${pname(p)}`,`${b.name} would like to sign ${pname(p)} (${p.pos}, ${p.age}, OVR ${p.o}) and offer a transfer fee of ${eur(fee)}.`,'offer',{pid,tid:b.id,fee});}
-    if(!userNBA()&&!isCol(G.teams[G.user])&&Math.random()<.07){const top=roster(G.user).filter(p=>!p.loan).sort((a,b)=>b.o-a.o).slice(0,4);const p=pick(top);const b=pick(ELT().filter(t=>t.id!==G.user&&t.rep>=G.teams[G.user].rep-3&&teamFinState(t.id)==='ok'));
+    if(!userNBA()&&!isCol(G.teams[G.user])&&Math.random()<.07){const top=roster(G.user).filter(p=>!p.loan).sort((a,b)=>b.o-a.o).slice(0,4);const p=pick(top);const b=p?bidClubFor(p):null;
       if(p&&b){const fee=r10k(value(p)*rf(1.05,1.45));msg(b.name,`Bid for ${pname(p)}`,`${b.name} have made an unsolicited bid of ${eur(fee)} for ${pname(p)}. Their sporting director is open to talks about the fee.`,'offer',{pid:p.id,tid:b.id,fee});}}
     if(G.round===29){const ex=roster(G.user).filter(p=>p.yrs<=1);if(ex.length)msg('Sporting Director','Contracts expiring this summer',`These contracts end after the season: ${ex.map(p=>`${pname(p)} (OVR ${p.o})`).join(', ')}. Open a player's profile in Squad to offer an extension, or let them leave for free.`,'fin');}
   }
@@ -7835,3 +7835,22 @@ function lsnKeep(p){try{const c=[p.st,p.kreg||p.kst,p.dst,p.est].filter(x=>x&&x.
   p.lsn={y:`${G.season-1}/${String(G.season).slice(2)}`,t:t?t.short:(p.last||''),s:Object.assign(blank(),c)};}catch(e){}}
 // stats to show: this season's, or last season's while he has not played yet
 function statsShown(p){const c=mst(p);if(c&&c.gp)return {s:c,last:null};if(p.lsn&&p.lsn.s&&p.lsn.s.gp)return {s:p.lsn.s,last:p.lsn};return {s:c||blank(),last:null};}
+
+/* ===== Realistic transfer bids (v470) =====
+   A club bids only for a player who would be part of its rotation: his rating reaches about its 8th-best player and is not far
+   above its stars. Bidders come from every senior league with sound finances, not only the EuroLeague.
+   Offers expire: 6 rounds after they arrive, and at the latest when the season changes (older saves: by their date). */
+function bidClubFor(p){if(!p)return null;
+  const fit=[];for(const t of G.teams){if(t.id===G.user||t.id===p.tid||t.nt||!t.name||['GONE','FOUND','CUP','GL'].includes(t.dom))continue;
+    try{if(isNBA(t)!==isNBA(G.teams[G.user])||isCol(t))continue;if(t.fin&&teamFinState(t.id)!=='ok')continue;}catch(e){continue;}
+    const r=roster(t.id).map(x=>x.o).sort((a,b)=>b-a);if(r.length<8)continue;
+    if(p.o>=r[7]-1&&p.o<=r[2]+6)fit.push(t);}
+  return fit.length?pick(fit):null;}
+const MON={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+function offerOld(m){const A=m.act||{};if(A.ss!=null)return A.ss!==G.season||(G.round-(A.rd||0))>6;
+  const x=/(\d{1,2})\s+([A-Z]{3})\w*\s+(\d{4})/i.exec(m.date||'');if(!x)return false;const mo=MON[x[2].toUpperCase()];if(mo==null)return false;
+  return new Date(+x[3],mo,+x[1])<new Date(G.season,6,1);}   // from before July of this season = last season
+function offersExpire(){if(!G||!G.inbox)return;for(const m of G.inbox)if(m.type==='offer'&&!m.done&&m.act&&offerOld(m))m.done='Expired: the club moved on';}
+{const _msg=msg;msg=function(from,subj,body,type,act){if(type==='offer'&&act&&typeof act==='object'){act.ss=G.season;act.rd=G.round||0;}return _msg.apply(this,arguments);};}
+{const _br=betweenRounds;betweenRounds=function(){const r=_br.apply(this,arguments);try{offersExpire();}catch(e){}return r;};}
+{const _ed2=ensureDomestic;ensureDomestic=function(){const r=_ed2.apply(this,arguments);try{offersExpire();}catch(e){}return r;};}
