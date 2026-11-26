@@ -273,9 +273,13 @@
   // An older release sends "Start career" to the newest release (/play/?new=1) and the chosen club was lost.
   // The choice is kept in sessionStorage for a minute; the newest release starts that career right after sign-in.
   const NC='bm-newcareer';
+  // The note is written when the button is tapped (capture phase), because the release runtime wraps ACT.startgame
+  // from the outside and redirects before any inner wrapper runs.
+  document.addEventListener('click',e=>{const b=e.target&&e.target.closest&&e.target.closest('[data-act="startgame"]');if(!b)return;
+    try{const inp=document.getElementById('mgrName');sessionStorage.setItem(NC,JSON.stringify({club:UI.csSel,mgr:inp?inp.value.trim():'',t:Date.now()}));}catch(e){}},true);
+  // the inner start ran here, so this release did not redirect: the note is not needed any more
   if(typeof ACT==='object'&&typeof ACT.startgame==='function'){const st0=ACT.startgame;
-    ACT.startgame=async function(...a){try{const inp=document.getElementById('mgrName');sessionStorage.setItem(NC,JSON.stringify({club:UI.csSel,mgr:inp?inp.value.trim():'',t:Date.now()}));}catch(e){}
-      const r=await st0.apply(this,a);if(typeof G!=='undefined'&&G&&!G.demo){try{sessionStorage.removeItem(NC);}catch(e){}}return r;};}
+    ACT.startgame=async function(...a){try{return await st0.apply(this,a);}finally{try{sessionStorage.removeItem(NC);}catch(e){}}};}
   function newCareerResume(){let p=null;try{p=JSON.parse(sessionStorage.getItem(NC)||'null');sessionStorage.removeItem(NC);}catch(e){}
     if(!p||!p.club||Date.now()-p.t>60000)return;if(typeof G!=='undefined'&&G&&!G.demo&&UI.view!=='start')return;   // only from the start screen
     try{if(typeof csData==='function')csData();if(!(UI.cc||[]).some(c=>c.short===p.club))return;const inp=document.getElementById('mgrName');if(inp&&p.mgr)inp.value=p.mgr;if(p.mgr)UI.mgr=p.mgr;
