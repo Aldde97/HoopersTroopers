@@ -2872,6 +2872,44 @@ Object.assign(ACT,{
  .pw-ft{padding-top:0;border-top:0;margin-top:0}
 }`;document.head.appendChild(st);})();
 
+/* ===== Unlock banner on Home (v459): after "Not now" on the paywall, a calm reminder at the top of Home.
+   Same family as the first-week card and the season-review lock card. ✕ hides it until the game is opened again. ===== */
+function pwStakes(){const R=roster(G.user).filter(p=>!p.loan),out=[];
+  const exp=R.filter(p=>p.yrs<=1).length;if(exp)out.push(['contract',`${exp} contract${exp>1?'s':''} expiring`]);
+  const star=R.slice().sort((x,y)=>y.o-x.o)[0];if(star)out.push(['star',`${esc(star.f[0]+'. '+star.l)} · ${star.o} OVR`]);
+  const kid=R.filter(p=>p.age<=22).sort((x,y)=>y.o-x.o)[0];if(kid&&kid!==star)out.push(['rise',`${esc(kid.f[0]+'. '+kid.l)}, ${kid.age}, still growing`]);
+  out.push(['board',`Board ${Math.round(G.board)}%`]);return out.slice(0,3);}
+const PWB_IC={contract:'<path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6M9 15h4"/>',star:'<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
+  rise:'<path d="M4 17l6-6 4 4 6-7M14 8h6v6"/>',board:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'};
+function pwBannerHTML(){if(!G||G.demo||gamePaid()||!G.pwNo||UI.pwBanOff)return '';
+  const T=G.teams[G.user],nx=pwNext(),h=(G.history||[])[0]||{},champ=h.dom?h.dom.champ===G.user:h.champ===G.user;
+  const head=champ?`Defend your title in ${nx}`:`Take ${esc(T.name)} into ${nx}`;
+  const chips=pwStakes().map(([k,t])=>`<span class="pwb-c"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#ff8a1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PWB_IC[k]}</svg>${t}</span>`).join('');
+  return `<section class="pwb" aria-label="Your next season"><div class="pwb-ic">${pwI('lockdot',26,'#ffcf5a')}</div>
+    <div class="pwb-t"><small>Your free season is complete</small><b>${head}</b><div class="pwb-cs">${chips}</div></div>
+    <div class="pwb-a"><button class="pwb-go" data-act="pwopen">Continue my career · ${PW_PRICE}${pwI('chev',16,'currentColor',3)}</button><span>One-time · no subscription · yours for good</span></div>
+    <button class="pwb-x" data-act="pwbanoff" aria-label="Hide until next time">✕</button></section>`;}
+{const _hh=homeHTML;homeHTML=function(){return pwBannerHTML()+_hh.apply(this,arguments);};}
+Object.assign(ACT,{
+  pwopen(){UI.modal={kind:'paywall'};render();},
+  pwbanoff(){UI.pwBanOff=1;render();}});
+{const _pc=ACT.pwclose;ACT.pwclose=function(){if(G&&!gamePaid()){G.pwNo=1;try{save();}catch(e){}}return _pc.apply(this,arguments);};}
+(function(){const st=document.createElement('style');st.textContent=`
+.pwb{display:flex;align-items:center;gap:16px;background:#181c22;color:#fff;border-radius:12px;border-left:5px solid var(--or);padding:14px 16px;margin-bottom:12px}
+.pwb-ic{width:48px;height:48px;border-radius:12px;background:#22262c;display:flex;align-items:center;justify-content:center;flex:none}
+.pwb-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pwb-t small{color:var(--or2);font:600 11.5px var(--fb);letter-spacing:.05em;text-transform:uppercase}
+.pwb-t b{font:italic 900 24px/1 var(--fd);text-transform:uppercase;letter-spacing:.01em}
+.pwb-cs{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:6px}
+.pwb-c{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;background:#22262c;color:#e9ecef;font:600 13px var(--fb);white-space:nowrap}
+.pwb-a{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px}.pwb-a>span{color:#9aa3ad;font:500 12px var(--fb)}
+.pwb-go{flex:none;display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 22px;border:0;border-radius:8px;background:var(--or);color:#fff;font:800 18px var(--fd);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.pwb-go:hover{filter:brightness(1.08)}
+.pwb-x{flex:none;align-self:flex-start;background:none;border:0;color:#8d949d;cursor:pointer;font-size:15px;padding:4px 2px}
+@media (max-width:760px){.pwb{flex-wrap:wrap;gap:10px 12px;padding:14px}.pwb-ic{display:none}
+ .pwb-t{flex:1 1 0}.pwb-t b{font-size:20px}.pwb-c{font-size:12px;height:26px}.pwb-a{order:3;flex:1 0 100%;align-items:stretch}.pwb-a>span{text-align:center}.pwb-go{justify-content:center;height:48px;font-size:17px}}
+`;document.head.appendChild(st);})();
+
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
