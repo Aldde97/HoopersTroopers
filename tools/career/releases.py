@@ -71,6 +71,11 @@ def package(root, game):
     runtime = (root / 'tools/career/runtime.js').read_text()
     archive = game / 'releases'
     archive.mkdir()
+    cloud_config = None
+    if (game / 'cloud.js').exists():
+        from .account_storage import isolate_account
+        cloud_config = json.loads(re.search(r'window\.BM_CLOUD=(\{[^<]*?\});',
+                                            (game / 'index.html').read_text())[1])
     for version in versions:
         target = archive / version
         if version == latest:
@@ -89,6 +94,8 @@ def package(root, game):
             pinned_runtime = adapter.read_text()
         else:
             pinned_runtime = git(root, 'show', changes[0] + ':tools/career/runtime.js') if changes else runtime
+        if cloud_config:
+            isolate_account(root, target, cloud_config)
         attach(target, version, pinned_runtime)
         share_assets(game, target)
     # Keep the public entry URL and its old asset paths usable by already-open tabs.
