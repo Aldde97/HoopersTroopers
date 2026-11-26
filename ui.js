@@ -2725,7 +2725,7 @@ profileHTML=function(p){
     if(!a||!a.querySelector('.btns button'))return html;
     a.classList.add('pacts');
     a.querySelectorAll('.btns').forEach(b=>b.removeAttribute('style'));
-    a.querySelectorAll('.btns button').forEach(b=>{b.innerHTML=pactIcon(b.dataset.act)+`<span>${b.innerHTML.replace(/^\s*[\u2606\u2605]\s*/,'')}</span>`;if(/\u2605/.test(b.textContent)||b.dataset.act&&b.dataset.act.startsWith('watch:')&&G.watch&&G.watch[p.id])b.classList.add('p');
+    a.querySelectorAll('.btns button').forEach(b=>{if(b.closest('.sec')!==a)return;b.innerHTML=pactIcon(b.dataset.act)+`<span>${b.innerHTML.replace(/^\s*[\u2606\u2605]\s*/,'')}</span>`;if(/\u2605/.test(b.textContent)||b.dataset.act&&b.dataset.act.startsWith('watch:')&&G.watch&&G.watch[p.id])b.classList.add('p');
       if((b.dataset.act||'').startsWith('release:'))b.classList.add('bad');});
     const top=[...a.children].filter(e=>e.classList.contains('btns'));
     if(top.length>1){top.slice(1).forEach(g=>{[...g.children].forEach(x=>top[0].appendChild(x));g.remove();});}
@@ -2735,14 +2735,14 @@ profileHTML=function(p){
 };
 (function(){const st=document.createElement('style');st.textContent=`
 .sec.pacts{border-top:1px solid var(--ln,#e3e6ea);border-bottom:1px solid var(--ln,#e3e6ea);margin-top:12px}
-.sec.pacts .btns{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:0 0 8px}
-@media (max-width:520px){.sec.pacts .btns{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.sec.pacts .btns .btn{font-size:10.5px;min-height:62px;padding:7px 3px}}
-.sec.pacts .btns:last-child{margin-bottom:0}
-.sec.pacts .btns .btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:66px;width:auto;margin:0;
+.sec.pacts>.btns{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:0 0 8px}
+@media (max-width:520px){.sec.pacts>.btns{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.sec.pacts>.btns .btn{font-size:10.5px;min-height:62px;padding:7px 3px}}
+.sec.pacts>.btns:last-child{margin-bottom:0}
+.sec.pacts>.btns .btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:66px;width:auto;margin:0;
   padding:8px 6px;border-width:1.5px;border-radius:10px;font-size:11.5px;line-height:1.15;letter-spacing:.04em;text-align:center;white-space:normal}
-.sec.pacts .btns .btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.sec.pacts .btns .btn.bad{color:#c62828;border-color:#e3a3a3}
-.sec.pacts .btns .btn[disabled]{opacity:.45}
+.sec.pacts>.btns .btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.sec.pacts>.btns .btn.bad{color:#c62828;border-color:#e3a3a3}
+.sec.pacts>.btns .btn[disabled]{opacity:.45}
 `;document.head.appendChild(st);})();
 
 /* ===== Paywall after the free season (v458) · design: "Basketball Manager Paywall" artifact (Locked, Main, PhoneReview, PhonePaywall) =====
@@ -3028,6 +3028,11 @@ Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;rend
  .tdx-foot{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}.tdx-btns .btn{flex:1;min-width:0}}
 `;document.head.appendChild(st);})();
 
+(function(){const st=document.createElement('style');st.textContent=`
+.sq-more .prof-h{display:none}
+.sq-more>section.card{box-shadow:none;border-radius:0;margin:0}
+.sq-more .sec.pacts{margin-top:0;border-top:0}
+`;document.head.appendChild(st);})();
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
