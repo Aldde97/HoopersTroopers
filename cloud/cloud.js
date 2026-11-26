@@ -258,6 +258,17 @@
       if(error||!data){if(typeof toast==='function')toast('The payment page could not be opened. Try again in a moment.');return false;}
       if(data.paid)return true;if(data.url){location.href=data.url;return new Promise(()=>{});}return false;},
     async restore(){try{return await ownsGame();}catch(e){return false;}}};
+  // ---------- deleting the last-played career from the start screen ----------
+  // The game refused to delete the active slot (the career shown on the start screen) and said nothing.
+  // On the start screen it is detached first; inside that career the player gets a clear message.
+  if(typeof ACT==='object'&&typeof ACT.sldelok==='function'&&typeof slotDelete==='function'){
+    ACT.sldelok=async function(id){
+      if(typeof SLOT_ID!=='undefined'&&id===SLOT_ID){
+        if(typeof G!=='undefined'&&G&&!G.demo&&UI.view!=='start'){UI.slDel=null;slOpen({t:'You are playing this career. Open the start screen first, then delete it.',bad:1});return;}
+        try{if(typeof slotDetach==='function')slotDetach();G=null;}catch(e){}}
+      await slotDelete(id);UI.slDel=null;
+      if(UI.view==='start'||typeof G==='undefined'||!G){try{UI.modal=null;render();}catch(e){}if(typeof toast==='function')toast('Career deleted');}
+      else slOpen({t:'Career deleted.'});};}
   // ---------- Start career across a version switch ----------
   // An older release sends "Start career" to the newest release (/play/?new=1) and the chosen club was lost.
   // The choice is kept in sessionStorage for a minute; the newest release starts that career right after sign-in.
