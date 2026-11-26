@@ -1544,7 +1544,7 @@ function csData(){if(!UI.cc)UI.cc=careerClubs();const C=UI.cc;
     const h=({AUS:'AUS'})[c.lg];if(h&&h!==n){(nats[h]=nats[h]||{n:h,clubs:[],top:0}).clubs.push(c);nats[h].top=Math.max(nats[h].top,c.rep);}}
   return {C,nats:Object.values(nats).sort((a,b)=>b.top-a.top||b.clubs.length-a.clubs.length)};}
 function csExpect(c){const r=c.rank,N=c.of;if(c.lg==='EL')return r<=4?'Reach the Final Four':r<=8?'Reach the playoffs':r<=13?'Reach the Play-In':'Finish in the top 14';
-  if(c.lg==='NCAA')return r<=2?'Win the national championship':r<=6?'Reach the Final Four':r<=16?'Reach the Sweet 16':r<=30?'Make the NCAA Tournament':'Top half of the conference';
+  if(c.lg==='NBA'&&typeof nbaGoalKey==='function'){const all=(UI.cc||[]).filter(x=>x.lg==='NBA');return nbaGoalText(nbaGoalKey(all,c.id),c.grp);}   if(c.lg==='NCAA')return r<=2?'Win the national championship':r<=6?'Reach the Final Four':r<=16?'Reach the Sweet 16':r<=30?'Make the NCAA Tournament':'Top half of the conference';
   if(c.lg.startsWith('CUP'))return r<=2?'Win the cup':r<=Math.ceil(N/4)?'Reach the quarter-finals':r<=Math.ceil(N/2)?'Reach the playoffs':'Survive the group stage';
   return r===1?'Win the league':r<=3?'Reach the semi-finals':r<=Math.ceil(N/2)?'Reach the playoffs':r>N-3?'Avoid relegation':'Finish mid-table';}
 function startHTML(){const slH=slStartHTML(),saved=slH?null:loadSave(),D=csData();

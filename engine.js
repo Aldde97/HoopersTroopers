@@ -5667,7 +5667,7 @@ function hypeTick(){if(!G||G.sacked)return;const t=G.teams[G.user],ps=roster(t.i
 function brd(){if(!G.brd||G.brd.season!==G.season)G.brd={season:G.season,g:0,w:0};return G.brd;}
 function objCtl(){const L=nlUser();
   if(userIsCup()){const k=userCup(),O=k==='fec'?G.fec:k==='bcl'?G.bcl:G.ec;return {o:O,lad:k==='fec'?['title','fin','sf','qf','r2']:k==='bcl'?['title','fin','f4','qf','r16']:['title','fin','sf','qf','po'],txt:k==='fec'?FECOBJ:k==='bcl'?BCLOBJ:ECOBJ};}
-  if(userIsNL()){return {o:L,lad:L.code==='RL'?(L.obj==='po'||G.teams[G.user].grp===RL_SW||rlRegion(G.teams[G.user].grp)==='S\xfcdost'?['title','po','top','safe']:['title','top','safe']):L.code==='SBN'||L.code==='A2'||L.code==='TBL'?['promo','po','pi','safe']:L.code==='GEL'||L.code==='PF'||L.code==='LL'||L.code==='EL2'?['promo','po','safe']:['title','fin','sf','po','safe'],txt:k=>{const s=L.obj;L.obj=k;const t=nlObjText(L);L.obj=s;return t;}};}
+  if(userIsNL()){return {o:L,lad:L.code==='RL'?(L.obj==='po'||G.teams[G.user].grp===RL_SW||rlRegion(G.teams[G.user].grp)==='S\xfcdost'?['title','po','top','safe']:['title','top','safe']):L.code==='SBN'||L.code==='A2'||L.code==='TBL'?['promo','po','pi','safe']:L.code==='GEL'||L.code==='PF'||L.code==='LL'||L.code==='EL2'?['promo','po','safe']:L.code==='NBA'?['title','fin','sf','r2','po','pi','w30','w22']:['title','fin','sf','po','safe'],txt:k=>{const s=L.obj;L.obj=k;const t=nlObjText(L);L.obj=s;return t;}};}
   if(userIsKls())return {o:G.kls,lad:['sl','top4','top8','safe'],txt:KLSOBJ};
   if(userIsBih())return {o:G.bih,lad:['sf','po','top8','safe'],txt:BIHOBJ};
   if(userIs2())return {o:G.dom2,lad:['promo','fin','sf','qf','pi'],txt:DOM2OBJ};
@@ -7796,3 +7796,34 @@ function saveUnpack(o){const g=o.g,P={},n=o.ids.length,objs=[];
   for(let i=0;i<n;i++)P[o.ids[i]]=objs[i];
   const out={};for(const k in g){out[k]=g[k];}out.players=P;return out;}
 function saveParse(txt){const o=JSON.parse(txt);return o&&o.bmPack===1?saveUnpack(o):o;}
+
+/* ===== Realistic NBA board goals (v468) =====
+   Ranked by squad strength inside the user's conference (15 teams): contenders aim for the title, the middle for the
+   playoffs or Play-In, the bottom for a win total. Old careers with the former "top 12" goal get a new one in the preseason. */
+const NBAOBJ_TXT={title:'Win the NBA championship',fin:'Reach the NBA Finals',sf:'Reach the Conference Finals',r2:'Win a playoff series',
+  po:'Reach the NBA playoffs',pi:c=>`Reach the Play-In (top 10 of the ${c}ern Conference)`,w30:'Win at least 30 games',w22:'Rebuild: win at least 22 games'};
+// one formula for the board and the club-selection screen. clubs: [{id,str,rep,grp}]
+function nbaGoalKey(clubs,uid){const me=clubs.find(c=>c.id===uid);if(!me)return 'pi';
+  // 65% squad strength, 35% club status (reputation): a big club is not asked to rebuild because of one weak roster
+  const S=clubs.map(c=>c.str),R=clubs.map(c=>c.rep||0),sl=Math.min(...S),sh=Math.max(...S),rl=Math.min(...R),rh=Math.max(...R);
+  const sc=c=>.65*((c.str-sl)/((sh-sl)||1))+.35*(((c.rep||0)-rl)/((rh-rl)||1));
+  const conf=clubs.filter(c=>c.grp===me.grp),by=(a,b)=>sc(b)-sc(a);
+  const rc=conf.slice().sort(by).indexOf(me)+1,ra=clubs.slice().sort(by).indexOf(me)+1;
+  const ORD=['title','fin','sf','r2','po','pi','w30','w22'];
+  let k=rc===1&&ra<=2?'title':rc===1?'fin':rc===2?'sf':rc<=4?'r2':rc<=6?'po':rc<=10?'pi':rc<=13?'w30':'w22';
+  const floor=(me.rep||0)>=97?'pi':(me.rep||0)>=94?'w30':null;   // marquee clubs aim for the Play-In at least
+  if(floor&&ORD.indexOf(k)>ORD.indexOf(floor))k=floor;return k;}
+function nbaGoalText(k,grp){if(k==='safe')return `Finish in the top 12 of the ${grp}ern Conference`;   /* careers that kept the old goal */
+  const t=NBAOBJ_TXT[k];return typeof t==='function'?t(grp):t;}
+function nbaObjective(L){return nbaGoalKey(L.ids.map(i=>({id:i,str:strength(i),rep:G.teams[i].rep,grp:G.teams[i].grp})),G.user);}
+{const _o=nlObjective;nlObjective=function(L){return L&&L.code==='NBA'?nbaObjective(L):_o.apply(this,arguments);};}
+{const _t=nlObjText;nlObjText=function(L){if(L&&L.code==='NBA')return nbaGoalText(L.obj||'pi',G.teams[G.user].grp);return _t.apply(this,arguments);};}
+{const _m=nlObjMet;nlObjMet=function(L){if(!L||L.code!=='NBA')return _m.apply(this,arguments);const k=L.obj||'pi',U=G.user;
+  if(k==='w30'||k==='w22')return nlRec(L,U)[0]>=(k==='w30'?30:22);
+  if(k==='pi'||k==='safe'){const r=nlRank(L,U);return r>0&&r<=(k==='pi'?10:12);}
+  if(k==='r2'){const lvl=['Champions','Runner-up','Conference Finals','Conference Semifinals'].indexOf(nlFinish(L));return lvl>=0;}
+  return _m.apply(this,arguments);};}
+// careers still in the preseason with the old goal: give them the new one
+function nbaObjFix(){try{const L=G&&G.nl&&G.nl.NBA;if(!L||!L.ids.includes(G.user)||G.nbaObjV===1)return;G.nbaObjV=1;
+  const r=nlRec(L,G.user);if((L.obj==='safe'||!L.obj)&&r[0]+r[1]===0)L.obj=nbaObjective(L);}catch(e){console.error('nba goal',e);}}
+{const _ed=ensureDomestic;ensureDomestic=function(){const r=_ed.apply(this,arguments);nbaObjFix();return r;};}
