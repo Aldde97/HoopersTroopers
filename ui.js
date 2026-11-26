@@ -2939,6 +2939,95 @@ Object.assign(ACT,{
 .sqb-p{background:var(--or);border-color:var(--or);color:#fff}.sqb-x{flex:none;background:none;border:0;color:#8d949d;font-size:15px;padding:4px;cursor:pointer}
 `;document.head.appendChild(st);})();
 
+/* ===== NBA trade screen, redesigned (v463): two sides with player cards, an add-player picker, salary and value
+   meters, one status line, a fixed footer; rules, picks and swaps fold out. Same actions as before. ===== */
+function tradeModalHTML(){const M=UI.modal,t=G.teams[M.tid],me=G.teams[G.user];if(!t){UI.modal=null;return '';}
+  M.gpk=M.gpk||[];M.tpk=M.tpk||[];M.x=M.x||{prot:{},sw:[]};TRX=M.x;
+  const ev=tradeEval(M.tid,M.give,M.get,M.gpk,M.tpk),hint=M.done?null:tradeHint(M.tid,M.give,M.get,M.gpk,M.tpk),lim=salLim(ev.salOut);TRX=null;
+  const any=(M.get.length||M.tpk.length)&&(M.give.length||M.gpk.length),fair=ev.vGet?Math.round(Math.min(150,ev.vGive/ev.vGet*100)):0;
+  const P=nbaPlanOf(M.tid),PT=P&&PLAN_TXT[P.k];
+  const card=(p,act)=>`<div class="tdx-c"><span class="avatar ph tdx-av">${avatarIn(p,p.no)}</span><div class="tdx-ct"><b>${esc(pname(p))}</b><small>${p.pos} · ${p.age} · ${eur(p.sal)} · ${p.yrs} yr${p.yrs!==1?'s':''}</small></div>${ovb(ovrEst(p))}${M.done?'':`<button class="tdx-rm" data-act="${act}:${p.id}" aria-label="Remove ${esc(pname(p))}">✕</button>`}</div>`;
+  const pick=(k,side)=>`<span class="tdx-pk">${esc(pickName(k))}${M.done?'':`<button data-act="trpk:${side}:${k.id}" aria-label="Remove pick">✕</button>`}</span>`;
+  const picker=(tid,sel,act,side,psel)=>{const rows=roster(tid).filter(p=>!p.loan).sort((a,b)=>b.o-a.o).map(p=>{const on=sel.includes(p.id),lock=p.newAt===G.season&&p.newTid===p.tid;
+      return `<button class="tdx-li${on?' on':''}" ${lock?'disabled':`data-act="${act}:${p.id}"`}><span class="avatar ph tdx-av">${avatarIn(p,p.no)}</span><span class="tdx-ct"><b>${esc(pname(p))}</b><small>${lock?'Joined this season · cannot be traded':`${p.pos} · ${p.age} · ${eur(p.sal)} · ${p.yrs} yr${p.yrs!==1?'s':''}`}</small></span>${ovb(ovrEst(p))}<i>${on?'✓':'+'}</i></button>`;}).join('');
+    const K=(G.picks||[]).filter(k=>k.own===tid).sort((a,b)=>a.y-b.y||a.r-b.r);
+    const pk=K.length?`<div class="tdx-pks">${K.map(k=>`<button class="tdx-chip${psel.includes(k.id)?' on':''}" data-act="trpk:${side}:${k.id}" title="projected #${pickSlot(k)}">${psel.includes(k.id)?'✓ ':''}${esc(pickName(k))}</button>`).join('')}</div>`:'';
+    return `<div class="tdx-pick"><div class="tdx-ph"><b>${side==='get'?esc(t.name):'Your roster'}</b><button class="tdx-done" data-act="trpicker:">Done</button></div>${pk}<div class="tdx-list">${rows}</div></div>`;};
+  const side=(T,players,picks,act,sideK,title)=>{const open=M.pick===sideK;
+    return `<section class="tdx-s"><header><span class="tdx-crest">${crest(T)}</span><div><small>${title}</small><b>${esc(T.name)}</b></div></header>
+      <div class="tdx-items">${players.map(id=>card(G.players[id],act)).join('')}${picks.map(id=>{const k=(G.picks||[]).find(x=>x.id===id);return k?pick(k,sideK):'';}).join('')}
+      ${players.length||picks.length?'':`<p class="tdx-empty">${sideK==='get'?'Pick who you want from '+esc(T.short):'Pick who you offer'}</p>`}</div>
+      ${M.done?'':open?picker(T.id,sideK==='get'?M.get:M.give,act,sideK,picks):`<button class="tdx-add" data-act="trpicker:${sideK}">+ Add player or pick</button>`}</section>`;};
+  const salOk=!(M.give.length||M.gpk.length)?ev.salIn<=lim:ev.salIn<=lim,salPct=Math.min(100,lim?ev.salIn/lim*100:ev.salIn?100:0);
+  const meters=`<div class="tdx-ms"><div class="tdx-m"><div class="tdx-mh"><small>Salary you take on</small><b class="${salOk?'':'neg'}">${eur(ev.salIn)} <em>of ${eur(lim)} allowed</em></b></div><div class="tdx-bar"><i class="${salOk?'ok':'bad'}" style="width:${Math.max(2,salPct)}%"></i></div></div>
+    <div class="tdx-m"><div class="tdx-mh"><small>Value for ${esc(t.short)}</small><b class="${any&&fair<100?'neg':''}">${any?fair+'%':'–'}</b></div><div class="tdx-bar tdx-fair"><i class="${fair>=100?'ok':'bad'}" style="width:${any?Math.max(2,fair/150*100):0}%"></i><u style="left:${100/150*100}%"></u></div></div></div>`;
+  const status=M.done?`<div class="tdx-st ok">✓ ${esc(M.done)}</div>`:ev.ok?`<div class="tdx-st ok">✓ ${esc(t.name)} would accept this trade</div>`:any||M.get.length||M.give.length?`<div class="tdx-st no">${esc(ev.why)}</div>`:`<div class="tdx-st">Add players on both sides to build a trade.</div>`;
+  const hintB=hint!=null?`<button class="tdx-hint" data-act="trgive:${hint}">+ Add ${esc(pname(G.players[hint]))} to make it work</button>`:'';
+  const swY=[1,2,3].map(d=>G.season+d),swb=(y,hh)=>{const on=M.x.sw.some(x=>x.y===y&&x.h===hh);return `<button class="tdx-chip${on?' on':''}" data-act="trsw:${y}:${hh}">${on?'✓ ':''}${hh==='me'?`You may swap ${y} 1sts`:`They may swap ${y} 1sts`}</button>`;};
+  const prot=[...M.tpk,...M.gpk].map(id=>(G.picks||[]).find(k=>k.id===id)).filter(k=>k&&k.r===1&&!k.prot);
+  const extras=`<details class="tdx-more"><summary>Pick protections and pick swaps</summary>${prot.length?prot.map(k=>`<div class="tdx-prot"><small>${esc(pickName(k))}</small><div class="tdx-pks">${[0,5,10,14].map(N=>`<button class="tdx-chip${(M.x.prot[k.id]||0)===N?' on':''}" data-act="trprot:${k.id}:${N}">${N?(N===14?'Lottery protected':'Top-'+N+' protected'):'Unprotected'}</button>`).join('')}</div></div>`).join(''):'<p class="mut">Add a first-round pick to set its protection.</p>'}
+      <div class="tdx-pks" style="margin-top:10px">${swY.map(y=>swb(y,'me')+swb(y,'them')).join('')}</div><p class="mut">The team with the swap right takes the better of the two first-round picks in that draft. Stepien rule: no team may be left without a first-round pick in two drafts in a row.</p></details>
+    <details class="tdx-more"><summary>How NBA trades work</summary><p class="mut">Salary matching: a team under the cap can absorb salary into its cap space; over the cap it may take back 200% + 250k (small salaries), the outgoing salary + 7.5M (middle) or 125% + 250k (big salaries); above the first apron only 100%. Draft picks carry no salary. Players who joined this season cannot be traded. Trade deadline after 60% of the regular season.</p></details>`;
+  return `<div class="ovl tdx-ovl" data-act="ovl"><div class="modal tdx" role="dialog" aria-modal="true" aria-label="Trade with ${esc(t.name)}">
+    <div class="tdx-top"><div class="tdx-tt"><small>Trade</small><h3>${crest(t)}${esc(t.name)}</h3></div><button class="lnk" data-act="close">Close ✕</button></div>
+    ${PT?`<div class="tdx-plan"><span class="pill ${P.k==='contend'?'g':P.k==='rebuild'?'o':'k'}">${PT[0]}</span>${P.dump?'<span class="pill r">Cutting salary</span>':''}<span class="mut">${esc(t.short)} ${esc(PT[1])}${P.dump?'. Over the tax: they pay to shed salary':''}.</span></div>`:''}
+    <div class="tdx-body"><div class="tdx-sides">${side(me,M.give,M.gpk,'trgive','give','You send')}<div class="tdx-arrow" aria-hidden="true">⇄</div>${side(t,M.get,M.tpk,'trget','get','You receive')}</div>
+      ${meters}${extras}</div>
+    <div class="tdx-foot">${status}${hintB}<div class="tdx-btns">${M.done?'<button class="btn p" data-act="close">Done</button>':`<button class="btn" data-act="close">Cancel</button><button class="btn p" data-act="trgo" ${ev.ok?'':'disabled'}>Propose trade</button>`}</div></div></div></div>`;}
+Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;render();}});
+(function(){const st=document.createElement('style');st.textContent=`
+.tdx-ovl{z-index:1000}
+.tdx{max-width:1020px;width:min(1020px,calc(100vw - 32px));padding:0;display:flex;flex-direction:column;max-height:calc(100vh - 32px);overflow:hidden}
+.tdx-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:var(--ink);color:#fff;border-left:5px solid var(--or)}
+.tdx-tt small{display:block;color:var(--or2);font:600 11.5px var(--fb);letter-spacing:.08em;text-transform:uppercase}
+.tdx-tt h3{display:flex;align-items:center;gap:10px;margin:2px 0 0;font:800 24px/1 var(--fd);text-transform:uppercase;letter-spacing:.03em;color:#fff}.tdx-tt h3 .crest{width:30px;height:30px}
+.tdx-top .lnk{color:#c8cdd3}
+.tdx-plan{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:10px 18px;border-bottom:1px solid var(--line,#e3e6ea);font-size:13.5px}
+.tdx-body{flex:1;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+.tdx-sides{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:start}
+.tdx-arrow{align-self:center;width:40px;height:40px;border-radius:50%;background:var(--ink);color:var(--or2);display:grid;place-items:center;font:800 20px var(--fd)}
+.tdx-s{border:1px solid var(--line,#e3e6ea);border-radius:12px;overflow:hidden;background:var(--card,#fff)}
+.tdx-s header{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f2f4f6;border-bottom:1px solid var(--line,#e3e6ea)}
+.tdx-crest .crest{width:34px;height:34px}.tdx-s header small{display:block;font:600 11px var(--fb);letter-spacing:.08em;text-transform:uppercase;color:#5b636d}.tdx-s header b{font:800 18px/1.1 var(--fd);text-transform:uppercase}
+.tdx-items{display:flex;flex-direction:column;gap:6px;padding:10px 10px 4px}
+.tdx-c,.tdx-li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:#f6f7f9;min-width:0}
+.tdx-av{width:38px;height:38px;flex:none}.tdx-ct{flex:1;min-width:0;display:flex;flex-direction:column;text-align:left}
+.tdx-ct b{font:700 15px var(--fb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tdx-ct small{color:#5b636d;font:500 12.5px var(--fb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tdx-rm{flex:none;background:none;border:0;color:#8d949d;font-size:15px;padding:6px;cursor:pointer}
+.tdx-pk{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:6px 6px 6px 12px;border-radius:16px;background:#fff4e8;color:#9a3412;font:600 13px var(--fb)}.tdx-pk button{background:none;border:0;color:inherit;cursor:pointer;font-size:12px}
+.tdx-empty{margin:4px 2px 8px;color:#8d949d;font:500 14px var(--fb)}
+.tdx-add{display:block;width:calc(100% - 20px);margin:6px 10px 10px;height:44px;border:2px dashed #c9ced5;border-radius:10px;background:none;color:#2b3038;font:800 16px var(--fd);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.tdx-add:hover{border-color:var(--or);color:var(--or)}
+.tdx-pick{margin:6px 10px 10px;border:1px solid var(--line,#e3e6ea);border-radius:10px;overflow:hidden}
+.tdx-ph{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--ink);color:#fff}.tdx-ph b{font:800 15px var(--fd);text-transform:uppercase;letter-spacing:.04em}
+.tdx-done{background:var(--or);color:#fff;border:0;border-radius:6px;padding:6px 12px;font:800 14px var(--fd);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.tdx-list{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:4px;padding:6px}
+.tdx-li{width:100%;border:0;cursor:pointer;font:inherit;color:inherit}.tdx-li:hover{background:#eef0f3}.tdx-li.on{background:#fff1e3;outline:2px solid var(--or)}.tdx-li[disabled]{opacity:.5;cursor:default}
+.tdx-li i{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#e3e6ea;color:#2b3038;font-style:normal;font-weight:800}.tdx-li.on i{background:var(--or);color:#fff}
+.tdx-pks{display:flex;flex-wrap:wrap;gap:6px;padding:8px 6px 2px}
+.tdx-chip{border:1px solid #c9ced5;background:#fff;border-radius:16px;padding:6px 12px;font:600 13px var(--fb);cursor:pointer;color:#2b3038}.tdx-chip.on{background:var(--or);border-color:var(--or);color:#fff}
+.tdx-ms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tdx-m{padding:12px;border-radius:12px;background:#f2f4f6}.tdx-mh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.tdx-mh small{font:600 11.5px var(--fb);letter-spacing:.06em;text-transform:uppercase;color:#5b636d}.tdx-mh b{font:800 20px var(--fd)}.tdx-mh b em{font:500 13px var(--fb);color:#5b636d;font-style:normal}
+.tdx-mh b.neg{color:#c62828}
+.tdx-bar{position:relative;height:8px;border-radius:4px;background:#dde1e6;margin-top:8px;overflow:visible}.tdx-bar i{display:block;height:100%;border-radius:4px}.tdx-bar i.ok{background:var(--g,#1a7f43)}.tdx-bar i.bad{background:#e05252}
+.tdx-fair u{position:absolute;top:-3px;width:2px;height:14px;background:#2b3038}
+.tdx-more{border:1px solid var(--line,#e3e6ea);border-radius:10px;padding:0 12px}.tdx-more summary{cursor:pointer;padding:10px 0;font:700 14px var(--fb)}.tdx-more p{font-size:13px;margin:6px 0 12px}
+.tdx-prot small{display:block;margin-top:6px;font:600 12.5px var(--fb)}
+.tdx-foot{border-top:1px solid var(--line,#e3e6ea);padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;background:var(--card,#fff)}
+.tdx-st{font:600 14px var(--fb);padding:8px 12px;border-radius:8px;background:#f2f4f6;color:#2b3038}.tdx-st.ok{background:#e8f6ee;color:#1a7f43}.tdx-st.no{background:#fdecec;color:#b42318}
+.tdx-hint{align-self:flex-start;background:none;border:1px dashed var(--or);color:#c2410c;border-radius:8px;padding:8px 12px;font:600 13.5px var(--fb);cursor:pointer}
+.tdx-btns{display:flex;gap:10px;justify-content:flex-end}.tdx-btns .btn{min-width:140px}
+@media (max-width:760px){
+ .tdx-ovl{padding:0!important;align-items:stretch}
+ .tdx{width:100vw;max-width:none;max-height:none;height:100dvh;border-radius:0}
+ .tdx-top{padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px}.tdx-tt h3{font-size:20px}
+ .tdx-plan{padding:8px 14px;font-size:12.5px}.tdx-body{padding:12px;gap:12px}
+ .tdx-sides{grid-template-columns:minmax(0,1fr);gap:8px}.tdx-arrow{justify-self:center;width:34px;height:34px;transform:rotate(90deg)}
+ .tdx-ms{grid-template-columns:minmax(0,1fr)}.tdx-list{max-height:50vh}
+ .tdx-foot{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}.tdx-btns .btn{flex:1;min-width:0}}
+`;document.head.appendChild(st);})();
+
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
