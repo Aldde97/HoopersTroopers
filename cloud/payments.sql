@@ -12,3 +12,6 @@ alter table public.purchases enable row level security;
 drop policy if exists "purchases: read own" on public.purchases;
 create policy "purchases: read own" on public.purchases for select to authenticated using ((select auth.uid()) = user_id);
 -- no insert, update or delete policies: players cannot mark themselves as paid
+-- this project does not grant table access automatically: players may read, only the webhook (service role) writes
+grant select on public.purchases to authenticated;
+grant select, insert, update, delete on public.purchases to service_role;

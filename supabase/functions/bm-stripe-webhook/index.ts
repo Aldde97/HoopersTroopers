@@ -26,7 +26,10 @@ async function verified(payload: string, header: string, secret: string) {
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("method", { status: 405 });
   const payload = await req.text();
-  if (!(await verified(payload, req.headers.get("Stripe-Signature") || "", Deno.env.get("STRIPE_WEBHOOK_SECRET") || ""))) {
+  const secret = (Deno.env.get("STRIPE_WEBHOOK_SECRET") || "").trim();   // a pasted value may carry spaces or a newline
+  if (!secret.startsWith("whsec_")) console.error("STRIPE_WEBHOOK_SECRET is missing or does not start with whsec_");
+  if (!(await verified(payload, req.headers.get("Stripe-Signature") || "", secret))) {
+    console.error("bad signature: the saved STRIPE_WEBHOOK_SECRET does not match this webhook's signing secret");
     return new Response("bad signature", { status: 400 });
   }
   const ev = JSON.parse(payload);
