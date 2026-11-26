@@ -161,9 +161,10 @@
       viewLoading('Please reopen the game from /play/ to load secure account storage.');return;
     }
     boundUser=id;
+    try{await syncPaid();}catch(e){console.error('purchase check',e);}
     try{await pull();}catch(e){console.error('cloud pull',e);}
     if(switching || S.user?.id!==id)return;
-    hide();try{if(typeof render==='function')render();}catch(e){}}
+    hide();try{if(typeof render==='function')render();}catch(e){}payReturn();}
   // ---------- cloud saves ----------
   const path=id=>`${boundUser}/${id}.gz`;
   async function pull(){if(typeof SAVE_READY!=='undefined')await SAVE_READY;if(typeof IDB_OK==='undefined'||!IDB_OK)return;
@@ -237,6 +238,22 @@
     cloudmenu(){openMenu();},
     cloudpw(){UI.modal=null;render();S.pwFromGame=true;S.err='';viewNewPw();},
     clouddel(k){k=+k;if(k===2){deleteAccount();return;}UI.accDel=k;render();}});
+  // ---------- full game purchase (Stripe Checkout through the bm-checkout Edge Function; the webhook records it) ----------
+  // The account is the source of truth: after sign-in gamePaid() is set from the purchases table.
+  async function ownsGame(){const {data,error}=await sb.from('purchases').select('product').eq('user_id',boundUser).maybeSingle();if(error)throw error;return !!data;}
+  async function syncPaid(){if(!S.user||typeof gamePaid!=='function')return;gamePaid(await ownsGame());}
+  async function payReturn(){let q;try{q=new URLSearchParams(location.search);}catch(e){return;}const v=q.get('paid');if(v==null)return;
+    q.delete('paid');try{history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);}catch(e){}
+    if(v!=='1'){if(typeof toast==='function')toast('Payment cancelled. Nothing was charged.');return;}
+    if(typeof toast==='function')toast('Confirming your payment…');
+    for(let i=0;i<20;i++){try{if(await ownsGame()){gamePaid(true);try{UI.modal=null;}catch(e){}if(typeof render==='function')render();if(typeof toast==='function')toast('Full game unlocked. Thank you!');return;}}catch(e){}
+      await new Promise(r=>setTimeout(r,1500));}
+    if(typeof toast==='function')toast('Payment received. The unlock can take a minute: reopen the game or use Restore purchase.');}
+  window.BM_PAY={label:'Secure payment with Stripe · Apple Pay · Google Pay · Card',
+    async buy(){if(!S.user)return false;const {data,error}=await sb.functions.invoke('bm-checkout',{body:{}});
+      if(error||!data){if(typeof toast==='function')toast('The payment page could not be opened. Try again in a moment.');return false;}
+      if(data.paid)return true;if(data.url){location.href=data.url;return new Promise(()=>{});}return false;},
+    async restore(){try{return await ownsGame();}catch(e){return false;}}};
   // ---------- start ----------
   try{const q=new URLSearchParams(location.search);if(q.get('reset')==='1'){S.recovery=true;q.delete('reset');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);}}catch(e){}
   viewLoading('Loading…');
