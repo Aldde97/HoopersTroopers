@@ -827,7 +827,7 @@ function ntMyHTML(){const N=G.nt,J=N.job;
       <button class="nto-b" data-act="ntjob:${c}">Accept offer</button></div></div>`;}).join(''):'<div class="empty"><p class="mut">No federation has approached you right now. Offers come every summer.</p></div>'}</div></section>`;}
   const c=J.c,E=ntNextEvent(),C=N.cyc,grp=Object.keys(ntGrpAll(C)).find(k=>ntGrpAll(C)[k].includes(c)),rk=grp?ntSort(ntGrpAll(C)[grp],C.tab).indexOf(c)+1:0,rec=ntRec(C.tab,c);
   const hero=`<section class="nth"><div class="nth-wm">${ntFlag(c,420)}</div><div class="nth-fl">${ntFlag(c,132)}</div><div class="nth-tx"><small>Head coach · since ${J.since}</small><h2>${esc(ntName(c))}</h2>
-    <div class="nth-ch"><span>FIBA ranking: <b>${ordn(rkRank(c))}</b></span>${grp?`<span><b>${ordn(rk)}</b> in group ${grp} · ${rec.w}–${rec.l}</span>`:''}<span>Target: <b>${esc(J.tgt||ntTarget())}</b></span><span>${eur(J.sal)} per year</span></div></div><button class="nth-q" data-act="ntquit">Resign</button></section>`;
+    <div class="nth-ch"><span>FIBA ranking: <b>${ordn(rkRank(c))}</b></span>${grp?`<span><b>${ordn(rk)}</b> in group ${grp} · ${rec.w}–${rec.l}</span>`:''}<span class="nth-tgt">Target: <b>${esc(J.tgt||ntTarget())}</b></span><span>${eur(J.sal)} per year</span></div></div><button class="nth-q" data-act="ntquit">Resign</button></section>`;
   if(!E)return hero;
   const cmp=ntEvCamp(E),st=ntStage(E),preL=ntPreOf(E)||[],lim=cmp?20:st==='pre'?24:12,sq=cmp?ntCampList(c,E.key):st==='pre'?(N.sel&&N.sel.key===E.key?N.sel.ids.map(i=>G.players[i]).filter(Boolean):ntPreAuto(c,E.win)):ntUserSquad(c,E.win,E.key,true),ids=sq.map(p=>p.id),own=N.sel&&N.sel.key===E.key,S=ntStr(c,sq),age=sq.length?(sq.reduce((a,p)=>a+p.age,0)/sq.length).toFixed(1):'–';
   const pg=k=>sq.filter(p=>({G:['PG','SG'],F:['SF','PF'],C:['C']})[k].includes(p.pos)).length,nz=sq.filter(ntIsNat);
@@ -3083,6 +3083,20 @@ function ptHeadHTML(p){const t=p.tid!=null?G.teams[p.tid]:null,ph=PH(p),m=myRole
  .pth-c{height:24px;padding:0 8px;font-size:12px}.pth-o{min-width:64px;padding:6px 8px}.pth-o b{font-size:28px}.pth-role{font-size:12.5px}}
 `;document.head.appendChild(st);})();
 
+/* national team hero on phones (v470): small flag beside the name, info chips as a two-column grid, Resign full width */
+(function(){const st=document.createElement('style');st.textContent=`
+@media (max-width:760px){
+ .nth{display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:4px 14px!important;padding:18px 16px!important;align-items:center}
+ .nth-fl{grid-row:1/3;grid-column:1}.nth-fl img,.nth-fl svg{width:68px!important;height:auto!important;max-height:46px;object-fit:cover;border-radius:4px}
+ .nth-tx{display:contents}
+ .nth-tx small{grid-column:2;grid-row:1;align-self:end;font-size:11px!important;letter-spacing:.14em!important}
+ .nth-tx h2{grid-column:2;grid-row:2;align-self:start;margin:0!important;font-size:30px!important;line-height:1!important;overflow-wrap:anywhere}
+ .nth-ch{grid-column:1/-1;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px!important;margin-top:12px}
+ .nth-ch span{border-radius:10px!important;padding:8px 10px!important;font-size:12.5px!important;line-height:1.3}
+ .nth-ch .nth-tgt{grid-column:1/-1}
+ .nth-q{grid-column:1/-1;justify-self:stretch;text-align:center;margin-top:8px;padding:11px 16px!important}
+ .nth-wm{right:-120px!important;opacity:.1!important}
+}`;document.head.appendChild(st);})();
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
