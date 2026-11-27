@@ -3209,6 +3209,25 @@ ACT.wnmore=function(){const M=UI.modal;if(!M||M.kind!=='wnews')return;M.n=(M.n||
 .wn-r b{display:block;font-weight:600;font-size:15px;line-height:1.3;margin-top:2px}.wn-r p{margin:6px 0 0;font-size:14px;line-height:1.45;opacity:.85}
 .wn-r.on{background:var(--bg2,rgba(127,127,127,.06))}
 .ib-cats .seg .ib-wnc{opacity:.75}`;document.head.appendChild(st);})();
+/* ===== Manager name required (v480): a new career starts only once a name is typed in. Until then Start career looks inactive; a tap on it
+   outlines the field, puts the cursor there and says what is missing. (Before, an empty field quietly became "Head Coach".) ===== */
+function mgrVal(){const inp=document.getElementById('mgrName');return ((inp?inp.value:UI.mgr)||'').trim();}
+function mgrSync(){const ok=!!mgrVal();document.querySelectorAll('.cs-go').forEach(b=>{b.classList.toggle('off',!ok);b.setAttribute('aria-disabled',ok?'false':'true');});
+  const inp=document.getElementById('mgrName');if(inp){inp.required=true;if(ok){inp.closest('.cs-name')&&inp.closest('.cs-name').classList.remove('need');const n=document.querySelector('.mgr-need');if(n)n.remove();}}}
+function mgrNeed(){const inp=document.getElementById('mgrName');if(!inp){toast('Enter your manager name to start');return;}
+  const L=inp.closest('.cs-name');if(L){L.classList.remove('need');void L.offsetWidth;L.classList.add('need');
+    if(!document.querySelector('.mgr-need')){const p=document.createElement('span');p.className='mgr-need';p.textContent='Enter your manager name to start your career';L.insertAdjacentElement('afterend',p);}}
+  try{inp.focus({preventScroll:true});}catch(e){inp.focus();}try{L&&L.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}}
+{const _sg=ACT.startgame;ACT.startgame=function(){if(!mgrVal()){mgrNeed();return;}return _sg.apply(this,arguments);};}
+{const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(document.getElementById('mgrName'))mgrSync();}catch(e){}return r;};}
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='mgrName'){UI.mgr=e.target.value;mgrSync();}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target&&e.target.id==='mgrName'){e.preventDefault();if(mgrVal()){try{e.target.blur();}catch(x){}}else mgrNeed();}});
+(function(){const st=document.createElement('style');st.textContent=`
+.cs-go.off{filter:grayscale(1) brightness(.75);opacity:.7}
+.cs-name.need{border-color:#ff5a4e;box-shadow:0 0 0 3px #ff5a4e55;animation:mgrShake .35s}
+.cs-name.need input{border-color:#ff5a4e}
+.mgr-need{flex-basis:100%;color:#ff8a80;font:600 14px var(--fb,inherit);margin-top:-4px}
+@keyframes mgrShake{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}`;document.head.appendChild(st);})();
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
