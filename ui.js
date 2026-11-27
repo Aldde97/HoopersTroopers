@@ -49,7 +49,7 @@ const IC={
   med:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/></svg>',
   scout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5" stroke-linecap="round"/></svg>',
   ball:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6c3.5 3 3.5 9.8 0 12.8M18.4 5.6c-3.5 3-3.5 9.8 0 12.8M3 12h18"/></svg>',
-  save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></svg>',
+  save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19h10.5a4.5 4.5 0 0 0 .6-8.96A6.5 6.5 0 0 0 5.6 9.2 5 5 0 0 0 7 19z"/><path d="M9.3 14l2 2 3.8-3.9"/></svg>',
   arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4l8 8-8 8"/></svg>',
 };
 const MI={res:['var(--g)','\u2713'],med:['var(--r)','+'],offer:['var(--or)','\u20ac'],fin:['#7a5af0','\u20ac'],board:['var(--ink3)','B'],staff:['var(--b)','C'],job:['var(--g)','J']};
@@ -68,7 +68,7 @@ function topbId(){const nt=typeof ntMode==='function'&&ntMode();let mark,name,su
 function topbTools(){const nt=typeof ntMode==='function'&&ntMode(),J=G&&G.nt&&G.nt.job;let sw='';
   if(nt)sw=`<button class="topb-b topb-sw" data-act="ntmode" title="Back to club">${crest(G.teams[G.user])}<span>Club</span></button>`;
   else if(J)sw=`<button class="topb-b topb-sw" data-act="ntmode" title="National team">${ntFlag(J.c,30)}<span>Nat. team</span></button>`;
-  return `<div class="topb-tl">${sw}<button class="topb-b" data-act="settings" title="Settings" aria-label="Settings">${iIc('gear')}</button><button class="topb-b" data-act="savegame" title="Save game" aria-label="Save game">${IC.save}</button></div>`;}
+  return `<div class="topb-tl">${sw}<button class="topb-b" data-act="settings" title="Settings" aria-label="Settings">${iIc('gear')}</button><button class="topb-b" data-act="savegame" title="Saved automatically" aria-label="Saved automatically, open your careers">${IC.save}</button></div>`;}
 /* ---------- settings (kept in this browser, apart from the saved career) ---------- */
 var BMSET=(()=>{const d={txt:1,speed:1,snd:0,cur:''};try{const s=JSON.parse(localStorage.getItem('bm-settings-v1')||'{}');for(const k in d)if(s[k]!=null)d[k]=s[k];}catch(e){}return d;})();
 function setSave(){try{localStorage.setItem('bm-settings-v1',JSON.stringify(BMSET));}catch(e){}}
@@ -142,7 +142,7 @@ function clubHTML(){const t=G.teams[G.user],unread=G.inbox.filter(m=>!m.read).le
   const rs=roster(G.user),morale=clamp((50+t.form.filter(x=>x==='W').length*10-t.form.filter(x=>x==='L').length*6+(rs.length?rs.reduce((s,p)=>s+moodOf(p),0)/rs.length:60))/2,10,100);
   return `<div class="club gut">${crest(t,'dk')}<div><h2>${esc(clubDisplayName(t))}</h2><div class="who"><span>${esc(G.mgr)} \u00b7 Head Coach</span></div></div>
   <div class="meters">${[[isCol(G.teams[G.user])?'AD':'Board',G.board],['Fans',G.fans],['Morale',morale]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
-  <div class="icons"><button class="ic" data-act="savegame">${IC.save}<span>Save</span></button></div></div>`;}
+  <div class="icons"><button class="ic" data-act="savegame" title="Saved automatically">${IC.save}<span>Saved</span></button></div></div>`;}
 const TABS=[['home','Home'],['squad','Squad'],['tactics','Tactics'],['training','Training'],['staff','Staff'],['transfers','Transfers'],['finances','Finances'],['club','Club'],['business','Business'],['comp','Competitions'],['inbox','Inbox']];
 const NI={
   home:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',
@@ -162,7 +162,7 @@ const NI={
   league:'<path d="M5 5h14M5 10h14M5 15h14M5 20h9"/>',
   match:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6c3.5 3 3.5 9.8 0 12.8M18.4 5.6c-3.5 3-3.5 9.8 0 12.8M3 12h18"/>',
   more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
-  save:'<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/>',
+  save:'<path d="M7 19h10.5a4.5 4.5 0 0 0 .6-8.96A6.5 6.5 0 0 0 5.6 9.2 5 5 0 0 0 7 19z"/><path d="M9.3 14l2 2 3.8-3.9"/>',
 };
 const nIc=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NI[k]||NI.more}</svg>`;
 function myLeagueKey(){try{const L=compList().filter(x=>x.me&&x.k!=='nt'&&x.k!=='pok');const d=L.find(x=>x.g>0)||L[0];return d?d.k:null;}catch(e){return null;}}
@@ -181,7 +181,7 @@ function bnavHTML(){const all=navGroups().flatMap(g=>g[1]),f=k=>all.find(x=>x[0]
     pick=['home','squad',null,typeof ntMode==='function'&&ntMode()?'comp':'transfers'].map(k=>k&&f(k)),shown=pick.filter(Boolean).map(x=>x[0]),
     moreOn=!UI.more&&all.some(x=>x[3]&&!shown.includes(x[0])),moreN=all.filter(x=>!shown.includes(x[0])).reduce((s,x)=>s+(x[0]==='inbox'?x[4]:0),0);
   return `<nav class="bnav" aria-label="Main">${navBtn(pick[0],'bn')}${navBtn(pick[1],'bn')}<button class="bn bn-m${UI.view==='prematch'||UI.view==='match'?' on':''}" data-act="continue" ${live?'disabled':''}>${nIc('match')}<span>${esc(contLabel())}</span></button>${navBtn(pick[3],'bn')}<button class="bn${moreOn||UI.more?' on':''}" data-act="navmore" aria-expanded="${!!UI.more}">${nIc('more')}<span>More</span>${moreN?`<em>${moreN}</em>`:''}</button></nav>
-  ${UI.more?`<div class="more-bg" data-act="navmore"></div><div class="more" role="dialog" aria-label="All sections">${navGroups().map(([g,L])=>`<div class="more-g">${g?`<h6>${g}</h6>`:''}<div class="more-l">${L.map(x=>navBtn(x,'more-b')).join('')}</div></div>`).join('')}<div class="more-g"><div class="more-l"><button class="more-b" data-act="savegame">${nIc('save')}<span>Save game</span></button><button class="more-b" data-act="settings">${iIc('gear')}<span>Settings</span></button></div></div></div>`:''}`;}
+  ${UI.more?`<div class="more-bg" data-act="navmore"></div><div class="more" role="dialog" aria-label="All sections">${navGroups().map(([g,L])=>`<div class="more-g">${g?`<h6>${g}</h6>`:''}<div class="more-l">${L.map(x=>navBtn(x,'more-b')).join('')}</div></div>`).join('')}<div class="more-g"><div class="more-l"><button class="more-b" data-act="savegame">${nIc('save')}<span>My careers</span></button><button class="more-b" data-act="settings">${iIc('gear')}<span>Settings</span></button></div></div></div>`:''}`;}
 // Phones: drop the least important columns of a table until it fits; if it still does not fit, keep the first column in view while scrolling.
 const TBL_HIDE=['PA','PF','NAT','LAST 5','FORM','STL','BLK','TO','NO','3P','FT','AGE','POS','POT','MIN'];
 function tblFit(){if(window.innerWidth>700)return;document.querySelectorAll('#app table').forEach(t=>{const w=t.closest('.tw');if(!w||w.classList.contains('trx')||!t.tHead||!t.tHead.rows[0])return;
@@ -1898,7 +1898,7 @@ const ACT={
   meetgo(){if(meetDue())meetStart();UI.modal={kind:'meet'};render();},
   meetans(k){meetAnswer(k);render();},
   meetend(){const sack=G.meet&&G.meet.v==='sack';meetClose();UI.modal=null;if(sack){UI.view='main';}render();window.scrollTo(0,0);},
-  savegame(){save();UI.slDel=null;slOpen({t:'Game saved.'});},
+  savegame(){save();UI.slDel=null;slOpen({t:'Your career saves itself after every step. Nothing to do.'});},
   csnat(k){keepName();UI.csNat=k;UI.csLg=null;UI.csSel=null;render();},
   cslg(k){keepName();UI.csLg=k;UI.csSel=null;render();},
   cssel(k){keepName();UI.csSel=k;render();},
@@ -2080,7 +2080,7 @@ function ntHeaderHTML(){const J=G.nt.job,c=J.c,C=G.nt.cyc,E=ntNextEvent(),grp=Ob
 function ntClubHTML(){const J=G.nt.job,c=J.c,unread=G.inbox.filter(m=>!m.read&&m.type==='nt').length,club=G.teams[G.user];
   return `<div class="club gut"><span class="ntc-fl">${ntFlag(c,72)}</span><div><h2>${esc(ntName(c))}</h2><div class="who"><span>${esc(G.mgr)} · National team head coach</span></div></div>
   <div class="meters">${[['Federation trust',J.trust==null?60:J.trust],['Fans',J.fans==null?60:J.fans],['Chemistry',ntChem()]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
-  <div class="icons"><button class="ic ntsw" data-act="ntmode"><span class="ntsw-i">${crest(club)}</span><span>Back to club</span></button><button class="ic" data-act="tab:inbox">${IC.inbox}<span>Inbox</span>${unread?`<em>${unread}</em>`:''}</button><button class="ic" data-act="savegame">${IC.save}<span>Save</span></button></div></div>`;}
+  <div class="icons"><button class="ic ntsw" data-act="ntmode"><span class="ntsw-i">${crest(club)}</span><span>Back to club</span></button><button class="ic" data-act="tab:inbox">${IC.inbox}<span>Inbox</span>${unread?`<em>${unread}</em>`:''}</button><button class="ic" data-act="savegame" title="Saved automatically">${IC.save}<span>Saved</span></button></div></div>`;}
 function ntNavHTML(){const unread=G.inbox.filter(m=>!m.read&&m.type==='nt').length;return `<nav class="navw" aria-label="National team"><div class="nav">${NT_TABS.map(([k,l])=>`<button class="${UI.view==='main'&&UI.tab===k?'on':''}" data-act="tab:${k}">${k==='squad'?(ntPend()?'Squad':'Call-ups'):l}${k==='inbox'&&unread?`<em>${unread}</em>`:''}</button>`).join('')}</div></nav>`;}
 function ntModeHome(){const card0=ntHomeCard(),J=G.nt.job;
   return `${card0||`<section class="ntc"><div class="ntc-h"><div><small>National team</small><b>No window right now</b><span>${(()=>{const E=ntNextEvent();return E?`Next: ${esc(E.lbl)}. ${ntDlTxt(E)||'Pick your twelve and plan the camp in time.'}`:'The next cycle starts soon.';})()}</span></div></div><div class="ntc-a"><button data-act="ntcall">Squad</button><button data-act="ntmode">Back to club</button></div></section>`}

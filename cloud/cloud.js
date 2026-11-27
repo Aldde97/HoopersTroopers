@@ -183,7 +183,7 @@
       if(!newest)newest=r.slot_id;}
     if(newest&&(!SLOT_ID||!G)){SLOT_ID=newest;lsSet(SLOT_ACT,newest);try{SAVE_TXT=await slotTxt(newest);}catch(e){}}
     for(const r of rows)S.up[r.slot_id]=(r.meta&&r.meta.savedAt)||Date.parse(r.updated_at);S.lastOk=rows.length?Date.parse(rows[0].updated_at):S.lastOk;}
-  async function upload(force){if(switching||!boundUser||S.user?.id!==boundUser||S.upBusy)return;const ids=Object.keys(S.dirty);if(!ids.length)return;if(!force&&Date.now()-S.last<180000)return;
+  async function upload(force){if(switching||!boundUser||S.user?.id!==boundUser||S.upBusy)return;const ids=Object.keys(S.dirty);if(!ids.length)return;if(!force&&Date.now()-S.last<60000)return;
     S.upBusy=true;S.last=Date.now();
     try{for(const id of ids){const meta=S.dirty[id];delete S.dirty[id];const rec=await idbTx(['data'],'readonly',d=>d.get(id));if(!rec)continue;
         const z=rec.z||(rec.txt?await gz(rec.txt):null);if(!z)continue;
@@ -196,13 +196,15 @@
   // every local save marks its slot; uploads follow on a timer, on Save to cloud now, and when the tab is hidden
   if(typeof saveZ==='function'){const z0=saveZ;saveZ=async function(txt,id,meta){const r=await z0.apply(this,arguments);if(S.user&&id&&typeof IDB_OK!=='undefined'&&IDB_OK)S.dirty[id]=meta||S.dirty[id]||null;return r;};}
   if(typeof slotDelete==='function'){const d0=slotDelete;slotDelete=async function(id){const r=await d0.apply(this,arguments);if(S.user&&id){delete S.dirty[id];try{await sb.storage.from('saves').remove([path(id)]);await sb.from('saves').delete().eq('user_id',boundUser).eq('slot_id',id);}catch(e){}}return r;};}
-  setInterval(()=>{upload(false).catch(()=>{});},30000);
+  setInterval(()=>{upload(false).catch(()=>{});},10000);
+  // closing the app or switching away on a phone uploads right away, so nobody has to think about saving
+  window.addEventListener('pagehide',()=>{upload(true).catch(()=>{});});
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')upload(true).catch(()=>{});});
   // ---------- Settings > Account ----------
   const ago=t=>{if(!t)return 'not yet';const m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?`${m} min ago`:m<1440?`${Math.round(m/60)} h ago`:new Date(t).toLocaleDateString('en-GB');};
   function accountHTML(){if(!S.user)return '';const n=Object.keys(S.dirty).length;
-    return `<div class="bmacc"><b>Account</b><small>Signed in as ${esc(S.user.email||'Google account')}</small><small>Last cloud save: ${ago(S.lastOk)}${n?' · changes waiting to upload':''}${S.err?` · ${esc(S.err)}`:''}</small>
-      <div class="btns"><button class="btn sm" data-act="cloudnow">Save to cloud now</button><button class="btn sm" data-act="cloudpw">Change password</button><button class="btn sm" data-act="cloudout">Sign out</button>${UI.accDel?`<button class="btn sm" data-act="clouddel:0">Keep my account</button><button class="btn sm set-x" data-act="clouddel:2">Delete account and all cloud saves</button>`:`<button class="btn sm" data-act="clouddel:1">Delete account…</button>`}</div>
+    return `<div class="bmacc"><b>Account</b><small>Signed in as ${esc(S.user.email||'Google account')}</small><small>Your careers save automatically to your account${S.lastOk?` · last backup ${ago(S.lastOk)}`:''}${S.err?` · ${esc(S.err)}`:''}</small>
+      <div class="btns">${S.err?'<button class="btn sm" data-act="cloudnow">Try again now</button>':''}<button class="btn sm" data-act="cloudpw">Change password</button><button class="btn sm" data-act="cloudout">Sign out</button>${UI.accDel?`<button class="btn sm" data-act="clouddel:0">Keep my account</button><button class="btn sm set-x" data-act="clouddel:2">Delete account and all cloud saves</button>`:`<button class="btn sm" data-act="clouddel:1">Delete account…</button>`}</div>
       ${UI.accDel?'<small>This deletes your account and every career stored in the cloud. Careers saved in this browser stay here. This cannot be undone.</small>':''}</div>`;}
   if(typeof settingsModal==='function'){const m0=settingsModal;settingsModal=function(){const h=m0.apply(this,arguments);const a=accountHTML();if(!a)return h;const k=h.indexOf('</div>',h.indexOf('<h3>Settings</h3>'));return k<0?h.replace('<p class="set-n">',a+'<p class="set-n">'):h.slice(0,k+6)+a+h.slice(k+6);};}
   // ---------- account button in the top bar, Sign out in the phone menu ----------
