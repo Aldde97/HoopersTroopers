@@ -3038,6 +3038,25 @@ Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;rend
 .sq-more>section.card{box-shadow:none;border-radius:0;margin:0}
 .sq-more .sec.pacts{margin-top:0;border-top:0}
 `;document.head.appendChild(st);})();
+/* ===== Transfer talks on phones (v468): compact header (photo, name, rating side by side), money boxes as rows ===== */
+{const _pt=ptModalHTML;ptModalHTML=function(){const h=_pt.apply(this,arguments);return h.replace('<div class="modal" role="dialog" aria-modal="true" aria-label="Transfer talks"','<div class="modal ptm" role="dialog" aria-modal="true" aria-label="Transfer talks"');};}
+(function(){const st=document.createElement('style');st.textContent=`
+.ptm .fin-box b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ovl{z-index:1000}   /* every window sits above the phone's bottom menu */
+@media (max-width:760px){
+ .ptm .prof-h{display:grid!important;grid-template-columns:64px minmax(0,1fr) auto;align-items:start;gap:4px 12px!important;padding:16px 14px!important}
+ .ptm .prof-h>.avatar{width:64px!important;height:64px!important;grid-row:1/3}
+ .ptm .prof-h>div:not(.big){grid-column:2;min-width:0}
+ .ptm .prof-h h3{font-size:24px!important;line-height:1!important;margin:0 0 4px!important;overflow-wrap:anywhere}
+ .ptm .prof-h p{font-size:13px!important;line-height:1.35!important;margin:0 0 2px!important}
+ .ptm .prof-h .big{grid-column:3;grid-row:1;font-size:40px!important;line-height:1!important;text-align:right}
+ .ptm .prof-h .big small{display:block;font-size:10px!important;letter-spacing:.08em;margin-top:2px;white-space:nowrap}
+ .ptm .sec>div[style*="repeat(3"]{grid-template-columns:minmax(0,1fr)!important;gap:6px!important}
+ .ptm .fin-box{display:flex!important;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px!important}
+ .ptm .fin-box small{margin:0!important;flex:none}
+ .ptm .fin-box b{font-size:17px!important;text-align:right;min-width:0}
+}`;document.head.appendChild(st);})();
+
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
