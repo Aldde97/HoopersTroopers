@@ -67,12 +67,12 @@
   function viewSignIn(){S.view='in';show(`<form class="ba" novalidate data-f="in">${brand}<h1>Sign in</h1><p>Your account keeps your careers safe in the cloud, so you can continue on any device.</p>
     ${okBox()}${emField()}${pwField('bmPw','Password','current-password')}<button type="button" class="bl br" data-a="forgot">Forgot password?</button>${capBox()}${errBox()}
     <button type="submit" class="bp" id="bmGo" disabled>${S.busy?'Signing in…':'Sign in'}</button>
-    <div class="bor">or</div><button type="button" class="bg" data-a="google">${G_ICON}Continue with Google</button>
+    ${C.google?'<div class="bor">or</div><button type="button" class="bg" data-a="google">${G_ICON}Continue with Google</button>':''}
     <p class="bsw">New here? <button type="button" class="bl" data-a="toup">Create an account</button></p>${legal}</form>`);}
   function viewSignUp(){S.view='up';show(`<form class="ba" novalidate data-f="up">${brand}<h1>Create account</h1><p>Free. Your careers are saved in the cloud and follow you to every device.</p>
     ${emField()}${pwField('bmPw','Password (at least 8 characters)','new-password')}<div class="bhint" id="bmHint">At least 8 characters</div>${consentBox}${capBox()}${errBox()}
     <button type="submit" class="bp" id="bmGo" disabled>${S.busy?'Creating account…':'Create account'}</button>
-    <div class="bor">or</div><button type="button" class="bg" id="bmGoogle" data-a="google" disabled>${G_ICON}Continue with Google</button>
+    ${C.google?'<div class="bor">or</div><button type="button" class="bg" id="bmGoogle" data-a="google" disabled>${G_ICON}Continue with Google</button>':''}
     <p class="bsw">Already have an account? <button type="button" class="bl" data-a="toin">Sign in</button></p>${legal}</form>`);}
   function viewForgot(){S.view='fg';show(`<form class="ba" novalidate data-f="fg">${brand}<h1>Reset password</h1><p>Enter your email address and we send you a link to set a new password.</p>
     ${emField()}${capBox()}${errBox()}<button type="submit" class="bp" id="bmGo" disabled>${S.busy?'Sending…':'Send reset link'}</button><button type="button" class="bl" data-a="toin">Back to sign in</button>${legal}</form>`);}

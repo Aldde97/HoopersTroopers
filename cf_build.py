@@ -44,6 +44,8 @@ if url and anon and os.path.exists(ROOT + 'cloud/cloud.js'):
     cfg = {'url': url, 'anon': anon}
     if os.environ.get('BM_TURNSTILE_SITE'):   # public Turnstile site key: turns on the bot check in the sign-in screens
         cfg['turnstile'] = os.environ['BM_TURNSTILE_SITE']
+    if os.environ.get('BM_GOOGLE') == '1':   # shows 'Continue with Google' once Google is switched on in Supabase (Auth > Providers)
+        cfg['google'] = True
     inj = ('<script>window.BM_CLOUD=' + json.dumps(cfg) + ';</script>\n'
            '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>\n'
            f'<script src="cloud.js?v={v}"></script>\n')
