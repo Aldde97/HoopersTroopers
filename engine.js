@@ -7869,3 +7869,15 @@ function offersExpire(){if(!G||!G.inbox)return;for(const m of G.inbox)if((m.type
 {const _msg=msg;msg=function(from,subj,body,type,act){if((type==='offer'||type==='trade')&&act&&typeof act==='object'){act.ss=G.season;act.rd=G.round||0;}return _msg.apply(this,arguments);};}
 {const _br=betweenRounds;betweenRounds=function(){const r=_br.apply(this,arguments);try{offersExpire();}catch(e){}return r;};}
 {const _ed2=ensureDomestic;ensureDomestic=function(){const r=_ed2.apply(this,arguments);try{offersExpire();}catch(e){}return r;};}
+
+/* ===== Inbox about your own club (v478): news that does not touch your club, your players or a rival in your own league no longer
+   lands in the inbox; it goes to the World news list (G.wnews, newest first, at most 200). Old saves: such messages are hidden from the inbox
+   by ibWorld() and shown in World news. ===== */
+function ibRelTxt(subj,body){if(!G||!G.teams||!G.teams[G.user])return true;const U=G.teams[G.user],x=(subj||'')+' '+(body||'');
+  if(U.name&&x.includes(U.name))return true;for(const id of U.order||[]){const p=G.players[id];if(p&&x.includes(p.f+' '+p.l))return true;}
+  return G.teams.some(t=>t&&t.id!==U.id&&t.dom===U.dom&&t.dom!=='GONE'&&t.name&&(subj||'').includes(t.name));}
+function ibWorld(m){if(!m||m.from!=='EuroLeague News'||m.type!=='board'||/^Summer round-up/.test(m.subj||''))return false;
+  if(m.wd===undefined)m.wd=!ibRelTxt(m.subj,m.body);return m.wd;}
+{const _news=news;news=function(subj,body){if(G&&!G.ndg&&!ibRelTxt(subj,body)){const L=G.wnews||(G.wnews=[]);G.wnid=(G.wnid||0)+1;
+    L.unshift({id:G.wnid,subj,body:body||'',date:dateStr()});if(L.length>200)L.length=200;try{feedWire(subj);}catch(e){}return;}
+  return _news.apply(this,arguments);};}

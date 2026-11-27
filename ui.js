@@ -138,7 +138,7 @@ function headerHTML(){const t=G.teams[G.user],room=G.fin.wageBudget-wageBill(G.u
   ${isCol(G.teams[G.user])?`<div class="hstat" title="Revenue sharing from the athletic department plus the booster collective. College basketball has no transfer fees."><small>NIL pool</small><b class="pos">${eur(G.fin.wageBudget)}</b></div>`:`<div class="hstat"><small>${userNBA()?'Club cash':'Transfer budget'}</small><b class="${G.fin.bal>=0?'pos':'neg'}">${eur(G.fin.bal)}</b></div>`}
   <div class="hstat"><small>${isCol(G.teams[G.user])?'NIL room':'Wage room'}</small><b class="${room>=0?'':'neg'}">${eur(room)}</b></div></div>
   ${topbTools()}<button class="cont" data-act="continue" ${live?'disabled':''}>${contLabel()}${IC.arrow}</button></header>`;}
-function clubHTML(){const t=G.teams[G.user],unread=G.inbox.filter(m=>!m.read).length,inj=roster(G.user).filter(p=>p.inj>0).length;
+function clubHTML(){const t=G.teams[G.user],unread=G.inbox.filter(m=>!m.read&&!ibWorld(m)).length,inj=roster(G.user).filter(p=>p.inj>0).length;
   const rs=roster(G.user),morale=clamp((50+t.form.filter(x=>x==='W').length*10-t.form.filter(x=>x==='L').length*6+(rs.length?rs.reduce((s,p)=>s+moodOf(p),0)/rs.length:60))/2,10,100);
   return `<div class="club gut">${crest(t,'dk')}<div><h2>${esc(clubDisplayName(t))}</h2><div class="who"><span>${esc(G.mgr)} \u00b7 Head Coach</span></div></div>
   <div class="meters">${[[isCol(G.teams[G.user])?'AD':'Board',G.board],['Fans',G.fans],['Morale',morale]].map(([l,v])=>`<div class="meter"><small>${l} <b>${Math.round(v)}%</b></small><div class="bar"><i style="width:${v}%"></i></div></div>`).join('')}</div>
@@ -370,7 +370,7 @@ function standingsCard(){const U=G.user,f=userFx(),k=f?f.kind:null;
   // default: the club's main competition
   const main=userCup()&&userIsCup()?userCup():userIsNL()?'nl':userIsKls()?'kls':userIsBih()?'bih':userIs2()?'aba2':userIsDom()?'aba':'el';return STC[main]();}
 // in the national team view the inbox shows only national team messages (federation, call-ups, windows, offers)
-const myInbox=()=>ntMode()?G.inbox.filter(m=>m.type==='nt'):G.inbox;
+const myInbox=()=>ntMode()?G.inbox.filter(m=>m.type==='nt'):G.inbox.filter(m=>!ibWorld(m));
 function inboxCard(){const ms=myInbox().slice(0,window.innerWidth<=700?3:5);return card('Inbox',ms.map(msgRow).join('')||`<div class="empty"><p class="mut">${ntMode()?'No national team messages yet.':'No messages.'}</p></div>`,lnk('tab:inbox',`${myInbox().filter(m=>!m.read).length} new`));}
 const II={
   swap:'<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>',
@@ -3182,6 +3182,33 @@ ACT.ibnone=function(){};
  html.ib-lock .bnav{display:none}
 }
 @keyframes ibIn{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}`;document.head.appendChild(st);})();
+/* ===== World news (v478): stories from other clubs and leagues, out of the inbox. Opened from the foot of the inbox list. ===== */
+function wnList(){return (G.wnews||[]).concat(G.inbox.filter(ibWorld).map(m=>({id:'m'+m.id,subj:m.subj,body:m.body,date:m.date})));}
+{const _ib=inboxHTML;inboxHTML=function(){const h=_ib.apply(this,arguments);if(ntMode())return h;const n=wnList().length;if(!n)return h;
+  const i=h.indexOf('<div class="ib-list">');if(i<0)return h;const j=h.indexOf('</div></section>',i);if(j<0)return h;
+  const btn=`<button class="ib-wn" data-act="wnopen"><span class="ib-wn-i" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 2.7 15.4 0 18M12 3c-2.7 2.6-2.7 15.4 0 18"/></svg></span><span class="ib-wn-t"><b>World news</b><small>${n} stories from other clubs and leagues</small></span><span class="ib-wn-a" aria-hidden="true">›</span></button>`;
+  let o=h.slice(0,j)+btn+h.slice(j);const c=o.indexOf('<div class="sec ib-cats"><div class="seg">');if(c>=0){const e=o.indexOf('</div></div>',c);if(e>=0)o=o.slice(0,e)+'<button class="ib-wnc" data-act="wnopen">World news \u203a</button>'+o.slice(e);}
+  return o;};}
+function wnModalHTML(){const L=wnList(),M=UI.modal,show=M.n||40,op=M.op;
+  const rows=L.slice(0,show).map(x=>`<button class="wn-r${op===x.id?' on':''}" data-act="wnrow:${x.id}"><small>${esc(x.date||'')}</small><b>${esc(x.subj)}</b>${op===x.id&&x.body?`<p>${esc(x.body)}</p>`:''}</button>`).join('');
+  return `<div class="ovl" data-act="ovl"><div class="modal wn-m" role="dialog" aria-modal="true" aria-label="World news" style="max-width:620px"><div class="ch"><h3>World news</h3><button class="lnk" data-act="close">Close ✕</button></div>
+    <p class="wn-n">Transfers, sackings and results from other clubs and leagues. News about your club and your league stays in your inbox.</p>
+    <div class="wn-l">${rows||'<div class="empty"><p class="mut">No stories yet.</p></div>'}</div>${L.length>show?`<div class="btns" style="padding:12px 18px"><button class="btn" data-act="wnmore">Show more</button></div>`:''}</div></div>`;}
+{const _mh=modalHTML;modalHTML=function(){const M=UI.modal;if(M&&M.kind==='wnews')return wnModalHTML();return _mh.apply(this,arguments);};}
+ACT.wnopen=function(){UI.modal={kind:'wnews',n:40,op:null};render();};
+ACT.wnrow=function(id){const M=UI.modal;if(!M||M.kind!=='wnews')return;M.op=M.op===id?null:id;render();};
+ACT.wnmore=function(){const M=UI.modal;if(!M||M.kind!=='wnews')return;M.n=(M.n||40)+40;render();};
+(function(){const st=document.createElement('style');st.textContent=`
+.ib-wn{display:flex;align-items:center;gap:13px;width:100%;padding:14px 18px;text-align:left;background:var(--bg2,rgba(127,127,127,.06));border-top:1px solid var(--line)}
+.ib-wn-i{width:38px;height:38px;border-radius:3px;display:grid;place-items:center;background:#5b6472;color:#fff;flex:none}
+.ib-wn-t{display:flex;flex-direction:column;min-width:0;flex:1}.ib-wn-t b{font:800 15px var(--fd);letter-spacing:.04em;text-transform:uppercase}
+.ib-wn-t small{font-size:12.5px;opacity:.7}.ib-wn-a{font:800 22px var(--fd);opacity:.6}
+.wn-n{padding:12px 18px 6px;margin:0;font-size:13px;opacity:.75}
+.wn-r{display:block;width:100%;text-align:left;padding:11px 18px;border-bottom:1px solid var(--line)}
+.wn-r small{display:block;font:600 11.5px var(--fd);letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+.wn-r b{display:block;font-weight:600;font-size:15px;line-height:1.3;margin-top:2px}.wn-r p{margin:6px 0 0;font-size:14px;line-height:1.45;opacity:.85}
+.wn-r.on{background:var(--bg2,rgba(127,127,127,.06))}
+.ib-cats .seg .ib-wnc{opacity:.75}`;document.head.appendChild(st);})();
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
