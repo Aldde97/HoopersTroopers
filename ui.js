@@ -3057,6 +3057,32 @@ Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;rend
  .ptm .fin-box b{font-size:17px!important;text-align:right;min-width:0}
 }`;document.head.appendChild(st);})();
 
+/* ===== Transfer talks header (v469): name, info chips and a rating badge instead of running text ===== */
+function ptHeadHTML(p){const t=p.tid!=null?G.teams[p.tid]:null,ph=PH(p),m=myRole(p);
+  const fl=typeof ntFlag==='function'?ntFlag(p.nat,18):'';
+  const chips=[`<span class="pth-c pth-pos">${p.pos}</span>`,`<span class="pth-c">${p.age} yrs</span>`,`<span class="pth-c">${ht(p.ht)}</span>`,`<span class="pth-c">${fl}${p.nat}</span>`,
+    `<span class="pth-c">${t?`${crest(t)}${esc(t.short)}`:'Free agent'}</span>`].join('');
+  return `<div class="pth"><span class="avatar ph pth-av">${ph?spr(ph,pname(p)):JSIL(p,p.no!=null?p.no:p.pos)}</span>
+    <div class="pth-m"><h3>${esc(pname(p))}</h3><div class="pth-cs">${chips}</div></div>
+    <div class="pth-o"><b>${ovrTxt(p)}</b><small>OVR</small><em>POT ${potTxt(p)}</em></div>
+    <div class="pth-role"><span>Would be <b>${m.label}</b></span>${m.rival?`<span>Best ${p.pos} now: <b>${esc(m.rival.l)}</b> ${m.rival.o}</span>`:''}</div></div>`;}
+{const _pt2=ptModalHTML;ptModalHTML=function(){let h=_pt2.apply(this,arguments);const M=UI.modal,p=M&&M.n&&G.players[M.n.pid];if(!p)return h;
+  const a=h.indexOf('<div class="prof-h" style="gap:14px">'),b=h.indexOf('<div class="sec" style="padding-block:10px;flex-direction:row;gap:8px">',a);
+  return a<0||b<0?h:h.slice(0,a)+ptHeadHTML(p)+h.slice(b);};}
+(function(){const st=document.createElement('style');st.textContent=`
+.pth{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px 16px;align-items:center;padding:18px 20px 14px;background:var(--ink);color:#fff}
+.pth-av{width:72px;height:72px}
+.pth-m h3{margin:0 0 8px;font:800 28px/1 var(--fd);text-transform:uppercase;letter-spacing:.02em;color:#fff}
+.pth-cs{display:flex;flex-wrap:wrap;gap:6px}
+.pth-c{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;background:#ffffff14;color:#e9ecef;font:600 13px var(--fb);white-space:nowrap}
+.pth-c img,.pth-c svg,.pth-c .crest{width:16px;height:16px;object-fit:contain}.pth-pos{background:var(--or);color:#fff;font-weight:800}
+.pth-o{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:76px;padding:8px 10px;border-radius:10px;background:#ffffff0d;border:1px solid #ffffff1f}
+.pth-o b{font:800 34px/1 var(--fd);color:var(--or2)}.pth-o small{font:700 10.5px var(--fb);letter-spacing:.12em;color:#9aa3ad;margin-top:2px}.pth-o em{font:600 11px var(--fb);font-style:normal;color:#c8cdd3;margin-top:4px;white-space:nowrap}
+.pth-role{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 16px;padding:9px 12px;border-radius:8px;background:#ffffff0d;font:500 13.5px var(--fb);color:#c8cdd3}.pth-role b{color:#fff}
+@media (max-width:760px){.pth{grid-template-columns:56px minmax(0,1fr) auto;gap:10px 12px;padding:14px}.pth-av{width:56px;height:56px}.pth-m h3{font-size:22px;margin-bottom:6px}
+ .pth-c{height:24px;padding:0 8px;font-size:12px}.pth-o{min-width:64px;padding:6px 8px}.pth-o b{font-size:28px}.pth-role{font-size:12.5px}}
+`;document.head.appendChild(st);})();
+
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
