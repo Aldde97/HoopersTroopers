@@ -3043,6 +3043,12 @@ Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;rend
 (function(){const st=document.createElement('style');st.textContent=`
 .ptm .fin-box b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ovl{z-index:1000}   /* every window sits above the phone's bottom menu */
+/* v471: on phones a window always fits the visible screen (Safari's toolbars included) and the last buttons, like Walk away,
+   can be scrolled clear of the home bar */
+.ovl{height:100vh;height:100dvh;bottom:auto}
+@media (max-width:700px){.ovl{align-items:flex-start;padding-top:max(10px,env(safe-area-inset-top,0px));padding-bottom:max(10px,env(safe-area-inset-bottom,0px))}
+  .ovl .modal{max-height:100%;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .ovl .modal::after{content:'';display:block;height:calc(28px + env(safe-area-inset-bottom,0px))}}
 @media (max-width:760px){
  .ptm .prof-h{display:grid!important;grid-template-columns:64px minmax(0,1fr) auto;align-items:start;gap:4px 12px!important;padding:16px 14px!important}
  .ptm .prof-h>.avatar{width:64px!important;height:64px!important;grid-row:1/3}
@@ -3055,6 +3061,10 @@ Object.assign(ACT,{trpicker(k){const M=UI.modal;if(!M)return;M.pick=k||null;rend
  .ptm .fin-box{display:flex!important;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px!important}
  .ptm .fin-box small{margin:0!important;flex:none}
  .ptm .fin-box b{font-size:17px!important;text-align:right;min-width:0}
+ .ptm .feeRow{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px!important;align-items:center}
+ .ptm .feeRow>b{grid-column:1/-1;order:-2;min-width:0!important;font-size:28px!important}
+ .ptm .feeRow>span{grid-column:1/-1;order:-1;text-align:center;margin-top:-6px}
+ .ptm .feeRow>.btn{padding-inline:4px;min-height:42px}
 }`;document.head.appendChild(st);})();
 
 /* ===== Transfer talks header (v469): name, info chips and a rating badge instead of running text ===== */
@@ -3097,6 +3107,15 @@ function ptHeadHTML(p){const t=p.tid!=null?G.teams[p.tid]:null,ph=PH(p),m=myRole
  .nth-q{grid-column:1/-1;justify-self:stretch;text-align:center;margin-top:8px;padding:11px 16px!important}
  .nth-wm{right:-120px!important;opacity:.1!important}
 }`;document.head.appendChild(st);})();
+/* ===== Windows keep their scroll position when they refresh (v471): a tap on -30K or a chip used to rebuild the window and
+   jump it back to the top. The overlay and the window are scrolled back to where they were if it is still the same window. ===== */
+function modalScrollKey(){const M=UI.modal;if(!M)return null;return [M.kind,M.pid,M.tid,M.n&&M.n.pid,M.id].join('|');}
+{const _rs=render;render=function(){const k=modalScrollKey(),o=document.querySelector('.ovl'),m=o&&o.querySelector('.modal');
+  const pos=k&&o?{k,o:o.scrollTop,m:m?m.scrollTop:0,b:(m&&m.querySelector('.tdx-body'))?m.querySelector('.tdx-body').scrollTop:0}:null;
+  const r=_rs.apply(this,arguments);
+  if(pos&&modalScrollKey()===pos.k){const o2=document.querySelector('.ovl'),m2=o2&&o2.querySelector('.modal');
+    if(o2)o2.scrollTop=pos.o;if(m2)m2.scrollTop=pos.m;const b2=m2&&m2.querySelector('.tdx-body');if(b2)b2.scrollTop=pos.b;}
+  return r;};}
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
