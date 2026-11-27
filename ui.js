@@ -3141,6 +3141,47 @@ function sbPatch(el,html){if(el.__sbH===html)return;el.__sbH=html;const old=[...
 .sb-c .clk.fin{font-size:30px;padding-inline:6px}
 @media (max-width:900px){.sb-c .clk.fin{font-size:24px}}
 @media (max-width:560px){.sb-c .clk.fin{font-size:21px;padding-inline:4px}}`;document.head.appendChild(st);})();
+/* ===== Inbox on phones (v477), like a mail app: the list is the page (no box scrolling inside the page), a message opens as a
+   full-screen reader with Back and previous/next, and Back returns to the same spot in the list. Desktop keeps list + message side by side. ===== */
+const ibPhone=()=>{try{return window.matchMedia('(max-width:760px)').matches;}catch(e){return false;}};
+{const _ib=inboxHTML;inboxHTML=function(){
+  if(!ibPhone()){UI.ibOpen=false;return _ib.apply(this,arguments);}
+  const IB0=myInbox(),cat=ntMode()?'all':(UI.ibCat||'all'),IB=IB0.filter(m=>ibIn(m,cat));
+  if(!UI.ibOpen){const unread=IB0.filter(m=>!m.read);let h=_ib.apply(this,arguments);const sel=unread.find(m=>m.id===UI.msg),was=sel?msgRow(sel):'';unread.forEach(m=>{m.read=false;});if(sel)h=h.replace(was,msgRow(sel));return h.replace('<div class="g-2e ib-g"','<div class="g-2e ib-g ibp"');}
+  const h=_ib.apply(this,arguments),i=IB.findIndex(x=>x.id===UI.msg),prv=i>0?IB[i-1]:null,nxt=i>=0&&i<IB.length-1?IB[i+1]:null;
+  const bar=`<div class="ch ib-bar"><button class="ib-back" data-act="ibback" aria-label="Back to the inbox">‹ Inbox</button><span class="ib-pos">${i+1} of ${IB.length}</span><span class="ib-nav"><button data-act="${prv?'msg:'+prv.id:'ibnone'}" ${prv?'':'disabled'} aria-label="Previous message">‹</button><button data-act="${nxt?'msg:'+nxt.id:'ibnone'}" ${nxt?'':'disabled'} aria-label="Next message">›</button></span></div>`;
+  const k=h.lastIndexOf('<section class="card"><div class="ch"><h3>Message</h3></div>');
+  const out=k<0?h:h.slice(0,k)+'<section class="card ib-read" role="dialog" aria-modal="true" aria-label="Message">'+bar+h.slice(k+'<section class="card"><div class="ch"><h3>Message</h3></div>'.length);
+  return out.replace('<div class="g-2e ib-g"','<div class="g-2e ib-g ibp rd"');};}
+{const _m=ACT.msg;ACT.msg=function(id){const wasOpen=UI.ibOpen&&UI.tab==='inbox'&&UI.view==='main';if(ibPhone()){if(!wasOpen)UI.ibY=window.scrollY;UI.ibOpen=true;}return _m.apply(this,arguments);};}
+ACT.ibback=function(){UI.ibOpen=false;render();const y=UI.ibY||0;requestAnimationFrame(()=>window.scrollTo(0,y));};
+ACT.ibnone=function(){};
+{const _cat=ACT.ibcat;ACT.ibcat=function(){UI.ibOpen=false;return _cat.apply(this,arguments);};}
+{const _rd=render;render=function(){if(UI.ibOpen&&(UI.tab!=='inbox'||UI.view!=='main'))UI.ibOpen=false;
+  const r0=document.querySelector('.ib-read'),y=r0?r0.scrollTop:0,id=UI.msg;const r=_rd.apply(this,arguments);
+  const r1=document.querySelector('.ib-read');if(r1){if(r0&&id===UI.msg)r1.scrollTop=y;document.documentElement.classList.add('ib-lock');}else document.documentElement.classList.remove('ib-lock');return r;};}
+(function(){const st=document.createElement('style');st.textContent=`
+@media (max-width:760px){
+ .ib-g.ibp>:last-child{order:0}
+ .ib-g.ibp:not(.rd)>:last-child{display:none}
+ .ib-g.ibp .ib-list{max-height:none;overflow:visible}
+ .ib-g.ibp:not(.rd) .msg.on{background:transparent}
+ .ib-read{position:fixed;inset:0;z-index:990;margin:0!important;border-radius:0!important;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+   padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));animation:ibIn .18s ease-out}
+ .ib-read .ib-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding-top:max(12px,env(safe-area-inset-top,0px))}
+ .ib-back{font:800 17px var(--fd);letter-spacing:.04em;text-transform:uppercase;color:inherit;padding:8px 4px;min-height:44px}
+ .ib-pos{margin-left:auto;font:600 12.5px var(--fd);letter-spacing:.1em;text-transform:uppercase;opacity:.65}
+ .ib-nav{display:flex;gap:6px}
+ .ib-nav button{width:44px;height:44px;border:1px solid currentColor;border-radius:3px;font:800 22px/1 var(--fd);color:inherit;opacity:.9}
+ .ib-nav button:disabled{opacity:.25}
+ .ib-read .msgbody{padding:18px 18px 8px}
+ .ib-read .msgbody h3{font-size:26px;line-height:1.05}
+ .ib-read .msgbody p{font-size:16px;line-height:1.5}
+ .ib-read .btns{flex-wrap:wrap}.ib-read .btns .btn{flex:1 1 calc(50% - 6px);min-height:44px}
+ .ib-read .btns .btn.p{flex-basis:100%}
+ html.ib-lock .bnav{display:none}
+}
+@keyframes ibIn{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}`;document.head.appendChild(st);})();
 /* ===================== Boot ===================== */
 function boot(data){if(/^#nt-/.test(location.hash))setTimeout(()=>{try{if(window.__ldDone)__ldDone();splashHide();}catch(e){}},0);if(location.hash==='#nt-eb'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the EuroBasket demo\u2026</div>';setTimeout(()=>{try{ntDemo('eb');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-og'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Olympic summer demo\u2026</div>';setTimeout(()=>{try{ntDemo('og');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-tour'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the World Cup demo\u2026</div>';setTimeout(()=>{try{ntDemo('tour');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-window'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the international window demo\u2026</div>';setTimeout(()=>{try{ntDemo('win');UI.view='main';UI.tab='home';}catch(e){console.error(e);}render();window.scrollTo(0,0);},60);return;}if(location.hash==='#nt-demo'){document.getElementById('app').innerHTML='<div style="padding:60px 20px;text-align:center;font:600 18px var(--fb)">Preparing the Bosnia national team demo\u2026</div>';setTimeout(()=>{try{ntDemo();UI.view='main';UI.tab='comp';UI.comp='nt';UI.ntSub='m';}catch(e){console.error(e);}render();},60);return;}if(data&&data.G){G=data.G;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();normSquads();Object.assign(UI,data.UI||{});UI.match=null;UI.modal=null;if(UI.view==='match')UI.view='main';}render();try{splashReady();}catch(e){splashHide();}}
 try{window.claude?.hot?.snapshot?.(()=>({G,UI:{...UI,match:null,modal:null}}));}catch(e){}
