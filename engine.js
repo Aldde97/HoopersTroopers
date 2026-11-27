@@ -6250,7 +6250,14 @@ function addCupClubs(){let added=false;
     t.order=autoOrder(t.order);}
   if(added)domStaff();}
 const ecRec=id=>G.ec.tab[id]||(G.ec.tab[id]=[0,0,0,0]);
-const ecSort=ids=>ids.map(i=>G.teams[i]).sort((x,y)=>{const a=ecRec(x.id),b=ecRec(y.id);return (b[0]-a[0])||((b[2]-b[3])-(a[2]-a[3]))||(y.rep-x.rep);});
+const ecSort=ids=>ecSortH2H(ids);
+// EuroCup tie-break (v479, as in the official rules): wins; among clubs level on wins the games between them (wins, then points difference),
+// then the overall points difference. Head-to-head needs G.ec.res (recorded from v479); older seasons fall back to the points difference.
+function ecSortH2H(ids){const T=ids.map(i=>G.teams[i]),R=(G.ec&&G.ec.res)||[],w=t=>ecRec(t.id)[0],od=t=>{const r=ecRec(t.id);return r[2]-r[3];};
+  const by={};for(const t of T)(by[w(t)]=by[w(t)]||[]).push(t);
+  return Object.keys(by).map(Number).sort((a,b)=>b-a).flatMap(k=>{const L=by[k];if(L.length<2)return L;const S=new Set(L.map(t=>t.id)),h={};L.forEach(t=>h[t.id]=[0,0]);
+    for(const [a,b,as,bs] of R)if(S.has(a)&&S.has(b)){h[a][0]+=as>bs?1:0;h[b][0]+=bs>as?1:0;h[a][1]+=as-bs;h[b][1]+=bs-as;}
+    return L.sort((x,y)=>(h[y.id][0]-h[x.id][0])||(h[y.id][1]-h[x.id][1])||(od(y)-od(x))||(y.rep-x.rep));});}
 const ecGroupOf=id=>G.ec?Object.keys(G.ec.groups).find(k=>G.ec.groups[k].includes(id))||'':'';
 function ecRank(id){const g=ecGroupOf(id);return g?ecSort(G.ec.groups[g]).findIndex(t=>t.id===id)+1:0;}
 function ecObjective(){const r=G.ec.ids.map(i=>({id:i,s:strength(i)})).sort((a,b)=>b.s-a.s).findIndex(x=>x.id===G.user)+1;return r<=1?'title':r<=3?'fin':r<=6?'sf':r<=12?'qf':'po';}
@@ -7881,3 +7888,18 @@ function ibWorld(m){if(!m||m.from!=='EuroLeague News'||m.type!=='board'||/^Summe
 {const _news=news;news=function(subj,body){if(G&&!G.ndg&&!ibRelTxt(subj,body)){const L=G.wnews||(G.wnews=[]);G.wnid=(G.wnid||0)+1;
     L.unshift({id:G.wnid,subj,body:body||'',date:dateStr()});if(L.length>200)L.length=200;try{feedWire(subj);}catch(e){}return;}
   return _news.apply(this,arguments);};}
+
+/* ===== European cups on their real dates (v479). A league step moves the calendar on by up to a week; the cup game that fell inside that
+   week used to wait until after it and then come two days later (EuroCup round 1 on 10 Oct instead of 29 Sep). Now, when the user's next
+   cup game is due inside the week just skipped, the calendar goes back to the cup date (never before the previous step), and a cup game
+   that is already due is played before the next league game. EuroCup group results are kept for the head-to-head tie-break. ===== */
+function cupDateFix(){if(!G||!G.teams||!G.teams[G.user]||userIsCup()||userNBA())return null;
+  const C=[['ec',G.ec,()=>ecUserIn(),()=>ecFixtures().some(f=>f.h===G.user||f.a===G.user),()=>ecNextDay()],
+    ['bcl',G.bcl,()=>bclUserIn(),()=>bclUserGame(),()=>bclNextDay()],['fec',G.fec,()=>fecUserIn(),()=>fecUserGame(),()=>fecNextDay()]];
+  for(const [k,X,inn,game,next] of C){try{if(X&&X.phase!=='done'&&inn()&&!(X.phase==='wait'||X.phase==='wait16'||X.phase==='wait2')&&game())return {k,next:next()};}catch(e){}}return null;}
+{const _ss=simStep;simStep=function(um){
+  try{if(G&&!preOn()&&!['ec','bcl','fec'].includes(G.leg)){const c=cupDateFix();if(c&&isFinite(c.next)&&dayNo()>=c.next){G.ecRet=G.leg;G.leg=c.k;}}}catch(e){}
+  const before=G?dayNo():0,r=_ss.apply(this,arguments);
+  try{if(G&&!preOn()&&['ec','bcl','fec'].includes(G.leg)){const c=cupDateFix();if(c&&c.k===G.leg&&isFinite(c.next)){const now=dayNo(),t=Math.max(c.next,before+1);if(t<now)G.day-=now-t;}}}catch(e){}
+  return r;};}
+{const _ap=applyResult;applyResult=function(m,f){const r=_ap.apply(this,arguments);try{if(f&&f.kind==='ec'&&G.ec&&r)(G.ec.res=G.ec.res||[]).push([r.h,r.a,r.hs,r.as]);}catch(e){}return r;};}
