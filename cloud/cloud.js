@@ -167,6 +167,8 @@
     boundUser=id;markSeen();
     try{await syncPaid();}catch(e){console.error('purchase check',e);}
     try{await pull();}catch(e){console.error('cloud pull',e);}
+    // the title screen picked its buttons before the cloud careers arrived: show Continue career now that they are here
+    try{if(document.getElementById('splash')&&typeof splashReady==='function')splashReady();}catch(e){}
     if(switching || S.user?.id!==id)return;
     hide();try{if(typeof render==='function')render();}catch(e){}payReturn();newCareerResume();}
   // ---------- cloud saves ----------
