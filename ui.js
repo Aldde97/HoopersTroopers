@@ -85,7 +85,6 @@ function settingsModal(){const S=BMSET,row=(l,d,c)=>`<div class="set-r"><div><b>
   ${row('Currency symbol','Only the symbol changes, amounts stay the same.',bt('cur','','Auto')+bt('cur','\u20ac','\u20ac')+bt('cur','$','$'))}
   <div class="set-r"><div><b>Saved careers</b><small>Switch between careers, export a career as a file or import one.</small></div><div class="btns"><button class="btn sm" data-act="saves">Open…</button></div></div>
   ${has?`<div class="set-r set-d"><div><b>This career</b><small>${UI.setDel?'This removes the career you are playing from this browser for good.':'Delete the career you are playing and return to the start screen.'}</small></div><div class="btns">${UI.setDel?`<button class="btn sm" data-act="setdel:0">Keep it</button><button class="btn sm set-x" data-act="setdel:2">Delete for good</button>`:`<button class="btn sm" data-act="setdel:1">Delete save\u2026</button>`}</div></div>`:''}
-  <bm-replay-options hidden style="margin:0 16px"></bm-replay-options>
   <p class="set-n">Settings are stored in this browser only.</p></div></div>`;}
 /* ---------- sound: small synthesised effects, off unless switched on ---------- */
 const SFX={ctx:null,
