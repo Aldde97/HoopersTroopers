@@ -1520,7 +1520,7 @@ function crunchStop(M){const m=M.m;if(m.done||m.q<4)return false;const d=Math.ab
   return m.clock<=30&&d<=6;}
 function startTimer(){const M=UI.match;clearInterval(M.timer);if(M.paused||M.m.done)return;M.timer=setInterval(()=>{const m=M.m;m.step();if(m.done){clearInterval(M.timer);render();}else if(m.halt){const t=m.halt;m.halt=null;clearInterval(M.timer);M.paused=true;M.crH=null;M.why=`${t}. Check your line-up, then play on.`;render();}else if(crunchStop(M)){clearInterval(M.timer);M.paused=true;M.crH=null;render();}else updMatch();},SPEED[M.speed]);}
 function beginMatch(live){const f=userFx();const m=new Match(f.h,f.a,{kind:f.kind,neutral:f.neutral,log:true});UI.boxSide=f.h===G.user?0:1;
-  if(live)m.manual=f.h===G.user?0:1;if(!live)m.run();UI.match={m,speed:[1,2,4].includes(+BMSET.speed)?+BMSET.speed:1,paused:false,timer:null};UI.view='match';render();window.scrollTo(0,0);if(live)startTimer();}
+  if(live)m.manual=f.h===G.user?0:1;if(!live)m.run();UI.match={m,speed:[1,2,4].includes(+BMSET.speed)?+BMSET.speed:1,paused:false,timer:null};UI.view='match';render();window.scrollTo(0,0);if(live)startTimer();window.BM_ANALYTICS?.(live?'match_play_started':'match_simulated');}
 
 /* ===================== Season review / sacked / start ===================== */
 /* v481: the season review's MVP and top scorer come from the user's own league and its own stats (st EuroLeague, dst ABA League / ABA 2,
@@ -1920,7 +1920,7 @@ const ACT={
   startlg(k){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;UI.startLg=k;render();},
   pickc(sh){UI.pickS=sh;UI.pick=null;const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;render();},
   pick(i){UI.pick=+i;UI.pickS=null;const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value;render();},
-  startgame(){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value.trim()||'Head Coach';const c=(UI.cc||[]).find(x=>x.short===UI.csSel);if(!c)return;if(IDB_OK&&!gamePaid()&&SVL.length===1){const old=SVL[0].id;SVL=[];slotDelete(old);}else if(IDB_OK&&SVL.length>=slotMax()){slOpen({t:slotFullMsg()+' Delete a career first, then start the new one.',bad:1});return;}slotDetach();if(c.lg==='EL')newGame(c.id,UI.mgr);else startCareerAt(c.short,UI.mgr);UI.cc=null;save();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);},
+  startgame(){const inp=document.getElementById('mgrName');if(inp)UI.mgr=inp.value.trim()||'Head Coach';const c=(UI.cc||[]).find(x=>x.short===UI.csSel);if(!c)return;if(IDB_OK&&!gamePaid()&&SVL.length===1){const old=SVL[0].id;SVL=[];slotDelete(old);}else if(IDB_OK&&SVL.length>=slotMax()){slOpen({t:slotFullMsg()+' Delete a career first, then start the new one.',bad:1});return;}slotDetach();if(c.lg==='EL')newGame(c.id,UI.mgr);else startCareerAt(c.short,UI.mgr);UI.cc=null;save();UI.view='main';UI.tab='home';render();window.scrollTo(0,0);window.BM_ANALYTICS?.('career_started');},
   load(){const s=loadSave();if(!s){toast('No saved game found');return;}G=s;ensureStaff();ensureFinance();ensureSponsors();ensureDomestic();UI.view='main';UI.tab='home';render();},
   course(k){const e=startCourse(k);toast(e||'Course booked');render();},
   jobsopen(){UI.modal={kind:'jobs'};render();},

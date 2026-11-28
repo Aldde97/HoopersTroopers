@@ -19,6 +19,14 @@ files = {'index.html'} | set(re.findall(r'<script src="([^"?]+)', h))
 for f in sorted(files):
     shutil.copy(ROOT + f, P + f)
 
+# Analytics runs on production Pages builds. Keep it out of downloadable and preview builds.
+if os.environ.get('CF_PAGES_BRANCH') == 'main' and os.environ.get('BM_ARCHIVE_ONLY') != '1':
+    with open(ROOT + 'cloud/analytics.js', encoding='utf-8') as source:
+        analytics = source.read()
+    game = h.replace('<title>', '<script>\n' + analytics + '</script>\n<title>', 1)
+    with open(P + 'index.html', 'w', encoding='utf-8') as output:
+        output.write(game)
+
 # sprites: everything the scripts point at (sprites/*.jpg|png|webp)
 refs = set()
 for f in files:
