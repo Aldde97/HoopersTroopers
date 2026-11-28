@@ -11,10 +11,13 @@ import tempfile
 # First Git-backed version in production before saves carried a release ID.
 LEGACY = '71f46675d3ab5dd4e34061b35621f8a6262ecbf2'
 
-# Existing saves keep their release ID. Backport the trade fix only to releases
-# with the exact vulnerable engine that was served to beta players.
-TRADE_ENGINE_BEFORE = 'a39adb880085237ecb14fab9580828292648c9ed6dc59a94223c723b9188d058'
-TRADE_ENGINE_FIX = '0fa728e40448bdbfd17f2b488394c396e7480c89'
+# Existing saves keep their release ID. Replace only exact affected files.
+TRADE_HOTFIXES = (
+    ('engine.js', 'a39adb880085237ecb14fab9580828292648c9ed6dc59a94223c723b9188d058',
+     '0fa728e40448bdbfd17f2b488394c396e7480c89'),
+    ('ui.js', '4c36520f6cfbab17f5209a78ef166bbcd7c3d3a9cc0158e0f97fbf7f03982986',
+     '74e46e4a0f0344dd8d9033a9298cdc6e2cec800c'),
+)
 
 
 def git(root, *args):
@@ -81,8 +84,10 @@ def package(root, game):
         from .account_storage import isolate_account
         cloud_config = json.loads(re.search(r'window\.BM_CLOUD=(\{[^<]*?\});',
                                             (game / 'index.html').read_text())[1])
-    fixed_trade_engine = subprocess.check_output(
-        ['git', 'show', TRADE_ENGINE_FIX + ':engine.js'], cwd=root)
+    trade_hotfixes = [
+        (name, before, subprocess.check_output(['git', 'show', revision + ':' + name], cwd=root))
+        for name, before, revision in TRADE_HOTFIXES
+    ]
     for version in versions:
         target = archive / version
         if version == latest:
@@ -96,9 +101,10 @@ def package(root, game):
                 subprocess.run(['python3', 'cf_build.py'], cwd=tmp, check=True,
                                env={**os.environ, 'BM_ARCHIVE_ONLY': '1'})
                 shutil.move(str(Path(tmp) / 'dist/play'), target)
-        engine = target / 'engine.js'
-        if hashlib.sha256(engine.read_bytes()).hexdigest() == TRADE_ENGINE_BEFORE:
-            engine.write_bytes(fixed_trade_engine)
+        for name, before, after in trade_hotfixes:
+            script = target / name
+            if hashlib.sha256(script.read_bytes()).hexdigest() == before:
+                script.write_bytes(after)
         adapter = target / 'career-runtime.js'
         if adapter.exists():
             pinned_runtime = adapter.read_text()
