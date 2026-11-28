@@ -721,6 +721,7 @@ const salLim=(x,tid)=>capAllow(tid==null?G.user:tid,x);
 function tradeEval(tid,give,get,gpk,tpk){gpk=gpk||[];tpk=tpk||[];const me=G.user,t=G.teams[tid],G1=give.map(i=>G.players[i]).filter(Boolean),G2=get.map(i=>G.players[i]).filter(Boolean),K1=gpk.map(i=>(G.picks||[]).find(k=>k.id===i)).filter(Boolean),K2=tpk.map(i=>(G.picks||[]).find(k=>k.id===i)).filter(Boolean);
   const out={salOut:salSum(G1),salIn:salSum(G2),vGive:G1.reduce((a,p)=>a+tradeVal(p,tid),0)+K1.reduce((a,k)=>a+pickVal(k),0)*pickF(tid),vGet:G2.reduce((a,p)=>a+tradeVal(p,tid),0)+K2.reduce((a,k)=>a+pickVal(k),0)*pickF(tid),ok:false,why:''};
   const open=nbaTradeOpen();if(!open.ok){out.why=open.why;return out;}
+  if(K1.length!==gpk.length||K2.length!==tpk.length){out.why='A draft pick in this trade is no longer available. Close this offer and start a new trade.';return out;}
   if(!G2.length&&!K2.length){out.why='Pick at least one player or draft pick from their side.';return out;}
   if(!G1.length&&!K1.length&&!(nbaPlanOf(tid)&&nbaPlanOf(tid).dump)){out.why='They will not give anything away for nothing. Add players or picks from your side.';return out;}
   if(G1.some(p=>p.tid!==me)||G2.some(p=>p.tid!==tid)){out.why='One of these players is no longer on that roster.';return out;}
