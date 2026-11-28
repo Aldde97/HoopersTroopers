@@ -23,9 +23,12 @@ for f in sorted(files):
 if os.environ.get('CF_PAGES_BRANCH') == 'main' and os.environ.get('BM_ARCHIVE_ONLY') != '1':
     with open(ROOT + 'cloud/analytics.js', encoding='utf-8') as source:
         analytics = source.read()
-    game = h.replace('<title>', '<script>\n' + analytics + '</script>\n<title>', 1)
-    with open(P + 'index.html', 'w', encoding='utf-8') as output:
-        output.write(game)
+    for page, surface in ((OUT + 'index.html', 'landing'), (P + 'index.html', 'game')):
+        with open(page, encoding='utf-8') as source:
+            html = source.read()
+        script = f'<script data-analytics-surface="{surface}">\n{analytics}</script>'
+        with open(page, 'w', encoding='utf-8') as output:
+            output.write(html.replace('<title>', script + '\n<title>', 1))
 
 # sprites: everything the scripts point at (sprites/*.jpg|png|webp)
 refs = set()
