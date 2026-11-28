@@ -78,45 +78,43 @@
     ? !location.hash
     : !location.search && !location.hash;
   if (canReplay) {
-    document.addEventListener('DOMContentLoaded', () => {
-      const options = document.createElement('details');
-      Object.assign(options.style, {
-        position: 'fixed', bottom: '12px', left: '12px', zIndex: '1000',
-        color: '#fff', background: '#181b23', border: '1px solid #535965',
-        borderRadius: '8px', padding: '8px 12px', maxWidth: 'min(300px, calc(100vw - 48px))',
-        font: '14px/1.4 system-ui, sans-serif'
-      });
-      options.innerHTML = '<summary style="cursor:pointer">Replay privacy</summary>' +
-        '<p>Optional session replay sends a masked recording of your screen interactions to PostHog to help improve the game. Your choice applies to this tab.</p>' +
-        '<button type="button"></button> <a style="color:#ffba79" href="/privacy/">Privacy policy</a>' +
-        '<p role="status"></p>';
-      const button = options.querySelector('button');
-      const status = options.querySelector('[role="status"]');
-      const update = () => { button.textContent = consent ? 'Turn off replay' : 'Allow replay'; };
-      update();
-      button.addEventListener('click', async () => {
-        consent = !consent;
-        try { sessionStorage.setItem(consentKey, consent ? 'yes' : 'no'); } catch {}
+    customElements.define('bm-replay-options', class extends HTMLElement {
+      connectedCallback() {
+        if (this.childElementCount) return;
+        this.hidden = false;
+        const options = document.createElement('details');
+        options.innerHTML = '<summary style="cursor:pointer">Replay privacy</summary>' +
+          '<p>Optional session replay sends a masked recording of your screen interactions to PostHog to help improve the game. Your choice applies to this tab.</p>' +
+          '<button class="btn sm" type="button"></button> <a style="color:#ffba79" href="/privacy/">Privacy policy</a>' +
+          '<p role="status"></p>';
+        const button = options.querySelector('button');
+        const status = options.querySelector('[role="status"]');
+        const update = () => { button.textContent = consent ? 'Turn off replay' : 'Allow replay'; };
         update();
-        status.textContent = consent ? 'Starting replay…' : 'Replay is off.';
-        if (!consent) {
-          recorder?.stopSessionRecording();
-          return;
-        }
-        try {
-          await startReplay();
-          if (consent) {
-            capture('session_replay_enabled');
-            status.textContent = 'Replay is enabled for this tab.';
-          }
-        } catch {
-          consent = false;
-          try { sessionStorage.removeItem(consentKey); } catch {}
+        button.addEventListener('click', async () => {
+          consent = !consent;
+          try { sessionStorage.setItem(consentKey, consent ? 'yes' : 'no'); } catch {}
           update();
-          status.textContent = 'Replay could not start. Try again.';
-        }
-      });
-      document.body.append(options);
+          status.textContent = consent ? 'Starting replay…' : 'Replay is off.';
+          if (!consent) {
+            recorder?.stopSessionRecording();
+            return;
+          }
+          try {
+            await startReplay();
+            if (consent) {
+              capture('session_replay_enabled');
+              status.textContent = 'Replay is enabled for this tab.';
+            }
+          } catch {
+            consent = false;
+            try { sessionStorage.removeItem(consentKey); } catch {}
+            update();
+            status.textContent = 'Replay could not start. Try again.';
+          }
+        });
+        this.append(options);
+      }
     });
   }
 
