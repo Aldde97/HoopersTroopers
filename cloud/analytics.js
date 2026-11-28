@@ -51,7 +51,7 @@
             capture_exceptions: false,
             capture_performance: false,
             disable_surveys: true,
-            require_subresource_integrity: true,
+            strict_script_versioning: true,
             disable_session_recording: true,
             session_recording: {
               maskAllInputs: true,
