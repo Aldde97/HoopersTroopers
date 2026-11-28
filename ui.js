@@ -169,11 +169,11 @@ function myLeagueKey(){try{const L=compList().filter(x=>x.me&&x.k!=='nt'&&x.k!==
 // one source for sidebar, bottom bar and More sheet: [key, label, act, isOn, badge]
 function navGroups(){const nt=typeof ntMode==='function'&&ntMode(),on=k=>UI.view==='main'&&UI.tab===k;
   if(nt){const un=G.inbox.filter(m=>!m.read&&m.type==='nt').length;return [[null,NT_TABS.map(([k,l])=>[k==='training'?'training':k,k==='squad'?(ntPend()?'Squad':'Call-ups'):l,'tab:'+k,on(k),k==='inbox'?un:0])]];}
-  const un=G.inbox.filter(m=>!m.read).length,inj=roster(G.user).filter(p=>p.inj>0).length,lk=myLeagueKey(),scOn=on('transfers')&&UI.tr===(userNBA()?'market':'watch'),lgOn=on('comp')&&lk&&(UI.comp||'table')===lk;
+  const un=G.inbox.filter(m=>!m.read).length,inj=roster(G.user).filter(p=>p.inj>0).length,lk=myLeagueKey(),scOn=on('transfers')&&UI.trScouting&&UI.tr===(userNBA()?'market':'watch'),lgOn=on('comp')&&lk&&(UI.comp||'table')===lk;
   return [[null,[['home','Home','tab:home',on('home'),0],['inbox','Inbox','tab:inbox',on('inbox'),un]]],
     ['Team',[['squad','Squad','tab:squad',on('squad'),0],['tactics','Tactics','tab:tactics',on('tactics'),0],['training','Training','tab:training',on('training'),0],['medical','Medical','tab:medical',on('medical'),inj]]],
     ['Club',[['staff','Staff','tab:staff',on('staff'),0],['finances','Finances','tab:finances',on('finances'),0],['business','Business','tab:business',on('business'),0],['club','Club','tab:club',on('club'),0]]],
-    ['Market',[['transfers','Transfers','tab:transfers',on('transfers')&&!scOn,0],['scout','Scouting','navgo:scout',scOn,0]]],
+    ['Market',[['transfers','Transfers','navgo:transfers',on('transfers')&&!scOn,0],['scout','Scouting','navgo:scout',scOn,0]]],
     ['World',[['comp','Competitions','navgo:comp',on('comp')&&!lgOn,0],['league','League','navgo:league',lgOn,0],['feed','Social','tab:feed',on('feed'),feedUnread()]]]];}
 const navBtn=([k,l,a,o,n],cls)=>`<button class="${cls}${o?' on':''}" data-act="${a}" title="${l}"${o?' aria-current="page"':''}>${nIc(k)}<span>${l}</span>${n?`<em${k==='medical'?' class="o"':''}>${n}</em>`:''}</button>`;
 function navHTML(){return `<aside class="snav" aria-label="Main">${navGroups().map(([g,L])=>`<div class="snav-g">${g?`<h6>${g}</h6>`:''}${L.map(x=>navBtn(x,'snav-b')).join('')}</div>`).join('')}</aside>`;}
@@ -1693,7 +1693,7 @@ function modalHTML(){const M=UI.modal;if(!M)return '';if(M.kind==='settings')ret
 /* ===================== Actions ===================== */
 const keepF=()=>{const g=id=>document.getElementById(id);if(g('fName'))UI.fName=g('fName').value;if(g('fCity'))UI.fCity=g('fCity').value;if(g('fNat'))UI.fNat=g('fNat').value;if(g('fC1'))UI.fC1=g('fC1').value;if(g('fC2'))UI.fC2=g('fC2').value;};
 const ACT={
-  navgo(k){UI.more=false;if(k==='scout'){UI.tr=userNBA()?'market':'watch';ACT.tab('transfers');return;}if(k==='comp'){const lk=myLeagueKey();if(lk&&(UI.comp||'table')===lk){let o=null;try{o=compList().find(x=>x.me&&x.k!==lk&&x.k!=='nt');}catch(e){}UI.comp=o?o.k:'table';}ACT.tab('comp');return;}if(k==='league'){const lk=myLeagueKey();if(lk)UI.comp=lk;ACT.tab('comp');return;}},
+  navgo(k){UI.more=false;if(k==='scout'||k==='transfers'){ACT.tab('transfers',k);return;}if(k==='comp'){const lk=myLeagueKey();if(lk&&(UI.comp||'table')===lk){let o=null;try{o=compList().find(x=>x.me&&x.k!==lk&&x.k!=='nt');}catch(e){}UI.comp=o?o.k:'table';}ACT.tab('comp');return;}if(k==='league'){const lk=myLeagueKey();if(lk)UI.comp=lk;ACT.tab('comp');return;}},
   navmore(){UI.more=!UI.more;render();},
   gcomp(k){UI.gcomp=k;render();},
   grnd(d){const L=G.nl&&G.nl[(UI.comp||'').slice(2)];UI.gfixR=clamp((UI.gfixR||0)+(+d),0,L?L.sched.length-1:0);render();},
@@ -1723,7 +1723,10 @@ const ACT={
     if(seasonOver()){UI.view='season';render();return;}
     const f=userFx();if(f&&UI.view==='prematch'){beginMatch(true);return;}if(f){UI.view='prematch';render();window.scrollTo(0,0);return;}
     const lbl=simStep(null);UI.view='main';UI.tab='home';render();toast(`${lbl} simulated`);},
-  tab(t){UI.more=false;if(UI.match&&!UI.match.m.done){toast('Finish the match first, or use Sim to end.');return;}if(UI.match&&UI.match.m.done){ACT.matchdone(t);return;}UI.view='main';UI.tab=t;UI.modal=null;render();window.scrollTo(0,0);},
+  tab(t,marketNav){UI.more=false;if(UI.match&&!UI.match.m.done){toast('Finish the match first, or use Sim to end.');return;}
+    UI.trScouting=marketNav==='scout';
+    if(marketNav){UI.tr=UI.trScouting&&!userNBA()?'watch':'market';UI.trPg=0;}
+    if(UI.match&&UI.match.m.done){ACT.matchdone(t);return;}UI.view='main';UI.tab=t;UI.modal=null;render();window.scrollTo(0,0);},
   prof(id){id=+id;const p=G.players[id];if(!p)return;if(p.tid===G.user){UI.sel=id;ACT.tab('squad');}else{const back=UI.modal&&UI.modal.kind==='club'?UI.modal.tid:null;UI.modal={kind:'player',pid:id,back};render();}},
   club(id){id=+id;if(!G.teams[id])return;if(id===G.user){UI.modal=null;ACT.tab('squad');return;}UI.modal={kind:'club',tid:id};render();},
   sel(id){if(UI.sqSwap!=null&&UI.sqSwap!==+id){sqSwapIds(UI.sqSwap,+id);UI.sqSwap=null;UI.sel=+id;save();render();return;}UI.sel=+id;render();},
@@ -1746,7 +1749,7 @@ const ACT={
   tac(k,v){if(UI.match&&UI.match.m&&UI.match.m.ntU!=null){ntTacs()[k]=v;save();render();return;}G.tactics[k]=v;save();if(UI.view==='match')render();else render();},
   train(k,v){G.training[k]=v;save();render();},
   exall(){UI.exAll=!UI.exAll;render();},
-  trtab(k){UI.tr=k;UI.trPg=0;render();},trpos(k){UI.trPos=k;UI.trPg=0;render();},trsort(k){if((UI.trSort||'o')===k)UI.trDir=-(UI.trDir||TRDIR[k]);else{UI.trSort=k;UI.trDir=TRDIR[k];}UI.trPg=0;render();},trfit(k){UI.trFit=k;UI.trPg=0;render();},trpg(n){UI.trPg=Math.max(0,+n||0);render();const el=document.querySelector('.trx');if(el&&el.getBoundingClientRect().top<0)el.scrollIntoView();},
+  trtab(k){UI.tr=k;UI.trScouting=false;UI.trPg=0;render();},trpos(k){UI.trPos=k;UI.trPg=0;render();},trsort(k){if((UI.trSort||'o')===k)UI.trDir=-(UI.trDir||TRDIR[k]);else{UI.trSort=k;UI.trDir=TRDIR[k];}UI.trPg=0;render();},trfit(k){UI.trFit=k;UI.trPg=0;render();},trpg(n){UI.trPg=Math.max(0,+n||0);render();const el=document.querySelector('.trx');if(el&&el.getBoundingClientRect().top<0)el.scrollIntoView();},
   ntoffhide(){const N=G.nt;if(N&&N.offers)N.offHide=N.offers.list.join();save();render();},
   rkz(k){UI.rkZ=k;render();},
   comp(k){UI.comp=k;if(UI.view!=='main'||UI.tab!=='comp'){UI.view='main';UI.tab='comp';UI.modal=null;window.scrollTo(0,0);}render();},budmv(d,m){const e=budMove(d,budStep()*(+m||1));if(e)toast(e);render();},scoutp(id){const e=scoutAssign(+id);toast(e||'Scout assigned: report in a few weeks');render();},pokopen(){UI.view='main';UI.tab='comp';UI.comp='pok';render();window.scrollTo(0,0);},rnd(d){UI.fixR=clamp(UI.fixR+(+d),0,G.schedule.length-1);render();},
