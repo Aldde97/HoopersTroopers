@@ -12,11 +12,13 @@ import tempfile
 LEGACY = '71f46675d3ab5dd4e34061b35621f8a6262ecbf2'
 
 # Existing saves keep their release ID. Replace only exact affected files.
-TRADE_HOTFIXES = (
+CAREER_HOTFIXES = (
     ('engine.js', 'a39adb880085237ecb14fab9580828292648c9ed6dc59a94223c723b9188d058',
      '0fa728e40448bdbfd17f2b488394c396e7480c89'),
     ('ui.js', '4c36520f6cfbab17f5209a78ef166bbcd7c3d3a9cc0158e0f97fbf7f03982986',
-     '74e46e4a0f0344dd8d9033a9298cdc6e2cec800c'),
+     '2dddc4acb5d72947b07b7c3a8814a5abfce387a2'),
+    ('ui.js', '3d16e86875600af84d6131a36623e2bcc40f991c90f761a4113a8d2031154f5d',
+     '2dddc4acb5d72947b07b7c3a8814a5abfce387a2'),
 )
 
 
@@ -84,9 +86,9 @@ def package(root, game):
         from .account_storage import isolate_account
         cloud_config = json.loads(re.search(r'window\.BM_CLOUD=(\{[^<]*?\});',
                                             (game / 'index.html').read_text())[1])
-    trade_hotfixes = [
+    career_hotfixes = [
         (name, before, subprocess.check_output(['git', 'show', revision + ':' + name], cwd=root))
-        for name, before, revision in TRADE_HOTFIXES
+        for name, before, revision in CAREER_HOTFIXES
     ]
     for version in versions:
         target = archive / version
@@ -101,7 +103,7 @@ def package(root, game):
                 subprocess.run(['python3', 'cf_build.py'], cwd=tmp, check=True,
                                env={**os.environ, 'BM_ARCHIVE_ONLY': '1'})
                 shutil.move(str(Path(tmp) / 'dist/play'), target)
-        for name, before, after in trade_hotfixes:
+        for name, before, after in career_hotfixes:
             script = target / name
             if hashlib.sha256(script.read_bytes()).hexdigest() == before:
                 script.write_bytes(after)
